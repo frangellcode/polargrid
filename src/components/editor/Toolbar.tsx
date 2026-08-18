@@ -51,18 +51,16 @@ export const Toolbar = forwardRef<ToolbarHandle, ToolbarProps>(function Toolbar(
   }
 
   return (
-    <div className="flex items-center justify-between gap-3 border-b border-polar-100 bg-white px-4 py-3">
-      <div className="flex items-center gap-3">
-        <button
-          type="button"
-          onClick={onBack}
-          className="rounded-full p-2 text-slate-500 hover:bg-polar-50"
-          aria-label="Volver"
-        >
-          ←
-        </button>
-        <h1 className="text-base font-semibold text-slate-800">{title}</h1>
-      </div>
+    <div className="flex items-center justify-between gap-3 border-b border-polar-100 bg-white px-4 pb-3 pt-[max(0.75rem,env(safe-area-inset-top))]">
+      <button
+        type="button"
+        onClick={onBack}
+        className="-ml-2 flex items-center gap-1.5 rounded-full py-2 pl-2 pr-3 text-slate-700 hover:bg-polar-50 active:bg-polar-100"
+        aria-label={`Volver, ${title}`}
+      >
+        <span className="text-2xl leading-none">←</span>
+        <span className="text-base font-semibold">Atrás</span>
+      </button>
       <div className="flex items-center gap-2">
         <input
           ref={inputRef}

@@ -5,7 +5,7 @@ export function HomeScreen() {
   const setMode = useEditorStore((s) => s.setMode)
 
   return (
-    <div className="flex h-full flex-col items-center justify-center gap-10 bg-white px-6 text-center">
+    <div className="flex h-full flex-col items-center justify-center gap-10 bg-white px-6 pb-[max(1.5rem,env(safe-area-inset-bottom))] pt-[max(1.5rem,env(safe-area-inset-top))] text-center">
       <div className="flex flex-col items-center gap-3">
         <Logo size={104} />
         <h1 className="text-2xl font-bold tracking-tight text-slate-800">PolarGrid</h1>

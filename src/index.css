@@ -18,10 +18,33 @@ body,
   overscroll-behavior: none;
 }
 
+html {
+  /* App is light-only — without this, iOS can assume a dark UA background
+     for the very first (pre-CSS) frame when the system is in Dark Mode,
+     which shows up as a dark flash at the top/bottom edges on launch. */
+  color-scheme: light;
+}
+
 body {
   background-color: #ffffff;
   color: #1e293b;
   -webkit-tap-highlight-color: transparent;
+}
+
+/* App root wrapper (see App.tsx). 100dvh normally, but standalone
+   (Home Screen) launches have no address bar to dynamically show/hide —
+   the entire reason dvh exists — and iOS has a documented bug where dvh
+   hasn't resolved yet on the very first frame after a cold standalone
+   launch, leaving unpainted space at the top/bottom edges. 100vh has
+   nothing to resolve there since standalone's viewport doesn't change size. */
+.app-shell {
+  height: 100dvh;
+}
+
+@media (display-mode: standalone) {
+  .app-shell {
+    height: 100vh;
+  }
 }
 
 * {

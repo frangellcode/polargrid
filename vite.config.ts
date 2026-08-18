@@ -19,7 +19,7 @@ export default defineConfig({
         name: 'PolarGrid',
         short_name: 'PolarGrid',
         description: 'Bordes blancos y collages de fotos en alta calidad, 100% offline.',
-        theme_color: '#0ea5e9',
+        theme_color: '#ffffff',
         background_color: '#ffffff',
         display: 'standalone',
         orientation: 'portrait',
