@@ -51,25 +51,27 @@ body {
   box-sizing: border-box;
 }
 
+/* Opacity-only on purpose — no transform/scale. A transform here (even one
+   that ends on an identity-equivalent value like translateY(0) scale(1) via
+   `animation: ... both`) forces the view onto its own compositing layer,
+   and iOS Safari can leave taps "dead" on buttons inside that layer: the
+   paint updates correctly but the hit-test region gets stuck, so you end up
+   tapping through to whatever is visually below/behind the real button. */
 @keyframes view-fade-in {
   from {
     opacity: 0;
-    transform: translateY(10px) scale(0.99);
   }
   to {
     opacity: 1;
-    transform: translateY(0) scale(1);
   }
 }
 
 @keyframes view-fade-out {
   from {
     opacity: 1;
-    transform: translateY(0) scale(1);
   }
   to {
     opacity: 0;
-    transform: translateY(-6px) scale(0.99);
   }
 }
 
