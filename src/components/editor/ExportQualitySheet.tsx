@@ -10,14 +10,40 @@ interface ExportQualitySheetProps {
 }
 
 const EASE = 'ease-[cubic-bezier(0.22,1,0.36,1)]'
+const CLOSE_MS = 300
 
 /** Bottom sheet shown when tapping Export: pick a quality, then confirm. */
 export function ExportQualitySheet({ open, defaultQuality, onClose, onExport }: ExportQualitySheetProps) {
   const [selected, setSelected] = useState(defaultQuality)
+  const [mounted, setMounted] = useState(open)
 
   useEffect(() => {
     if (open) setSelected(defaultQuality)
   }, [open, defaultQuality])
+
+  useEffect(() => {
+    if (open) {
+      setMounted(true)
+      return
+    }
+    const t = setTimeout(() => setMounted(false), CLOSE_MS)
+    return () => clearTimeout(t)
+  }, [open])
+
+  // Unmounted entirely while closed instead of just hidden via CSS — a
+  // fixed, full-viewport overlay left sitting in the DOM at opacity-0 /
+  // pointer-events-none is a documented source of broken touch routing
+  // in iOS's standalone (Home Screen) PWA mode specifically: taps meant
+  // for elements underneath it can get swallowed or misrouted by the
+  // inert overlay instead of reaching their real target, even though it
+  // should be fully click-through. This was mounted on every screen the
+  // whole time regardless of whether it was ever opened, covering the
+  // entire viewport — matching the "toolbar buttons AND the dropzone
+  // below them" scope of the reported bug, and why it only showed up
+  // once installed to the Home Screen. Only mounting it while actually
+  // in use (open, or still playing its close transition) avoids the bug
+  // instead of fighting it.
+  if (!mounted) return null
 
   return (
     <div
