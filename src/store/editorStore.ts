@@ -8,6 +8,7 @@ import type {
   ExportQuality,
   FreeItem,
   LoadedPhoto,
+  Orientation,
   PhotoTransform,
 } from '../types'
 import { DEFAULT_ASPECT_RATIO_ID } from '../lib/aspectRatios'
@@ -22,6 +23,7 @@ export const DEFAULT_GUTTER_PCT = 0.015
 interface BorderState {
   photoId: string | null
   aspectRatioId: string
+  ratioOrientation: Orientation
   manualRatioW: number
   manualRatioH: number
   borderThicknessPct: number
@@ -41,6 +43,7 @@ interface CollageState {
   outerBorderPct: number
   gutterPct: number
   aspectRatioId: string
+  ratioOrientation: Orientation
   freeItems: FreeItem[]
   exportQuality: ExportQuality
 }
@@ -61,6 +64,7 @@ interface EditorStoreState {
 
   setBorderPhoto: (photoId: string) => void
   setBorderAspectRatio: (id: string) => void
+  setBorderRatioOrientation: (orientation: Orientation) => void
   setBorderManualRatio: (w: number, h: number) => void
   setBorderThickness: (pct: number) => void
   setBorderTransform: (transform: PhotoTransform) => void
@@ -73,6 +77,7 @@ interface EditorStoreState {
   addCollagePhotos: (photos: LoadedPhoto[]) => void
   removeCollagePhoto: (photoId: string) => void
   setCollageAspectRatio: (id: string) => void
+  setCollageRatioOrientation: (orientation: Orientation) => void
   setOuterBorderPct: (pct: number) => void
   setGutterPct: (pct: number) => void
   setCollageExportQuality: (quality: ExportQuality) => void
@@ -94,6 +99,7 @@ function createInitialBorderState(): BorderState {
   return {
     photoId: null,
     aspectRatioId: DEFAULT_ASPECT_RATIO_ID,
+    ratioOrientation: 'vertical',
     manualRatioW: DEFAULT_MANUAL_RATIO_W,
     manualRatioH: DEFAULT_MANUAL_RATIO_H,
     borderThicknessPct: DEFAULT_BORDER_PCT,
@@ -112,6 +118,7 @@ function createInitialCollageState(): CollageState {
     outerBorderPct: DEFAULT_BORDER_PCT,
     gutterPct: DEFAULT_GUTTER_PCT,
     aspectRatioId: '9-16',
+    ratioOrientation: 'vertical',
     freeItems: [],
     exportQuality: DEFAULT_EXPORT_QUALITY,
   }
@@ -153,6 +160,9 @@ export const useEditorStore = create<EditorStoreState>((set, get) => ({
 
   setBorderAspectRatio: (id) =>
     set((state) => ({ border: { ...state.border, aspectRatioId: id } })),
+
+  setBorderRatioOrientation: (orientation) =>
+    set((state) => ({ border: { ...state.border, ratioOrientation: orientation } })),
 
   setBorderManualRatio: (w, h) =>
     set((state) => ({
@@ -264,6 +274,9 @@ export const useEditorStore = create<EditorStoreState>((set, get) => ({
 
   setCollageAspectRatio: (id) =>
     set((state) => ({ collage: { ...state.collage, aspectRatioId: id } })),
+
+  setCollageRatioOrientation: (orientation) =>
+    set((state) => ({ collage: { ...state.collage, ratioOrientation: orientation } })),
 
   setOuterBorderPct: (pct) => set((state) => ({ collage: { ...state.collage, outerBorderPct: pct } })),
 

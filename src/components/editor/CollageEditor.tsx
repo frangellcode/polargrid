@@ -134,7 +134,10 @@ export function CollageEditor() {
   const [gutterLinked, setGutterLinked] = useState(false)
   const toolbarRef = useRef<ToolbarHandle>(null)
 
-  const ratio = useMemo(() => resolveRatio(collage.aspectRatioId, 1), [collage.aspectRatioId])
+  const ratio = useMemo(
+    () => resolveRatio(collage.aspectRatioId, 1, collage.ratioOrientation),
+    [collage.aspectRatioId, collage.ratioOrientation],
+  )
   const { width: targetWidth, height: targetHeight } = useMemo(
     () => computeOutputPixelSize(ratio, PREVIEW_LONG_EDGE),
     [ratio],
@@ -215,13 +218,13 @@ export function CollageEditor() {
         multiple
       />
 
-      <div className="flex items-center gap-2 border-b border-polar-100 bg-white px-4 py-2">
+      <div className="flex items-center justify-center gap-2 border-b border-polar-100 bg-white px-4 py-2">
         {(['grid', 'free'] as const).map((m) => (
           <button
             key={m}
             type="button"
             onClick={() => store.setCollageLayoutMode(m)}
-            className={`rounded-full px-3 py-1 text-sm font-medium ${
+            className={`rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-wide ${
               collage.layoutMode === m ? 'bg-polar-500 text-white' : 'bg-polar-50 text-polar-700'
             }`}
           >
@@ -280,7 +283,7 @@ export function CollageEditor() {
               store.removeFreeItem(selectedFreeId)
               setSelectedFreeId(null)
             }}
-            className="rounded-full bg-red-50 px-3 py-1 text-xs font-medium text-red-600 hover:bg-red-100"
+            className="rounded-full bg-red-50 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-red-600 hover:bg-red-100"
           >
             Eliminar foto
           </button>
@@ -290,23 +293,29 @@ export function CollageEditor() {
       <EditorBottomBar tools={tools} activeId={activeToolId} onSelect={setActiveTool}>
         {activeToolId === 'formato' && (
           <div>
-            <p className="mb-2 text-sm font-medium text-slate-600">Formato del lienzo</p>
-            <AspectRatioPicker value={collage.aspectRatioId} onChange={store.setCollageAspectRatio} options={COLLAGE_ASPECT_RATIOS} />
+            <p className="mb-2 text-center text-xs font-semibold uppercase tracking-wider text-slate-400">Formato del lienzo</p>
+            <AspectRatioPicker
+              value={collage.aspectRatioId}
+              onChange={store.setCollageAspectRatio}
+              options={COLLAGE_ASPECT_RATIOS}
+              orientation={collage.ratioOrientation}
+              onOrientationChange={store.setCollageRatioOrientation}
+            />
           </div>
         )}
 
         {activeToolId === 'plantilla' && (
           <>
-            <div className="flex flex-wrap gap-4">
+            <div className="flex flex-wrap justify-center gap-4">
               <div>
-                <p className="mb-2 text-sm font-medium text-slate-600">Estilo</p>
-                <div className="flex gap-2">
+                <p className="mb-2 text-center text-xs font-semibold uppercase tracking-wider text-slate-400">Estilo</p>
+                <div className="flex justify-center gap-2">
                   {(['normal', 'creative'] as const).map((s) => (
                     <button
                       key={s}
                       type="button"
                       onClick={() => store.setCollageStyle(s)}
-                      className={`rounded-full px-4 py-1.5 text-sm font-medium transition ${
+                      className={`rounded-full px-4 py-1.5 text-xs font-semibold uppercase tracking-wide transition ${
                         collage.style === s ? 'bg-polar-500 text-white' : 'bg-polar-50 text-polar-700 hover:bg-polar-100'
                       }`}
                     >
@@ -316,14 +325,14 @@ export function CollageEditor() {
                 </div>
               </div>
               <div>
-                <p className="mb-2 text-sm font-medium text-slate-600">Orientación</p>
-                <div className="flex gap-2">
+                <p className="mb-2 text-center text-xs font-semibold uppercase tracking-wider text-slate-400">Orientación</p>
+                <div className="flex justify-center gap-2">
                   {(['vertical', 'horizontal'] as const).map((o) => (
                     <button
                       key={o}
                       type="button"
                       onClick={() => store.setCollageOrientation(o)}
-                      className={`rounded-full px-4 py-1.5 text-sm font-medium transition ${
+                      className={`rounded-full px-4 py-1.5 text-xs font-semibold uppercase tracking-wide transition ${
                         collage.orientation === o
                           ? 'bg-polar-500 text-white'
                           : 'bg-polar-50 text-polar-700 hover:bg-polar-100'
@@ -336,7 +345,7 @@ export function CollageEditor() {
               </div>
             </div>
             <div>
-              <p className="mb-2 text-sm font-medium text-slate-600">
+              <p className="mb-2 text-center text-xs font-semibold uppercase tracking-wider text-slate-400">
                 Cantidad de fotos (máx. {MAX_COLLAGE_PHOTOS})
               </p>
               <GridTemplatePicker
@@ -346,7 +355,7 @@ export function CollageEditor() {
                 onChange={store.setCollagePhotoCount}
               />
             </div>
-            <p className="text-xs text-slate-400">Toca una celda vacía en el lienzo para subir una foto.</p>
+            <p className="text-center text-xs text-slate-400">Toca una celda vacía en el lienzo para subir una foto.</p>
           </>
         )}
 
@@ -369,24 +378,26 @@ export function CollageEditor() {
                   setGutterLinked(false)
                 }}
               />
-              <button
-                type="button"
-                onClick={() => {
-                  if (gutterLinked) {
-                    setGutterLinked(false)
-                  } else {
-                    store.setGutterPct(collage.outerBorderPct)
-                    setGutterLinked(true)
-                  }
-                }}
-                className={`rounded-full px-3 py-1 text-xs font-medium transition ${
-                  gutterLinked
-                    ? 'bg-polar-500 text-white hover:bg-polar-600'
-                    : 'bg-polar-50 text-polar-700 hover:bg-polar-100'
-                }`}
-              >
-                {gutterLinked ? 'Vinculado con el borde exterior ✓' : 'Igualar con el borde exterior'}
-              </button>
+              <div className="flex justify-center">
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (gutterLinked) {
+                      setGutterLinked(false)
+                    } else {
+                      store.setGutterPct(collage.outerBorderPct)
+                      setGutterLinked(true)
+                    }
+                  }}
+                  className={`rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-wide transition ${
+                    gutterLinked
+                      ? 'bg-polar-500 text-white hover:bg-polar-600'
+                      : 'bg-polar-50 text-polar-700 hover:bg-polar-100'
+                  }`}
+                >
+                  {gutterLinked ? 'Vinculado con el borde exterior ✓' : 'Igualar con el borde exterior'}
+                </button>
+              </div>
             </div>
           </>
         )}

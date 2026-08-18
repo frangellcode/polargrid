@@ -31,6 +31,7 @@ export function BorderEditor() {
     addPhotos,
     setBorderPhoto,
     setBorderAspectRatio,
+    setBorderRatioOrientation,
     setBorderManualRatio,
     setBorderThickness,
     setBorderTransform,
@@ -50,8 +51,8 @@ export function BorderEditor() {
       return border.manualRatioW / border.manualRatioH
     }
     const fallback = photo ? photo.width / photo.height : 1
-    return resolveRatio(border.aspectRatioId, fallback)
-  }, [border.aspectRatioId, border.manualRatioW, border.manualRatioH, photo])
+    return resolveRatio(border.aspectRatioId, fallback, border.ratioOrientation)
+  }, [border.aspectRatioId, border.ratioOrientation, border.manualRatioW, border.manualRatioH, photo])
 
   const { width: targetWidth, height: targetHeight } = useMemo(
     () => computeOutputPixelSize(ratio, PREVIEW_LONG_EDGE),
@@ -123,11 +124,16 @@ export function BorderEditor() {
         <EditorBottomBar tools={TOOLS} activeId={activeTool} onSelect={setActiveTool}>
           {activeTool === 'recorte' && (
             <div>
-              <p className="mb-2 text-sm font-medium text-slate-600">Recorte</p>
-              <AspectRatioPicker value={border.aspectRatioId} onChange={setBorderAspectRatio} />
+              <p className="mb-2 text-center text-xs font-semibold uppercase tracking-wider text-slate-400">Recorte</p>
+              <AspectRatioPicker
+                value={border.aspectRatioId}
+                onChange={setBorderAspectRatio}
+                orientation={border.ratioOrientation}
+                onOrientationChange={setBorderRatioOrientation}
+              />
               {border.aspectRatioId === 'manual' && (
-                <div className="mt-3 flex items-center gap-2">
-                  <span className="text-sm text-slate-500">Proporción</span>
+                <div className="mt-3 flex items-center justify-center gap-2">
+                  <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">Proporción</span>
                   <input
                     type="number"
                     min={0.1}
@@ -145,7 +151,7 @@ export function BorderEditor() {
                     onChange={(e) => setBorderManualRatio(border.manualRatioW, Number(e.target.value))}
                     className="w-16 rounded-lg border border-polar-200 px-2 py-1 text-center text-sm text-slate-700 focus:border-polar-500 focus:outline-none"
                   />
-                  <span className="text-xs text-slate-400">ancho : alto</span>
+                  <span className="text-xs uppercase tracking-wide text-slate-400">Ancho : Alto</span>
                 </div>
               )}
             </div>

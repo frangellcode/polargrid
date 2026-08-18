@@ -5,16 +5,21 @@ export type CollageLayoutMode = 'grid' | 'free'
 /** 'horizontal' = base template layout, 'vertical' = transposed (mirrored) layout. */
 export type CollageOrientation = 'horizontal' | 'vertical'
 
+/** Orientation applied to an orientable aspect-ratio preset (see AspectRatioPreset). */
+export type Orientation = 'vertical' | 'horizontal'
+
 /** Export resolution tier: 'native' never upscales past the source photo(s). */
 export type ExportQuality = 'native' | 'high' | 'web'
 
 export interface AspectRatioPreset {
   id: string
   label: string
-  /** width / height. null means "Original" (keep source photo ratio) */
+  /** width / height, always given in its portrait (vertical) form. null means "Original" (keep source photo ratio) */
   ratio: number | null
   /** manual = free-form border padding, no forced crop ratio */
   manual?: boolean
+  /** Has a meaningful landscape flip (1/ratio) — false for Original/1:1/Manual. */
+  orientable?: boolean
 }
 
 /** A loaded source photo, decoded once and reused across transforms */

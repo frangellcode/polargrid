@@ -12,7 +12,7 @@ const COUNTS = Array.from({ length: MAX_COLLAGE_PHOTOS - 1 }, (_, i) => i + 2)
 
 export function GridTemplatePicker({ value, style, orientation, onChange }: GridTemplatePickerProps) {
   return (
-    <div className="flex flex-wrap gap-2">
+    <div className="flex flex-wrap justify-center gap-2">
       {COUNTS.map((count) => {
         const base = getTemplate(count, style)
         const template = orientation === 'vertical' ? transposeTemplate(base) : base

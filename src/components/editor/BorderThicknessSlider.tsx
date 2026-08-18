@@ -16,7 +16,7 @@ export function BorderThicknessSlider({
   return (
     <label className="flex flex-col gap-1.5 text-sm">
       <div className="flex items-center justify-between text-slate-600">
-        <span className="font-medium">{label}</span>
+        <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">{label}</span>
         <span className="tabular-nums text-polar-600">{Math.round(value * 100)}%</span>
       </div>
       <input

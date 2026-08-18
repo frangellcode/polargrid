@@ -59,7 +59,7 @@ export function EditorBottomBar({ tools, activeId, onSelect, children }: EditorB
               key={tool.id}
               type="button"
               onClick={() => onSelect(active ? null : tool.id)}
-              className="flex flex-1 flex-col items-center gap-1 rounded-xl py-1 text-[11px] font-medium transition"
+              className="flex flex-1 flex-col items-center gap-1 rounded-xl py-1 text-[10px] font-semibold uppercase tracking-wide transition"
             >
               <span
                 className={`flex h-10 w-10 items-center justify-center rounded-full transition-colors ${

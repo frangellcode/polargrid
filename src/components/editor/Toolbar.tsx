@@ -59,7 +59,7 @@ export const Toolbar = forwardRef<ToolbarHandle, ToolbarProps>(function Toolbar(
         aria-label={`Volver, ${title}`}
       >
         <span className="text-2xl leading-none">←</span>
-        <span className="text-base font-semibold">Atrás</span>
+        <span className="text-sm font-semibold uppercase tracking-wide">Atrás</span>
       </button>
       <div className="flex items-center gap-2">
         <input
@@ -73,7 +73,7 @@ export const Toolbar = forwardRef<ToolbarHandle, ToolbarProps>(function Toolbar(
         <button
           type="button"
           onClick={() => inputRef.current?.click()}
-          className="rounded-full bg-polar-50 px-3 py-1.5 text-sm font-medium text-polar-700 hover:bg-polar-100"
+          className="rounded-full bg-polar-50 px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-polar-700 hover:bg-polar-100"
         >
           {uploadLabel}
         </button>
@@ -81,7 +81,7 @@ export const Toolbar = forwardRef<ToolbarHandle, ToolbarProps>(function Toolbar(
           type="button"
           onClick={() => setSheetOpen(true)}
           disabled={exporting || !canExport}
-          className="rounded-full bg-polar-500 px-4 py-1.5 text-sm font-semibold text-white hover:bg-polar-600 disabled:cursor-not-allowed disabled:opacity-40"
+          className="rounded-full bg-polar-500 px-4 py-1.5 text-xs font-semibold uppercase tracking-wide text-white hover:bg-polar-600 disabled:cursor-not-allowed disabled:opacity-40"
         >
           {exporting ? 'Exportando…' : 'Exportar'}
         </button>

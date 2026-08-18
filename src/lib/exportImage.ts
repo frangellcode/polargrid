@@ -1,14 +1,16 @@
 // prueba: verificando sincronización con GitHub Desktop
-import type { CellAssignment, ExportQuality, FreeItem, GridTemplate, LoadedPhoto, PhotoTransform } from '../types'
+import type { CellAssignment, ExportQuality, FreeItem, GridTemplate, LoadedPhoto, Orientation, PhotoTransform } from '../types'
 import { computeNativeCanvasSize, computeOutputPixelSize, getImageDrawRect } from './cropMath'
 import { ASPECT_RATIOS } from './aspectRatios'
 import { capLongEdge, getMaxLongEdge } from './exportQuality'
 
 const JPEG_QUALITY = 1.0
 
-export function resolveRatio(aspectRatioId: string, fallbackRatio: number): number {
+/** Presets store their ratio in portrait form — flip to landscape (1/ratio) for orientable presets. */
+export function resolveRatio(aspectRatioId: string, fallbackRatio: number, orientation: Orientation = 'vertical'): number {
   const preset = ASPECT_RATIOS.find((r) => r.id === aspectRatioId)
-  return preset?.ratio ?? fallbackRatio
+  if (!preset || preset.ratio == null) return fallbackRatio
+  return preset.orientable && orientation === 'horizontal' ? 1 / preset.ratio : preset.ratio
 }
 
 function drawPhotoInRect(

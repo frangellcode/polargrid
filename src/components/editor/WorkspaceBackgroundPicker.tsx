@@ -9,8 +9,8 @@ interface WorkspaceBackgroundPickerProps {
 export function WorkspaceBackgroundPicker({ value, onChange }: WorkspaceBackgroundPickerProps) {
   return (
     <div>
-      <p className="mb-2 text-sm font-medium text-slate-600">Fondo del área de trabajo</p>
-      <div className="flex flex-wrap gap-3">
+      <p className="mb-2 text-center text-xs font-semibold uppercase tracking-wider text-slate-400">Fondo del área de trabajo</p>
+      <div className="flex flex-wrap justify-center gap-3">
         {WORKSPACE_BACKGROUNDS.map((bg) => {
           const active = value === bg.id
           return (

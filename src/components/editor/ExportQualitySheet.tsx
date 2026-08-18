@@ -38,8 +38,10 @@ export function ExportQualitySheet({ open, defaultQuality, onClose, onExport }: 
         }`}
       >
         <div className="mx-auto mb-3 h-1.5 w-10 rounded-full bg-slate-200" />
-        <h2 className="mb-1 px-1 text-base font-semibold text-slate-800">Calidad de exportación</h2>
-        <p className="mb-4 px-1 text-sm text-slate-400">Elige con qué calidad quieres guardar tu foto.</p>
+        <h2 className="mb-1 px-1 text-center text-sm font-semibold uppercase tracking-wider text-slate-800">
+          Calidad de exportación
+        </h2>
+        <p className="mb-4 px-1 text-center text-sm text-slate-400">Elige con qué calidad quieres guardar tu foto.</p>
 
         <div className="flex flex-col gap-2">
           {EXPORT_QUALITY_PRESETS.map((preset) => (
@@ -54,7 +56,7 @@ export function ExportQualitySheet({ open, defaultQuality, onClose, onExport }: 
               }`}
             >
               <div>
-                <p className="text-sm font-semibold text-slate-800">{preset.label}</p>
+                <p className="text-xs font-semibold uppercase tracking-wide text-slate-800">{preset.label}</p>
                 <p className="text-xs text-slate-400">{preset.hint}</p>
               </div>
               <div
@@ -72,14 +74,14 @@ export function ExportQualitySheet({ open, defaultQuality, onClose, onExport }: 
           <button
             type="button"
             onClick={onClose}
-            className="flex-1 rounded-2xl bg-polar-50 py-3 text-sm font-medium text-polar-700"
+            className="flex-1 rounded-2xl bg-polar-50 py-3 text-xs font-semibold uppercase tracking-wide text-polar-700"
           >
             Cancelar
           </button>
           <button
             type="button"
             onClick={() => onExport(selected)}
-            className="flex-[2] rounded-2xl bg-polar-500 py-3 text-sm font-semibold text-white hover:bg-polar-600"
+            className="flex-[2] rounded-2xl bg-polar-500 py-3 text-xs font-semibold uppercase tracking-wide text-white hover:bg-polar-600"
           >
             Exportar
           </button>
