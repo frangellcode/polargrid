@@ -24,28 +24,22 @@ html {
      for the very first (pre-CSS) frame when the system is in Dark Mode,
      which shows up as a dark flash at the top/bottom edges on launch. */
   color-scheme: light;
+  /* Plain `height: 100%` above can still leave a gap behind iOS Safari's
+     collapsing address bar — the same class of bug 100vh has, since both
+     resolve against the "large" viewport. -webkit-fill-available is
+     WebKit's own fix for exactly this: it's what neonfinanzas uses
+     (verified working on iPhone) instead of the newer dvh unit, which on
+     a real device sized the app to its natural content height instead of
+     the viewport — that's what caused needing to scroll and the
+     resulting desync between where a tap lands and what's drawn there. */
+  min-height: 100vh;
+  height: -webkit-fill-available;
 }
 
 body {
   background-color: #ffffff;
   color: #1e293b;
   -webkit-tap-highlight-color: transparent;
-}
-
-/* App root wrapper (see App.tsx). 100dvh normally, but standalone
-   (Home Screen) launches have no address bar to dynamically show/hide —
-   the entire reason dvh exists — and iOS has a documented bug where dvh
-   hasn't resolved yet on the very first frame after a cold standalone
-   launch, leaving unpainted space at the top/bottom edges. 100vh has
-   nothing to resolve there since standalone's viewport doesn't change size. */
-.app-shell {
-  height: 100dvh;
-}
-
-@media (display-mode: standalone) {
-  .app-shell {
-    height: 100vh;
-  }
 }
 
 * {

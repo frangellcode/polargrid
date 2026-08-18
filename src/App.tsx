@@ -43,7 +43,7 @@ function App() {
   const viewClassName = isExiting ? 'view-exit' : entered ? '' : 'view-enter'
 
   return (
-    <div className="app-shell w-full overflow-hidden">
+    <div className="h-full w-full overflow-hidden">
       <div
         key={displayedMode}
         className={`h-full w-full ${viewClassName}`}
