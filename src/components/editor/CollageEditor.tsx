@@ -1,0 +1,340 @@
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { Group, Image as KonvaImage, Rect, Transformer } from 'react-konva'
+import type Konva from 'konva'
+import type { ExportQuality } from '../../types'
+import { useEditorStore } from '../../store/editorStore'
+import { useImageBitmap } from '../../hooks/useImageBitmap'
+import { useAnimatedNumber } from '../../hooks/useAnimatedNumber'
+import { COLLAGE_ASPECT_RATIOS } from '../../lib/aspectRatios'
+import { computeOutputPixelSize, getImageDrawRect } from '../../lib/cropMath'
+import { MAX_COLLAGE_PHOTOS, getTemplate, transposeTemplate } from '../../lib/collageTemplates'
+import { exportCollageFree, exportCollageGrid, resolveRatio } from '../../lib/exportImage'
+import { Toolbar, type ToolbarHandle } from './Toolbar'
+import { AspectRatioPicker } from './AspectRatioPicker'
+import { BorderThicknessSlider } from './BorderThicknessSlider'
+import { GridTemplatePicker } from './GridTemplatePicker'
+import { CanvasStage } from './CanvasStage'
+import { PhotoCell } from './PhotoCell'
+import { Dropzone } from './Dropzone'
+
+const PREVIEW_LONG_EDGE = 900
+
+interface FreeItemsLayerProps {
+  outputWidth: number
+  outputHeight: number
+  selectedId: string | null
+  onSelect: (id: string | null) => void
+}
+
+function FreeItemsLayer({ outputWidth, outputHeight, selectedId, onSelect }: FreeItemsLayerProps) {
+  const { collage, photos, updateFreeItem } = useEditorStore()
+  const shapeRefs = useRef<Record<string, Konva.Group>>({})
+  const trRef = useRef<Konva.Transformer>(null)
+
+  useEffect(() => {
+    if (!trRef.current) return
+    const node = selectedId ? shapeRefs.current[selectedId] : null
+    trRef.current.nodes(node ? [node] : [])
+    trRef.current.getLayer()?.batchDraw()
+  }, [selectedId, collage.freeItems.length])
+
+  return (
+    <>
+      {collage.freeItems.map((item) => {
+        const photo = photos[item.photoId]
+        if (!photo) return null
+        const x = item.x * outputWidth
+        const y = item.y * outputHeight
+        const w = item.width * outputWidth
+        const h = item.height * outputHeight
+        const draw = getImageDrawRect(w, h, photo.width, photo.height, item.transform)
+        return (
+          <Group
+            key={item.id}
+            ref={(node) => {
+              if (node) shapeRefs.current[item.id] = node
+            }}
+            x={x}
+            y={y}
+            rotation={item.rotation}
+            draggable
+            clipX={0}
+            clipY={0}
+            clipWidth={w}
+            clipHeight={h}
+            onClick={() => onSelect(item.id)}
+            onTap={() => onSelect(item.id)}
+            onDragEnd={(e) => {
+              updateFreeItem(item.id, {
+                x: e.target.x() / outputWidth,
+                y: e.target.y() / outputHeight,
+              })
+            }}
+            onTransformEnd={(e) => {
+              const node = e.target
+              const scaleX = node.scaleX()
+              const scaleY = node.scaleY()
+              const newW = Math.max(30, w * scaleX)
+              const newH = Math.max(30, h * scaleY)
+              node.scaleX(1)
+              node.scaleY(1)
+              updateFreeItem(item.id, {
+                x: node.x() / outputWidth,
+                y: node.y() / outputHeight,
+                width: newW / outputWidth,
+                height: newH / outputHeight,
+                rotation: node.rotation(),
+              })
+            }}
+          >
+            <Rect width={w} height={h} fill="#f8fafc" />
+            <KonvaImage
+              image={photo.bitmap as unknown as CanvasImageSource}
+              x={draw.x}
+              y={draw.y}
+              width={draw.width}
+              height={draw.height}
+            />
+          </Group>
+        )
+      })}
+      <Transformer
+        ref={trRef}
+        rotateEnabled
+        keepRatio={false}
+        boundBoxFunc={(oldBox, newBox) => (newBox.width < 30 || newBox.height < 30 ? oldBox : newBox)}
+      />
+    </>
+  )
+}
+
+export function CollageEditor() {
+  const store = useEditorStore()
+  const { photos, collage } = store
+  const { loadFiles } = useImageBitmap()
+  const [exporting, setExporting] = useState(false)
+  const [pendingCellId, setPendingCellId] = useState<string | null>(null)
+  const [selectedFreeId, setSelectedFreeId] = useState<string | null>(null)
+  const toolbarRef = useRef<ToolbarHandle>(null)
+
+  const ratio = useMemo(() => resolveRatio(collage.aspectRatioId, 1), [collage.aspectRatioId])
+  const { width: targetWidth, height: targetHeight } = useMemo(
+    () => computeOutputPixelSize(ratio, PREVIEW_LONG_EDGE),
+    [ratio],
+  )
+  const outputWidth = useAnimatedNumber(targetWidth)
+  const outputHeight = useAnimatedNumber(targetHeight)
+
+  const template = useMemo(() => {
+    const base = getTemplate(collage.photoCount, collage.style)
+    return collage.orientation === 'vertical' ? transposeTemplate(base) : base
+  }, [collage.photoCount, collage.style, collage.orientation])
+
+  const shortSide = Math.min(outputWidth, outputHeight)
+  const outerBorderPx = collage.outerBorderPct * shortSide
+  const gutterPx = collage.gutterPct * shortSide
+  const contentX = outerBorderPx
+  const contentY = outerBorderPx
+  const contentW = outputWidth - outerBorderPx * 2
+  const contentH = outputHeight - outerBorderPx * 2
+  const cellW = (contentW - gutterPx * (template.cols - 1)) / template.cols
+  const cellH = (contentH - gutterPx * (template.rows - 1)) / template.rows
+
+  const handleUpload = async (files: FileList) => {
+    const loaded = await loadFiles(files)
+    if (loaded.length === 0) return
+    if (pendingCellId) {
+      store.addPhotos(loaded)
+      store.assignPhotoToCell(pendingCellId, loaded[0].id)
+      setPendingCellId(null)
+      return
+    }
+    store.addCollagePhotos(loaded)
+  }
+
+  const handleExport = async (quality: ExportQuality) => {
+    store.setCollageExportQuality(quality)
+    setExporting(true)
+    try {
+      if (collage.layoutMode === 'grid') {
+        await exportCollageGrid(
+          template,
+          collage.assignments,
+          photos,
+          ratio,
+          collage.outerBorderPct,
+          collage.gutterPct,
+          quality,
+        )
+      } else {
+        await exportCollageFree(collage.freeItems, photos, ratio, quality)
+      }
+    } finally {
+      setExporting(false)
+    }
+  }
+
+  const hasContent =
+    collage.layoutMode === 'grid' ? collage.assignments.some((a) => a.photoId) : collage.freeItems.length > 0
+
+  return (
+    <div className="flex h-full flex-col bg-slate-50">
+      <Toolbar
+        ref={toolbarRef}
+        title="Collage"
+        onBack={() => {
+          store.setMode('home')
+          store.resetCollage()
+        }}
+        onUpload={handleUpload}
+        onExport={handleExport}
+        exportQuality={collage.exportQuality}
+        exporting={exporting}
+        canExport={hasContent}
+        uploadLabel="Agregar fotos"
+        multiple
+      />
+
+      <div className="flex items-center gap-2 border-b border-polar-100 bg-white px-4 py-2">
+        {(['grid', 'free'] as const).map((m) => (
+          <button
+            key={m}
+            type="button"
+            onClick={() => store.setCollageLayoutMode(m)}
+            className={`rounded-full px-3 py-1 text-sm font-medium ${
+              collage.layoutMode === m ? 'bg-polar-500 text-white' : 'bg-polar-50 text-polar-700'
+            }`}
+          >
+            {m === 'grid' ? 'Plantilla' : 'Libre'}
+          </button>
+        ))}
+      </div>
+
+      <div className="min-h-0 flex-1 p-4">
+        {hasContent ? (
+          <CanvasStage outputWidth={outputWidth} outputHeight={outputHeight}>
+            {collage.layoutMode === 'grid'
+              ? template.cells.map((cell, i) => {
+                  const assignment = collage.assignments[i]
+                  const photo = assignment?.photoId ? photos[assignment.photoId] : null
+                  const x = contentX + cell.col * (cellW + gutterPx)
+                  const y = contentY + cell.row * (cellH + gutterPx)
+                  const w = cellW * cell.colSpan + gutterPx * (cell.colSpan - 1)
+                  const h = cellH * cell.rowSpan + gutterPx * (cell.rowSpan - 1)
+                  return (
+                    <PhotoCell
+                      key={assignment.cellId}
+                      x={x}
+                      y={y}
+                      width={w}
+                      height={h}
+                      photo={photo}
+                      transform={assignment.transform}
+                      onTransformChange={(t) => store.setCellTransform(assignment.cellId, t)}
+                      onEmptyClick={() => {
+                        setPendingCellId(assignment.cellId)
+                        toolbarRef.current?.openFilePicker()
+                      }}
+                    />
+                  )
+                })
+              : (
+                <FreeItemsLayer
+                  outputWidth={outputWidth}
+                  outputHeight={outputHeight}
+                  selectedId={selectedFreeId}
+                  onSelect={setSelectedFreeId}
+                />
+              )}
+          </CanvasStage>
+        ) : (
+          <Dropzone label="Toca para subir tus fotos" hint="o arrástralas aquí (varias a la vez)" onFiles={handleUpload} />
+        )}
+      </div>
+
+      <div className="space-y-4 border-t border-polar-100 bg-white p-4">
+        <div>
+          <p className="mb-2 text-sm font-medium text-slate-600">Formato del lienzo</p>
+          <AspectRatioPicker value={collage.aspectRatioId} onChange={store.setCollageAspectRatio} options={COLLAGE_ASPECT_RATIOS} />
+        </div>
+
+        {collage.layoutMode === 'grid' ? (
+          <>
+            <div className="flex flex-wrap gap-4">
+              <div>
+                <p className="mb-2 text-sm font-medium text-slate-600">Estilo</p>
+                <div className="flex gap-2">
+                  {(['normal', 'creative'] as const).map((s) => (
+                    <button
+                      key={s}
+                      type="button"
+                      onClick={() => store.setCollageStyle(s)}
+                      className={`rounded-full px-4 py-1.5 text-sm font-medium transition ${
+                        collage.style === s ? 'bg-polar-500 text-white' : 'bg-polar-50 text-polar-700 hover:bg-polar-100'
+                      }`}
+                    >
+                      {s === 'normal' ? 'Normal' : 'Creativo'}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <p className="mb-2 text-sm font-medium text-slate-600">Orientación</p>
+                <div className="flex gap-2">
+                  {(['vertical', 'horizontal'] as const).map((o) => (
+                    <button
+                      key={o}
+                      type="button"
+                      onClick={() => store.setCollageOrientation(o)}
+                      className={`rounded-full px-4 py-1.5 text-sm font-medium transition ${
+                        collage.orientation === o
+                          ? 'bg-polar-500 text-white'
+                          : 'bg-polar-50 text-polar-700 hover:bg-polar-100'
+                      }`}
+                    >
+                      {o === 'vertical' ? 'Vertical' : 'Horizontal'}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+            <div>
+              <p className="mb-2 text-sm font-medium text-slate-600">
+                Cantidad de fotos (máx. {MAX_COLLAGE_PHOTOS})
+              </p>
+              <GridTemplatePicker
+                value={collage.photoCount}
+                style={collage.style}
+                orientation={collage.orientation}
+                onChange={store.setCollagePhotoCount}
+              />
+            </div>
+            <BorderThicknessSlider label="Borde exterior" value={collage.outerBorderPct} onChange={store.setOuterBorderPct} />
+            <BorderThicknessSlider label="Espacio entre fotos" value={collage.gutterPct} onChange={store.setGutterPct} />
+            <p className="text-xs text-slate-400">
+              Toca una celda vacía para subir una foto. Arrastra o haz zoom dentro de cada celda para reencuadrar.
+            </p>
+          </>
+        ) : (
+          <div className="flex items-center justify-between">
+            <p className="text-xs text-slate-400">
+              Arrastra, gira y cambia el tamaño de cada foto libremente. Máx. {MAX_COLLAGE_PHOTOS} fotos.
+            </p>
+            {selectedFreeId && (
+              <button
+                type="button"
+                onClick={() => {
+                  store.removeFreeItem(selectedFreeId)
+                  setSelectedFreeId(null)
+                }}
+                className="rounded-full bg-red-50 px-3 py-1 text-xs font-medium text-red-600 hover:bg-red-100"
+              >
+                Eliminar foto
+              </button>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}

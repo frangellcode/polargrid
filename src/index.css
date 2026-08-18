@@ -1,0 +1,70 @@
+@import "tailwindcss";
+
+@theme {
+  --color-polar-50: #f0f9ff;
+  --color-polar-100: #e0f2fe;
+  --color-polar-200: #bae6fd;
+  --color-polar-300: #7dd3fc;
+  --color-polar-400: #38bdf8;
+  --color-polar-500: #0ea5e9;
+  --color-polar-600: #0284c7;
+  --color-polar-700: #0369a1;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  overscroll-behavior: none;
+}
+
+body {
+  background-color: #ffffff;
+  color: #1e293b;
+  -webkit-tap-highlight-color: transparent;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+@keyframes view-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.99);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes view-fade-out {
+  from {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(-6px) scale(0.99);
+  }
+}
+
+.view-enter {
+  animation: view-fade-in 220ms ease-out both;
+}
+
+.view-exit {
+  animation: view-fade-out 140ms ease-in both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .view-enter,
+  .view-exit {
+    animation: none;
+  }
+
+  * {
+    transition-duration: 0.01ms !important;
+  }
+}
