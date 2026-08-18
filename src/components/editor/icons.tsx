@@ -42,3 +42,15 @@ export function IconDrop({ className = 'h-5 w-5' }: IconProps) {
     </svg>
   )
 }
+
+/** Circular refresh arrows — used for the "force update" button. */
+export function IconRefresh({ className = 'h-4 w-4' }: IconProps) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" className={className}>
+      <path d="M20 11A8 8 0 0 0 6.3 6.3L4 8.6" />
+      <path d="M4 4v4.6h4.6" />
+      <path d="M4 13a8 8 0 0 0 13.7 4.7l2.3-2.3" />
+      <path d="M20 20v-4.6h-4.6" />
+    </svg>
+  )
+}

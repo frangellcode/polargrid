@@ -1,8 +1,19 @@
+import { useState } from 'react'
 import { useEditorStore } from '../store/editorStore'
 import { Logo } from './Logo'
+import { IconRefresh } from './editor/icons'
+import { forceAppUpdate } from '../lib/pwaUpdate'
 
 export function HomeScreen() {
   const setMode = useEditorStore((s) => s.setMode)
+  const [updating, setUpdating] = useState(false)
+
+  const handleUpdate = () => {
+    const ok = window.confirm('¿Actualizar a la última versión? Se borrará todo lo guardado en el dispositivo para esta app.')
+    if (!ok) return
+    setUpdating(true)
+    forceAppUpdate()
+  }
 
   return (
     <div className="flex h-full flex-col items-center justify-center gap-8 bg-white px-6 pb-[max(1.5rem,env(safe-area-inset-bottom))] pt-[max(1.5rem,env(safe-area-inset-top))] text-center">
@@ -33,6 +44,16 @@ export function HomeScreen() {
           <span className="block text-sm text-polar-600/80">Combina varias fotos en una grilla</span>
         </button>
       </div>
+
+      <button
+        type="button"
+        onClick={handleUpdate}
+        disabled={updating}
+        className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-slate-400 disabled:opacity-60"
+      >
+        <IconRefresh className={`h-3.5 w-3.5 ${updating ? 'animate-spin' : ''}`} />
+        {updating ? 'Actualizando…' : 'Actualizar app'}
+      </button>
     </div>
   )
 }

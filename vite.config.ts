@@ -14,6 +14,11 @@ export default defineConfig({
     tailwindcss(),
     VitePWA({
       registerType: 'autoUpdate',
+      // Registered manually in main.tsx instead (with a periodic update
+      // check) — the default injected script only ever checks for a new
+      // service worker on a cold page load, which an installed PWA opened
+      // from its home-screen icon almost never does.
+      injectRegister: false,
       includeAssets: ['icons/*.png'],
       manifest: {
         name: 'PolarGrid',
