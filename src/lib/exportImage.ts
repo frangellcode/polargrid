@@ -1,3 +1,4 @@
+// prueba: verificando sincronización con GitHub Desktop
 import type { CellAssignment, ExportQuality, FreeItem, GridTemplate, LoadedPhoto, PhotoTransform } from '../types'
 import { computeNativeCanvasSize, computeOutputPixelSize, getImageDrawRect } from './cropMath'
 import { ASPECT_RATIOS } from './aspectRatios'
@@ -81,6 +82,12 @@ export async function exportBorderPhoto(
   await downloadCanvas(canvas, `polargrid-borde-${Date.now()}.jpg`)
 }
 
+/**
+ * Reference long-edge used to measure grid geometry proportionally, independent
+ * of final pixel size (cell/gutter/border sizes all scale linearly with it).
+ */
+const REF_LONG_EDGE = 10000
+
 export async function exportCollageGrid(
   template: GridTemplate,
   assignments: CellAssignment[],
@@ -90,11 +97,30 @@ export async function exportCollageGrid(
   gutterPct: number,
   quality: ExportQuality = 'native',
 ) {
-  const usedPhotos = assignments.map((a) => (a.photoId ? photos[a.photoId] : null)).filter(Boolean) as LoadedPhoto[]
-  const baseLongEdge = usedPhotos.length
-    ? Math.max(...usedPhotos.map((p) => Math.max(p.width, p.height)))
-    : 2000
-  const native = computeOutputPixelSize(ratio, baseLongEdge)
+  const refSize = computeOutputPixelSize(ratio, REF_LONG_EDGE)
+  const refShortSide = Math.min(refSize.width, refSize.height)
+  const refOuterBorderPx = outerBorderPct * refShortSide
+  const refGutterPx = gutterPct * refShortSide
+  const refContentW = refSize.width - refOuterBorderPx * 2
+  const refContentH = refSize.height - refOuterBorderPx * 2
+  const refCellW = (refContentW - refGutterPx * (template.cols - 1)) / template.cols
+  const refCellH = (refContentH - refGutterPx * (template.rows - 1)) / template.rows
+
+  // Find the largest canvas scale (relative to the reference) at which no photo
+  // needs to be upscaled beyond its native resolution inside its own cell.
+  let maxScale = Infinity
+  template.cells.forEach((cell, i) => {
+    const assignment = assignments[i]
+    const photo = assignment?.photoId ? photos[assignment.photoId] : null
+    if (!photo) return
+    const w = refCellW * cell.colSpan + refGutterPx * (cell.colSpan - 1)
+    const h = refCellH * cell.rowSpan + refGutterPx * (cell.rowSpan - 1)
+    const zoom = Math.max(1, assignment.transform.zoom)
+    maxScale = Math.min(maxScale, photo.width / zoom / w, photo.height / zoom / h)
+  })
+  const nativeLongEdge = Number.isFinite(maxScale) && maxScale > 0 ? REF_LONG_EDGE * maxScale : 2000
+
+  const native = computeOutputPixelSize(ratio, nativeLongEdge)
   const { width, height } = capLongEdge(native.width, native.height, getMaxLongEdge(quality))
   const canvas = document.createElement('canvas')
   canvas.width = width
@@ -138,11 +164,20 @@ export async function exportCollageFree(
   ratio: number,
   quality: ExportQuality = 'native',
 ) {
-  const usedPhotos = freeItems.map((f) => photos[f.photoId]).filter(Boolean) as LoadedPhoto[]
-  const baseLongEdge = usedPhotos.length
-    ? Math.max(...usedPhotos.map((p) => Math.max(p.width, p.height))) * 1.5
-    : 2000
-  const native = computeOutputPixelSize(ratio, baseLongEdge)
+  const refSize = computeOutputPixelSize(ratio, REF_LONG_EDGE)
+
+  let maxScale = Infinity
+  freeItems.forEach((item) => {
+    const photo = photos[item.photoId]
+    if (!photo) return
+    const w = item.width * refSize.width
+    const h = item.height * refSize.height
+    const zoom = Math.max(1, item.transform.zoom)
+    maxScale = Math.min(maxScale, photo.width / zoom / w, photo.height / zoom / h)
+  })
+  const nativeLongEdge = Number.isFinite(maxScale) && maxScale > 0 ? REF_LONG_EDGE * maxScale : 2000
+
+  const native = computeOutputPixelSize(ratio, nativeLongEdge)
   const { width, height } = capLongEdge(native.width, native.height, getMaxLongEdge(quality))
   const canvas = document.createElement('canvas')
   canvas.width = width

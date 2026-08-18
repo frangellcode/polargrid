@@ -23,7 +23,7 @@ export function BorderThicknessSlider({
         type="range"
         min={min}
         max={max}
-        step={max / 100}
+        step={0.01}
         value={value}
         onChange={(e) => onChange(Number(e.target.value))}
         className="h-2 w-full cursor-pointer appearance-none rounded-full bg-polar-100 accent-polar-500"

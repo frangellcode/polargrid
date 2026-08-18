@@ -310,7 +310,18 @@ export function CollageEditor() {
               />
             </div>
             <BorderThicknessSlider label="Borde exterior" value={collage.outerBorderPct} onChange={store.setOuterBorderPct} />
-            <BorderThicknessSlider label="Espacio entre fotos" value={collage.gutterPct} onChange={store.setGutterPct} />
+            {/* test 3: nueva verificación */}
+            <div className="space-y-1.5">
+              <BorderThicknessSlider label="Espacio entre fotos" value={collage.gutterPct} onChange={store.setGutterPct} />
+              <button
+                type="button"
+                onClick={() => store.setGutterPct(collage.outerBorderPct)}
+                disabled={collage.gutterPct === collage.outerBorderPct}
+                className="rounded-full bg-polar-50 px-3 py-1 text-xs font-medium text-polar-700 hover:bg-polar-100 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                Igualar con el borde exterior
+              </button>
+            </div>
             <p className="text-xs text-slate-400">
               Toca una celda vacía para subir una foto. Arrastra o haz zoom dentro de cada celda para reencuadrar.
             </p>
