@@ -17,7 +17,8 @@ import { CanvasStage } from './CanvasStage'
 import { PhotoCell } from './PhotoCell'
 import { Dropzone } from './Dropzone'
 import { EditorBottomBar, type BottomBarTool } from './EditorBottomBar'
-import { IconCrop, IconFrame, IconGrid } from './icons'
+import { WorkspaceBackgroundPicker } from './WorkspaceBackgroundPicker'
+import { IconCrop, IconDrop, IconFrame, IconGrid } from './icons'
 
 const PREVIEW_LONG_EDGE = 900
 
@@ -25,9 +26,13 @@ const GRID_TOOLS: BottomBarTool[] = [
   { id: 'formato', label: 'Formato', icon: <IconCrop /> },
   { id: 'plantilla', label: 'Plantilla', icon: <IconGrid /> },
   { id: 'bordes', label: 'Bordes', icon: <IconFrame /> },
+  { id: 'fondo', label: 'Fondo', icon: <IconDrop /> },
 ]
 
-const FREE_TOOLS: BottomBarTool[] = [{ id: 'formato', label: 'Formato', icon: <IconCrop /> }]
+const FREE_TOOLS: BottomBarTool[] = [
+  { id: 'formato', label: 'Formato', icon: <IconCrop /> },
+  { id: 'fondo', label: 'Fondo', icon: <IconDrop /> },
+]
 
 interface FreeItemsLayerProps {
   outputWidth: number
@@ -384,6 +389,10 @@ export function CollageEditor() {
               </button>
             </div>
           </>
+        )}
+
+        {activeToolId === 'fondo' && (
+          <WorkspaceBackgroundPicker value={store.workspaceBackground} onChange={store.setWorkspaceBackground} />
         )}
       </EditorBottomBar>
     </div>

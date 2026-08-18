@@ -33,3 +33,12 @@ export function IconFrame({ className = 'h-5 w-5' }: IconProps) {
     </svg>
   )
 }
+
+/** Paint drop — used for workspace-background-color tools. */
+export function IconDrop({ className = 'h-5 w-5' }: IconProps) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" className={className}>
+      <path d="M12 3s7 7.6 7 12a7 7 0 1 1-14 0c0-4.4 7-12 7-12Z" />
+    </svg>
+  )
+}

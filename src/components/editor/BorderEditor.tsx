@@ -12,13 +12,15 @@ import { CanvasStage } from './CanvasStage'
 import { PhotoCell } from './PhotoCell'
 import { Dropzone } from './Dropzone'
 import { EditorBottomBar, type BottomBarTool } from './EditorBottomBar'
-import { IconCrop, IconFrame } from './icons'
+import { WorkspaceBackgroundPicker } from './WorkspaceBackgroundPicker'
+import { IconCrop, IconDrop, IconFrame } from './icons'
 
 const PREVIEW_LONG_EDGE = 900
 
 const TOOLS: BottomBarTool[] = [
   { id: 'recorte', label: 'Recorte', icon: <IconCrop /> },
   { id: 'bordes', label: 'Bordes', icon: <IconFrame /> },
+  { id: 'fondo', label: 'Fondo', icon: <IconDrop /> },
 ]
 
 export function BorderEditor() {
@@ -34,6 +36,8 @@ export function BorderEditor() {
     setBorderTransform,
     setBorderExportQuality,
     resetBorder,
+    workspaceBackground,
+    setWorkspaceBackground,
   } = useEditorStore()
   const { loadFiles } = useImageBitmap()
   const [exporting, setExporting] = useState(false)
@@ -153,6 +157,10 @@ export function BorderEditor() {
               value={border.borderThicknessPct}
               onChange={setBorderThickness}
             />
+          )}
+
+          {activeTool === 'fondo' && (
+            <WorkspaceBackgroundPicker value={workspaceBackground} onChange={setWorkspaceBackground} />
           )}
         </EditorBottomBar>
       )}

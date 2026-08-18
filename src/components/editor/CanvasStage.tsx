@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import { Stage, Layer, Rect } from 'react-konva'
+import { useEditorStore } from '../../store/editorStore'
+import { getWorkspaceBackground } from '../../lib/workspaceBackgrounds'
 
 interface CanvasStageProps {
   /** Logical (virtual) canvas size — children should be authored in this coordinate space. */
@@ -21,6 +23,8 @@ export function CanvasStage({
 }: CanvasStageProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const [box, setBox] = useState({ width: 0, height: 0 })
+  const workspaceBackground = useEditorStore((s) => s.workspaceBackground)
+  const workspaceBg = getWorkspaceBackground(workspaceBackground)
 
   useEffect(() => {
     const el = containerRef.current
@@ -47,7 +51,10 @@ export function CanvasStage({
   return (
     <div
       ref={containerRef}
-      className="flex h-full w-full items-center justify-center overflow-hidden rounded-xl bg-[repeating-conic-gradient(#e2e8f0_0%_25%,#eef2f6_0%_50%)] bg-[length:20px_20px]"
+      className={`flex h-full w-full items-center justify-center overflow-hidden rounded-xl p-[5px] ${
+        workspaceBg.hex ? '' : 'bg-[repeating-conic-gradient(#e2e8f0_0%_25%,#eef2f6_0%_50%)] bg-[length:20px_20px]'
+      }`}
+      style={workspaceBg.hex ? { backgroundColor: workspaceBg.hex } : undefined}
     >
       {scale > 0 && (
         <div

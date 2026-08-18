@@ -14,6 +14,7 @@ import { DEFAULT_ASPECT_RATIO_ID } from '../lib/aspectRatios'
 import { DEFAULT_TRANSFORM, clampTransform } from '../lib/cropMath'
 import { MAX_COLLAGE_PHOTOS } from '../lib/collageTemplates'
 import { DEFAULT_EXPORT_QUALITY } from '../lib/exportQuality'
+import { DEFAULT_WORKSPACE_BACKGROUND } from '../lib/workspaceBackgrounds'
 
 export const DEFAULT_BORDER_PCT = 0.04
 export const DEFAULT_GUTTER_PCT = 0.015
@@ -49,8 +50,10 @@ interface EditorStoreState {
   photos: Record<string, LoadedPhoto>
   border: BorderState
   collage: CollageState
+  workspaceBackground: string
 
   setMode: (mode: AppMode) => void
+  setWorkspaceBackground: (id: string) => void
   addPhotos: (photos: LoadedPhoto[]) => void
   reset: () => void
   resetBorder: () => void
@@ -119,8 +122,10 @@ export const useEditorStore = create<EditorStoreState>((set, get) => ({
   photos: {},
   border: createInitialBorderState(),
   collage: createInitialCollageState(),
+  workspaceBackground: DEFAULT_WORKSPACE_BACKGROUND,
 
   setMode: (mode) => set({ mode }),
+  setWorkspaceBackground: (id) => set({ workspaceBackground: id }),
 
   addPhotos: (newPhotos) =>
     set((state) => ({
