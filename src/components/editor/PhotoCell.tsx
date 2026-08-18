@@ -27,6 +27,7 @@ export function PhotoCell({
   onEmptyClick,
 }: PhotoCellProps) {
   const pinchDist = useRef<number | null>(null)
+  const imageRef = useRef<Konva.Image>(null)
 
   if (width <= 0 || height <= 0) return null
 
@@ -49,16 +50,21 @@ export function PhotoCell({
 
   const draw = getImageDrawRect(width, height, photo.width, photo.height, transform)
 
-  // Konva's dragBoundFunc receives/returns ABSOLUTE (stage) coordinates, while the
-  // Image's local x/y are relative to this Group — offset by (x, y) to convert.
+  // Konva's dragBoundFunc receives/returns ABSOLUTE (stage) coordinates, which are
+  // in canvas-pixel space — i.e. our virtual (unscaled) coordinates multiplied by
+  // the Stage's scaleX/scaleY (see CanvasStage). Convert through that scale before
+  // comparing against width/x/etc, which are all in virtual/unscaled units.
   const dragBounds = (pos: { x: number; y: number }) => {
+    const scale = imageRef.current?.getStage()?.scaleX() || 1
     const minX = Math.min(0, width - draw.width)
     const maxX = Math.max(0, width - draw.width)
     const minY = Math.min(0, height - draw.height)
     const maxY = Math.max(0, height - draw.height)
+    const localX = pos.x / scale - x
+    const localY = pos.y / scale - y
     return {
-      x: Math.min(Math.max(pos.x - x, minX), maxX) + x,
-      y: Math.min(Math.max(pos.y - y, minY), maxY) + y,
+      x: (Math.min(Math.max(localX, minX), maxX) + x) * scale,
+      y: (Math.min(Math.max(localY, minY), maxY) + y) * scale,
     }
   }
 
@@ -110,6 +116,7 @@ export function PhotoCell({
       onTouchEnd={handleTouchEnd}
     >
       <KonvaImage
+        ref={imageRef}
         image={photo.bitmap as unknown as CanvasImageSource}
         x={draw.x}
         y={draw.y}

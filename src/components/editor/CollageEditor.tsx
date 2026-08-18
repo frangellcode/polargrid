@@ -16,8 +16,18 @@ import { GridTemplatePicker } from './GridTemplatePicker'
 import { CanvasStage } from './CanvasStage'
 import { PhotoCell } from './PhotoCell'
 import { Dropzone } from './Dropzone'
+import { EditorBottomBar, type BottomBarTool } from './EditorBottomBar'
+import { IconCrop, IconFrame, IconGrid } from './icons'
 
 const PREVIEW_LONG_EDGE = 900
+
+const GRID_TOOLS: BottomBarTool[] = [
+  { id: 'formato', label: 'Formato', icon: <IconCrop /> },
+  { id: 'plantilla', label: 'Plantilla', icon: <IconGrid /> },
+  { id: 'bordes', label: 'Bordes', icon: <IconFrame /> },
+]
+
+const FREE_TOOLS: BottomBarTool[] = [{ id: 'formato', label: 'Formato', icon: <IconCrop /> }]
 
 interface FreeItemsLayerProps {
   outputWidth: number
@@ -115,6 +125,8 @@ export function CollageEditor() {
   const [exporting, setExporting] = useState(false)
   const [pendingCellId, setPendingCellId] = useState<string | null>(null)
   const [selectedFreeId, setSelectedFreeId] = useState<string | null>(null)
+  const [activeTool, setActiveTool] = useState<string | null>(null)
+  const [gutterLinked, setGutterLinked] = useState(false)
   const toolbarRef = useRef<ToolbarHandle>(null)
 
   const ratio = useMemo(() => resolveRatio(collage.aspectRatioId, 1), [collage.aspectRatioId])
@@ -139,6 +151,9 @@ export function CollageEditor() {
   const contentH = outputHeight - outerBorderPx * 2
   const cellW = (contentW - gutterPx * (template.cols - 1)) / template.cols
   const cellH = (contentH - gutterPx * (template.rows - 1)) / template.rows
+
+  const tools = collage.layoutMode === 'grid' ? GRID_TOOLS : FREE_TOOLS
+  const activeToolId = tools.some((t) => t.id === activeTool) ? activeTool : null
 
   const handleUpload = async (files: FileList) => {
     const loaded = await loadFiles(files)
@@ -252,13 +267,30 @@ export function CollageEditor() {
         )}
       </div>
 
-      <div className="space-y-4 border-t border-polar-100 bg-white p-4">
-        <div>
-          <p className="mb-2 text-sm font-medium text-slate-600">Formato del lienzo</p>
-          <AspectRatioPicker value={collage.aspectRatioId} onChange={store.setCollageAspectRatio} options={COLLAGE_ASPECT_RATIOS} />
+      {collage.layoutMode === 'free' && selectedFreeId && (
+        <div className="flex items-center justify-end border-t border-polar-100 bg-white px-4 py-2">
+          <button
+            type="button"
+            onClick={() => {
+              store.removeFreeItem(selectedFreeId)
+              setSelectedFreeId(null)
+            }}
+            className="rounded-full bg-red-50 px-3 py-1 text-xs font-medium text-red-600 hover:bg-red-100"
+          >
+            Eliminar foto
+          </button>
         </div>
+      )}
 
-        {collage.layoutMode === 'grid' ? (
+      <EditorBottomBar tools={tools} activeId={activeToolId} onSelect={setActiveTool}>
+        {activeToolId === 'formato' && (
+          <div>
+            <p className="mb-2 text-sm font-medium text-slate-600">Formato del lienzo</p>
+            <AspectRatioPicker value={collage.aspectRatioId} onChange={store.setCollageAspectRatio} options={COLLAGE_ASPECT_RATIOS} />
+          </div>
+        )}
+
+        {activeToolId === 'plantilla' && (
           <>
             <div className="flex flex-wrap gap-4">
               <div>
@@ -309,43 +341,51 @@ export function CollageEditor() {
                 onChange={store.setCollagePhotoCount}
               />
             </div>
-            <BorderThicknessSlider label="Borde exterior" value={collage.outerBorderPct} onChange={store.setOuterBorderPct} />
-            {/* test 3: nueva verificación */}
-            <div className="space-y-1.5">
-              <BorderThicknessSlider label="Espacio entre fotos" value={collage.gutterPct} onChange={store.setGutterPct} />
-              <button
-                type="button"
-                onClick={() => store.setGutterPct(collage.outerBorderPct)}
-                disabled={collage.gutterPct === collage.outerBorderPct}
-                className="rounded-full bg-polar-50 px-3 py-1 text-xs font-medium text-polar-700 hover:bg-polar-100 disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                Igualar con el borde exterior
-              </button>
-            </div>
-            <p className="text-xs text-slate-400">
-              Toca una celda vacía para subir una foto. Arrastra o haz zoom dentro de cada celda para reencuadrar.
-            </p>
+            <p className="text-xs text-slate-400">Toca una celda vacía en el lienzo para subir una foto.</p>
           </>
-        ) : (
-          <div className="flex items-center justify-between">
-            <p className="text-xs text-slate-400">
-              Arrastra, gira y cambia el tamaño de cada foto libremente. Máx. {MAX_COLLAGE_PHOTOS} fotos.
-            </p>
-            {selectedFreeId && (
+        )}
+
+        {activeToolId === 'bordes' && (
+          <>
+            <BorderThicknessSlider
+              label="Borde exterior"
+              value={collage.outerBorderPct}
+              onChange={(pct) => {
+                store.setOuterBorderPct(pct)
+                if (gutterLinked) store.setGutterPct(pct)
+              }}
+            />
+            <div className="space-y-1.5">
+              <BorderThicknessSlider
+                label="Espacio entre fotos"
+                value={collage.gutterPct}
+                onChange={(pct) => {
+                  store.setGutterPct(pct)
+                  setGutterLinked(false)
+                }}
+              />
               <button
                 type="button"
                 onClick={() => {
-                  store.removeFreeItem(selectedFreeId)
-                  setSelectedFreeId(null)
+                  if (gutterLinked) {
+                    setGutterLinked(false)
+                  } else {
+                    store.setGutterPct(collage.outerBorderPct)
+                    setGutterLinked(true)
+                  }
                 }}
-                className="rounded-full bg-red-50 px-3 py-1 text-xs font-medium text-red-600 hover:bg-red-100"
+                className={`rounded-full px-3 py-1 text-xs font-medium transition ${
+                  gutterLinked
+                    ? 'bg-polar-500 text-white hover:bg-polar-600'
+                    : 'bg-polar-50 text-polar-700 hover:bg-polar-100'
+                }`}
               >
-                Eliminar foto
+                {gutterLinked ? 'Vinculado con el borde exterior ✓' : 'Igualar con el borde exterior'}
               </button>
-            )}
-          </div>
+            </div>
+          </>
         )}
-      </div>
+      </EditorBottomBar>
     </div>
   )
 }

@@ -11,8 +11,15 @@ import { BorderThicknessSlider } from './BorderThicknessSlider'
 import { CanvasStage } from './CanvasStage'
 import { PhotoCell } from './PhotoCell'
 import { Dropzone } from './Dropzone'
+import { EditorBottomBar, type BottomBarTool } from './EditorBottomBar'
+import { IconCrop, IconFrame } from './icons'
 
 const PREVIEW_LONG_EDGE = 900
+
+const TOOLS: BottomBarTool[] = [
+  { id: 'recorte', label: 'Recorte', icon: <IconCrop /> },
+  { id: 'bordes', label: 'Bordes', icon: <IconFrame /> },
+]
 
 export function BorderEditor() {
   const {
@@ -30,6 +37,7 @@ export function BorderEditor() {
   } = useEditorStore()
   const { loadFiles } = useImageBitmap()
   const [exporting, setExporting] = useState(false)
+  const [activeTool, setActiveTool] = useState<string | null>(null)
 
   const photo = border.photoId ? photos[border.photoId] : null
 
@@ -108,43 +116,45 @@ export function BorderEditor() {
       </div>
 
       {photo && (
-        <div className="space-y-4 border-t border-polar-100 bg-white p-4">
-          <div>
-            <p className="mb-2 text-sm font-medium text-slate-600">Recorte</p>
-            <AspectRatioPicker value={border.aspectRatioId} onChange={setBorderAspectRatio} />
-            {border.aspectRatioId === 'manual' && (
-              <div className="mt-3 flex items-center gap-2">
-                <span className="text-sm text-slate-500">Proporción</span>
-                <input
-                  type="number"
-                  min={0.1}
-                  step={0.1}
-                  value={border.manualRatioW}
-                  onChange={(e) => setBorderManualRatio(Number(e.target.value), border.manualRatioH)}
-                  className="w-16 rounded-lg border border-polar-200 px-2 py-1 text-center text-sm text-slate-700 focus:border-polar-500 focus:outline-none"
-                />
-                <span className="text-slate-400">:</span>
-                <input
-                  type="number"
-                  min={0.1}
-                  step={0.1}
-                  value={border.manualRatioH}
-                  onChange={(e) => setBorderManualRatio(border.manualRatioW, Number(e.target.value))}
-                  className="w-16 rounded-lg border border-polar-200 px-2 py-1 text-center text-sm text-slate-700 focus:border-polar-500 focus:outline-none"
-                />
-                <span className="text-xs text-slate-400">ancho : alto</span>
-              </div>
-            )}
-          </div>
-          <BorderThicknessSlider
-            label="Grosor del borde"
-            value={border.borderThicknessPct}
-            onChange={setBorderThickness}
-          />
-          <p className="text-xs text-slate-400">
-            Arrastra la foto para reencuadrar y usa la rueda o el gesto de pellizco para hacer zoom.
-          </p>
-        </div>
+        <EditorBottomBar tools={TOOLS} activeId={activeTool} onSelect={setActiveTool}>
+          {activeTool === 'recorte' && (
+            <div>
+              <p className="mb-2 text-sm font-medium text-slate-600">Recorte</p>
+              <AspectRatioPicker value={border.aspectRatioId} onChange={setBorderAspectRatio} />
+              {border.aspectRatioId === 'manual' && (
+                <div className="mt-3 flex items-center gap-2">
+                  <span className="text-sm text-slate-500">Proporción</span>
+                  <input
+                    type="number"
+                    min={0.1}
+                    step={0.1}
+                    value={border.manualRatioW}
+                    onChange={(e) => setBorderManualRatio(Number(e.target.value), border.manualRatioH)}
+                    className="w-16 rounded-lg border border-polar-200 px-2 py-1 text-center text-sm text-slate-700 focus:border-polar-500 focus:outline-none"
+                  />
+                  <span className="text-slate-400">:</span>
+                  <input
+                    type="number"
+                    min={0.1}
+                    step={0.1}
+                    value={border.manualRatioH}
+                    onChange={(e) => setBorderManualRatio(border.manualRatioW, Number(e.target.value))}
+                    className="w-16 rounded-lg border border-polar-200 px-2 py-1 text-center text-sm text-slate-700 focus:border-polar-500 focus:outline-none"
+                  />
+                  <span className="text-xs text-slate-400">ancho : alto</span>
+                </div>
+              )}
+            </div>
+          )}
+
+          {activeTool === 'bordes' && (
+            <BorderThicknessSlider
+              label="Grosor del borde"
+              value={border.borderThicknessPct}
+              onChange={setBorderThickness}
+            />
+          )}
+        </EditorBottomBar>
       )}
     </div>
   )
