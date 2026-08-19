@@ -16,11 +16,14 @@ export interface AspectRatioPreset {
   label: string
   /** width / height, always given in its portrait (vertical) form. null means "Original" (keep source photo ratio) */
   ratio: number | null
-  /** manual = free-form border padding, no forced crop ratio */
-  manual?: boolean
-  /** Has a meaningful landscape flip (1/ratio) — false for Original/1:1/Manual. */
+  /** Has a meaningful landscape flip (1/ratio) — false for Original/1:1. */
   orientable?: boolean
 }
+
+/** How a photo fills its target rect: 'cover' crops to fill exactly (locked
+ *  border, uniform on every side); 'contain' shows the whole photo, letting
+ *  the border go asymmetric on the mismatched axis instead of cropping. */
+export type PhotoFit = 'cover' | 'contain'
 
 /** A loaded source photo, decoded once and reused across transforms */
 export interface LoadedPhoto {

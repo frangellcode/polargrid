@@ -1,6 +1,6 @@
 // prueba: verificando sincronización con GitHub Desktop
-import type { CellAssignment, ExportQuality, FreeItem, GridTemplate, LoadedPhoto, Orientation, PhotoTransform } from '../types'
-import { computeNativeCanvasSize, computeOutputPixelSize, getImageDrawRect } from './cropMath'
+import type { CellAssignment, ExportQuality, FreeItem, GridTemplate, LoadedPhoto, Orientation, PhotoFit, PhotoTransform } from '../types'
+import { computeNativeCanvasSize, computeNativeCanvasSizeContain, computeOutputPixelSize, getImageDrawRect } from './cropMath'
 import { ASPECT_RATIOS } from './aspectRatios'
 import { capLongEdge, getMaxLongEdge } from './exportQuality'
 
@@ -22,6 +22,7 @@ function drawPhotoInRect(
   rectH: number,
   transform: PhotoTransform,
   rotationDeg = 0,
+  fit: PhotoFit = 'cover',
 ) {
   if (rectW <= 0 || rectH <= 0) return
   ctx.save()
@@ -31,16 +32,36 @@ function drawPhotoInRect(
   ctx.beginPath()
   ctx.rect(0, 0, rectW, rectH)
   ctx.clip()
-  const draw = getImageDrawRect(rectW, rectH, photo.width, photo.height, transform)
+  const draw = getImageDrawRect(rectW, rectH, photo.width, photo.height, transform, fit)
   ctx.drawImage(photo.bitmap, draw.x, draw.y, draw.width, draw.height)
   ctx.restore()
 }
 
-async function downloadCanvas(canvas: HTMLCanvasElement, filename: string) {
+/** Resolves true once the image is actually saved/shared, false if the person backed out of the share sheet. */
+async function downloadCanvas(canvas: HTMLCanvasElement, filename: string): Promise<boolean> {
   const blob = await new Promise<Blob | null>((resolve) =>
     canvas.toBlob((b) => resolve(b), 'image/jpeg', JPEG_QUALITY),
   )
   if (!blob) throw new Error('No se pudo generar la imagen')
+
+  // In an installed iOS PWA, an <a download> anchor can't trigger a real
+  // download — Safari instead opens the image in its own full-screen blob
+  // viewer (the "black screen"), and returning from it is what causes the
+  // app shell to visibly reflow. The native share sheet stays inside the
+  // app and gives "Save Image" as one of its actions, so prefer it
+  // whenever the platform can share files.
+  const file = new File([blob], filename, { type: 'image/jpeg' })
+  if (navigator.canShare?.({ files: [file] })) {
+    try {
+      await navigator.share({ files: [file] })
+      return true
+    } catch (err) {
+      // User dismissed the share sheet — not an error, just stop here.
+      if (err instanceof Error && err.name === 'AbortError') return false
+      // Any other failure falls through to the download-link fallback below.
+    }
+  }
+
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
   a.href = url
@@ -49,6 +70,7 @@ async function downloadCanvas(canvas: HTMLCanvasElement, filename: string) {
   a.click()
   a.remove()
   URL.revokeObjectURL(url)
+  return true
 }
 
 export async function exportBorderPhoto(
@@ -57,8 +79,10 @@ export async function exportBorderPhoto(
   borderThicknessPct: number,
   transform: PhotoTransform,
   quality: ExportQuality = 'native',
+  locked = true,
 ) {
-  const native = computeNativeCanvasSize(photo.width, photo.height, ratio, borderThicknessPct, transform.zoom)
+  const sizeFn = locked ? computeNativeCanvasSize : computeNativeCanvasSizeContain
+  const native = sizeFn(photo.width, photo.height, ratio, borderThicknessPct, transform.zoom)
   const { width, height } = capLongEdge(native.width, native.height, getMaxLongEdge(quality))
   const canvas = document.createElement('canvas')
   canvas.width = width
@@ -79,9 +103,11 @@ export async function exportBorderPhoto(
     width - borderPx * 2,
     height - borderPx * 2,
     transform,
+    0,
+    locked ? 'cover' : 'contain',
   )
 
-  await downloadCanvas(canvas, `polargrid-borde-${Date.now()}.jpg`)
+  return downloadCanvas(canvas, `polargrid-borde-${Date.now()}.jpg`)
 }
 
 /**
@@ -157,7 +183,7 @@ export async function exportCollageGrid(
     drawPhotoInRect(ctx, photo, x, y, w, h, assignment.transform)
   })
 
-  await downloadCanvas(canvas, `polargrid-collage-${Date.now()}.jpg`)
+  return downloadCanvas(canvas, `polargrid-collage-${Date.now()}.jpg`)
 }
 
 export async function exportCollageFree(
@@ -206,5 +232,5 @@ export async function exportCollageFree(
     )
   }
 
-  await downloadCanvas(canvas, `polargrid-collage-${Date.now()}.jpg`)
+  return downloadCanvas(canvas, `polargrid-collage-${Date.now()}.jpg`)
 }

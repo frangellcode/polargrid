@@ -20,19 +20,30 @@ import { DEFAULT_WORKSPACE_BACKGROUND } from '../lib/workspaceBackgrounds'
 export const DEFAULT_BORDER_PCT = 0.04
 export const DEFAULT_GUTTER_PCT = 0.015
 
+const WORKSPACE_BACKGROUND_STORAGE_KEY = 'polargrid:workspace-background'
+
+/** Reads the user's last-picked workspace background from the device (localStorage) —
+ *  wrapped in try/catch since storage access can throw (private browsing, disabled storage). */
+function readStoredWorkspaceBackground(): string {
+  try {
+    return localStorage.getItem(WORKSPACE_BACKGROUND_STORAGE_KEY) ?? DEFAULT_WORKSPACE_BACKGROUND
+  } catch {
+    return DEFAULT_WORKSPACE_BACKGROUND
+  }
+}
+
 interface BorderState {
   photoId: string | null
   aspectRatioId: string
   ratioOrientation: Orientation
-  manualRatioW: number
-  manualRatioH: number
   borderThicknessPct: number
+  /** true (default) = border is uniform on every side and the photo is cropped
+   *  to fill it. false = the photo is shown in full (never cropped to fit the
+   *  ratio); the border goes asymmetric on whichever axis doesn't match. */
+  locked: boolean
   transform: PhotoTransform
   exportQuality: ExportQuality
 }
-
-export const DEFAULT_MANUAL_RATIO_W = 4
-export const DEFAULT_MANUAL_RATIO_H = 5
 
 interface CollageState {
   layoutMode: CollageLayoutMode
@@ -65,7 +76,7 @@ interface EditorStoreState {
   setBorderPhoto: (photoId: string) => void
   setBorderAspectRatio: (id: string) => void
   setBorderRatioOrientation: (orientation: Orientation) => void
-  setBorderManualRatio: (w: number, h: number) => void
+  setBorderLocked: (locked: boolean) => void
   setBorderThickness: (pct: number) => void
   setBorderTransform: (transform: PhotoTransform) => void
   setBorderExportQuality: (quality: ExportQuality) => void
@@ -100,9 +111,8 @@ function createInitialBorderState(): BorderState {
     photoId: null,
     aspectRatioId: DEFAULT_ASPECT_RATIO_ID,
     ratioOrientation: 'vertical',
-    manualRatioW: DEFAULT_MANUAL_RATIO_W,
-    manualRatioH: DEFAULT_MANUAL_RATIO_H,
     borderThicknessPct: DEFAULT_BORDER_PCT,
+    locked: true,
     transform: { ...DEFAULT_TRANSFORM },
     exportQuality: DEFAULT_EXPORT_QUALITY,
   }
@@ -129,10 +139,17 @@ export const useEditorStore = create<EditorStoreState>((set, get) => ({
   photos: {},
   border: createInitialBorderState(),
   collage: createInitialCollageState(),
-  workspaceBackground: DEFAULT_WORKSPACE_BACKGROUND,
+  workspaceBackground: readStoredWorkspaceBackground(),
 
   setMode: (mode) => set({ mode }),
-  setWorkspaceBackground: (id) => set({ workspaceBackground: id }),
+  setWorkspaceBackground: (id) => {
+    try {
+      localStorage.setItem(WORKSPACE_BACKGROUND_STORAGE_KEY, id)
+    } catch {
+      // storage unavailable (private browsing, disabled) — keep the in-memory pick
+    }
+    set({ workspaceBackground: id })
+  },
 
   addPhotos: (newPhotos) =>
     set((state) => ({
@@ -164,13 +181,9 @@ export const useEditorStore = create<EditorStoreState>((set, get) => ({
   setBorderRatioOrientation: (orientation) =>
     set((state) => ({ border: { ...state.border, ratioOrientation: orientation } })),
 
-  setBorderManualRatio: (w, h) =>
+  setBorderLocked: (locked) =>
     set((state) => ({
-      border: {
-        ...state.border,
-        manualRatioW: Math.max(0.1, w),
-        manualRatioH: Math.max(0.1, h),
-      },
+      border: { ...state.border, locked, transform: { ...DEFAULT_TRANSFORM } },
     })),
 
   setBorderThickness: (pct) =>

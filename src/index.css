@@ -9,6 +9,13 @@
   --color-polar-500: #0ea5e9;
   --color-polar-600: #0284c7;
   --color-polar-700: #0369a1;
+
+  /* App-wide dark rebrand — petrol blue background, white type. The
+     polar-* tokens above are unused now but kept in case any in-flight
+     work still references them. */
+  --color-ink-900: #141e30;
+  --font-display: "Syne", sans-serif;
+  --font-label: "Jost", sans-serif;
 }
 
 html,
@@ -20,10 +27,10 @@ body,
 }
 
 html {
-  /* App is light-only — without this, iOS can assume a dark UA background
-     for the very first (pre-CSS) frame when the system is in Dark Mode,
-     which shows up as a dark flash at the top/bottom edges on launch. */
-  color-scheme: light;
+  /* App is dark-only — without this, iOS can assume a light UA background
+     for the very first (pre-CSS) frame when the system is in Light Mode,
+     which shows up as a light flash at the top/bottom edges on launch. */
+  color-scheme: dark;
   /* Plain `height: 100%` above can still leave a gap behind iOS Safari's
      collapsing address bar — the same class of bug 100vh has, since both
      resolve against the "large" viewport. -webkit-fill-available is
@@ -38,8 +45,8 @@ html {
 }
 
 body {
-  background-color: #ffffff;
-  color: #1e293b;
+  background-color: #141e30;
+  color: #ffffff;
   /* Prevents the iOS text-selection callout from popping up on a
      press-and-hold anywhere in the app's chrome (buttons, labels,
      headings) — re-enabled below for actual editable fields. */

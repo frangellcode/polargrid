@@ -12,15 +12,16 @@ import { CanvasStage } from './CanvasStage'
 import { PhotoCell } from './PhotoCell'
 import { Dropzone } from './Dropzone'
 import { EditorBottomBar, type BottomBarTool } from './EditorBottomBar'
+import { ExportSuccessToast } from './ExportSuccessToast'
 import { WorkspaceBackgroundPicker } from './WorkspaceBackgroundPicker'
 import { IconCrop, IconDrop, IconFrame } from './icons'
 
 const PREVIEW_LONG_EDGE = 900
 
 const TOOLS: BottomBarTool[] = [
+  { id: 'fondo', label: 'Fondo', icon: <IconDrop /> },
   { id: 'recorte', label: 'Recorte', icon: <IconCrop /> },
   { id: 'bordes', label: 'Bordes', icon: <IconFrame /> },
-  { id: 'fondo', label: 'Fondo', icon: <IconDrop /> },
 ]
 
 export function BorderEditor() {
@@ -32,7 +33,7 @@ export function BorderEditor() {
     setBorderPhoto,
     setBorderAspectRatio,
     setBorderRatioOrientation,
-    setBorderManualRatio,
+    setBorderLocked,
     setBorderThickness,
     setBorderTransform,
     setBorderExportQuality,
@@ -42,17 +43,18 @@ export function BorderEditor() {
   } = useEditorStore()
   const { loadFiles } = useImageBitmap()
   const [exporting, setExporting] = useState(false)
-  const [activeTool, setActiveTool] = useState<string | null>(null)
+  const [showSuccessToast, setShowSuccessToast] = useState(false)
+  // Starts on 'recorte' so the panel opens with Recorte already selected the
+  // moment a photo lands — the bottom bar itself is gated on `photo` below,
+  // so this has no effect until then.
+  const [activeTool, setActiveTool] = useState<string | null>('recorte')
 
   const photo = border.photoId ? photos[border.photoId] : null
 
   const ratio = useMemo(() => {
-    if (border.aspectRatioId === 'manual') {
-      return border.manualRatioW / border.manualRatioH
-    }
     const fallback = photo ? photo.width / photo.height : 1
     return resolveRatio(border.aspectRatioId, fallback, border.ratioOrientation)
-  }, [border.aspectRatioId, border.ratioOrientation, border.manualRatioW, border.manualRatioH, photo])
+  }, [border.aspectRatioId, border.ratioOrientation, photo])
 
   const { width: targetWidth, height: targetHeight } = useMemo(
     () => computeOutputPixelSize(ratio, PREVIEW_LONG_EDGE),
@@ -60,6 +62,10 @@ export function BorderEditor() {
   )
   const outputWidth = useAnimatedNumber(targetWidth)
   const outputHeight = useAnimatedNumber(targetHeight)
+  // Animates the cover<->contain blend itself (not just a CSS transition on the
+  // toggle) so the photo's crop eases smoothly instead of snapping when Bloqueada/
+  // Desbloqueada is switched.
+  const fitMix = useAnimatedNumber(border.locked ? 0 : 1)
 
   const borderPx = border.borderThicknessPct * Math.min(outputWidth, outputHeight)
 
@@ -75,14 +81,15 @@ export function BorderEditor() {
     setBorderExportQuality(quality)
     setExporting(true)
     try {
-      await exportBorderPhoto(photo, ratio, border.borderThicknessPct, border.transform, quality)
+      const saved = await exportBorderPhoto(photo, ratio, border.borderThicknessPct, border.transform, quality, border.locked)
+      if (saved) setShowSuccessToast(true)
     } finally {
       setExporting(false)
     }
   }
 
   return (
-    <div className="flex h-full flex-col bg-slate-50">
+    <div className="flex h-full flex-col bg-ink-900">
       <Toolbar
         title="Bordes blancos"
         onBack={() => {
@@ -108,6 +115,7 @@ export function BorderEditor() {
               photo={photo}
               transform={border.transform}
               onTransformChange={setBorderTransform}
+              fit={fitMix}
             />
           </CanvasStage>
         ) : (
@@ -124,36 +132,36 @@ export function BorderEditor() {
         <EditorBottomBar tools={TOOLS} activeId={activeTool} onSelect={setActiveTool}>
           {activeTool === 'recorte' && (
             <div>
-              <p className="mb-2 text-center text-xs font-semibold uppercase tracking-wider text-slate-400">Recorte</p>
+              <p className="font-label mb-2 text-center text-xs font-semibold uppercase tracking-wider text-white/40">Recorte</p>
               <AspectRatioPicker
                 value={border.aspectRatioId}
                 onChange={setBorderAspectRatio}
                 orientation={border.ratioOrientation}
                 onOrientationChange={setBorderRatioOrientation}
               />
-              {border.aspectRatioId === 'manual' && (
-                <div className="fade-in mt-3 flex items-center justify-center gap-2">
-                  <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">Proporción</span>
-                  <input
-                    type="number"
-                    min={0.1}
-                    step={0.1}
-                    value={border.manualRatioW}
-                    onChange={(e) => setBorderManualRatio(Number(e.target.value), border.manualRatioH)}
-                    className="w-16 rounded-lg border border-polar-200 px-2 py-1 text-center text-sm text-slate-700 focus:border-polar-500 focus:outline-none"
-                  />
-                  <span className="text-slate-400">:</span>
-                  <input
-                    type="number"
-                    min={0.1}
-                    step={0.1}
-                    value={border.manualRatioH}
-                    onChange={(e) => setBorderManualRatio(border.manualRatioW, Number(e.target.value))}
-                    className="w-16 rounded-lg border border-polar-200 px-2 py-1 text-center text-sm text-slate-700 focus:border-polar-500 focus:outline-none"
-                  />
-                  <span className="text-xs uppercase tracking-wide text-slate-400">Ancho : Alto</span>
+              <div className="mt-3 flex flex-col items-center gap-1.5">
+                <div className="flex justify-center gap-2">
+                  {([true, false] as const).map((isLocked) => (
+                    <button
+                      key={String(isLocked)}
+                      type="button"
+                      onClick={() => setBorderLocked(isLocked)}
+                      className={`font-label rounded-full px-4 py-1.5 text-xs font-semibold uppercase tracking-wide transition duration-200 active:scale-90 ${
+                        border.locked === isLocked
+                          ? 'bg-white text-ink-900'
+                          : 'bg-white/10 text-white/70 hover:bg-white/15'
+                      }`}
+                    >
+                      {isLocked ? 'Bloqueada' : 'Desbloqueada'}
+                    </button>
+                  ))}
                 </div>
-              )}
+                {!border.locked && (
+                  <p className="fade-in font-label max-w-[220px] text-center text-[11px] text-white/40">
+                    El borde se ajusta para mostrar la foto completa, sin recortarla
+                  </p>
+                )}
+              </div>
             </div>
           )}
 
@@ -170,6 +178,16 @@ export function BorderEditor() {
           )}
         </EditorBottomBar>
       )}
+
+      <ExportSuccessToast
+        open={showSuccessToast}
+        onClose={() => setShowSuccessToast(false)}
+        onCreateAnother={() => {
+          setShowSuccessToast(false)
+          setMode('home')
+          resetBorder()
+        }}
+      />
     </div>
   )
 }

@@ -15,9 +15,9 @@ export function BorderThicknessSlider({
 }: BorderThicknessSliderProps) {
   return (
     <label className="flex flex-col gap-1.5 text-sm">
-      <div className="flex items-center justify-between text-slate-600">
-        <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">{label}</span>
-        <span className="tabular-nums text-polar-600">{Math.round(value * 100)}%</span>
+      <div className="flex items-center justify-between">
+        <span className="font-label text-xs font-semibold uppercase tracking-wider text-white/40">{label}</span>
+        <span className="tabular-nums text-white">{Math.round(value * 100)}%</span>
       </div>
       <input
         type="range"
@@ -26,7 +26,7 @@ export function BorderThicknessSlider({
         step={0.01}
         value={value}
         onChange={(e) => onChange(Number(e.target.value))}
-        className="h-2 w-full cursor-pointer appearance-none rounded-full bg-polar-100 accent-polar-500"
+        className="h-2 w-full cursor-pointer appearance-none rounded-full bg-white/15 accent-white"
       />
     </label>
   )

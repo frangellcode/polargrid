@@ -13,7 +13,7 @@ interface AspectRatioPickerProps {
  * Each ratio is listed once, in its portrait form (e.g. "9:16" — not also a
  * separate "16:9"). The orientation toggle below covers the landscape flip
  * for whichever ratio is selected, and only shows up when that ratio
- * actually has one (`orientable`) — Original/1:1/Manual don't.
+ * actually has one (`orientable`) — Original/1:1 don't.
  */
 export function AspectRatioPicker({
   value,
@@ -33,10 +33,10 @@ export function AspectRatioPicker({
             key={preset.id}
             type="button"
             onClick={() => onChange(preset.id)}
-            className={`rounded-full px-4 py-1.5 text-xs font-semibold uppercase tracking-wide transition duration-200 active:scale-90 ${
+            className={`font-label rounded-full px-4 py-1.5 text-xs font-semibold uppercase tracking-wide transition duration-200 active:scale-90 ${
               value === preset.id
-                ? 'bg-polar-500 text-white'
-                : 'bg-polar-50 text-polar-700 hover:bg-polar-100'
+                ? 'bg-white text-ink-900'
+                : 'bg-white/10 text-white/70 hover:bg-white/15'
             }`}
           >
             {preset.label}
@@ -51,10 +51,10 @@ export function AspectRatioPicker({
               key={o}
               type="button"
               onClick={() => onOrientationChange(o)}
-              className={`rounded-full px-4 py-1.5 text-xs font-semibold uppercase tracking-wide transition ${
+              className={`font-label rounded-full px-4 py-1.5 text-xs font-semibold uppercase tracking-wide transition ${
                 orientation === o
-                  ? 'bg-polar-500 text-white'
-                  : 'bg-polar-50 text-polar-700 hover:bg-polar-100'
+                  ? 'bg-white text-ink-900'
+                  : 'bg-white/10 text-white/70 hover:bg-white/15'
               }`}
             >
               {o === 'vertical' ? 'Vertical' : 'Horizontal'}

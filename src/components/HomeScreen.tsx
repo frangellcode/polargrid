@@ -16,32 +16,39 @@ export function HomeScreen() {
   }
 
   return (
-    <div className="flex h-full flex-col items-center justify-center gap-8 bg-white px-6 pb-[max(1.5rem,env(safe-area-inset-bottom))] pt-[max(1.5rem,env(safe-area-inset-top))] text-center">
-      <div className="flex flex-col items-center gap-3">
-        <Logo size={80} />
-        <h1 className="text-xl font-bold uppercase tracking-[0.15em] text-slate-800">PolarGrid</h1>
-        <p className="max-w-xs text-sm text-slate-500">
-          Bordes blancos y collages hermosos para tus fotos, en alta calidad y completamente sin conexión.
+    <div className="flex h-full flex-col items-center justify-center gap-10 bg-ink-900 px-6 pb-[max(1.5rem,env(safe-area-inset-bottom))] pt-[max(1.5rem,env(safe-area-inset-top))] text-center">
+      <div className="flex flex-col items-center gap-4">
+        <Logo size={62} />
+        <h1 className="font-display text-3xl font-bold text-white">PolarGrid</h1>
+        <div className="h-px w-8 bg-white/35" />
+        <p className="max-w-xs font-label text-xs font-light leading-7 text-white/60">
+          Bordes blancos y collages para tus fotos artísticas, en alta calidad y sin conexión a internet.
         </p>
       </div>
 
-      <div className="flex w-full max-w-xs flex-col gap-3">
+      <div className="flex w-full max-w-xs flex-col">
         <button
           type="button"
           onClick={() => setMode('border')}
-          className="rounded-2xl bg-polar-500 px-5 py-3.5 text-center text-white shadow-sm transition duration-200 hover:bg-polar-600 hover:shadow-md active:scale-[0.97]"
+          className="flex items-baseline gap-3 border-b border-white/15 py-5 text-left"
         >
-          <span className="block text-sm font-semibold uppercase tracking-wide">Bordes blancos</span>
-          <span className="block text-sm text-polar-50/90">Enmarca una foto con borde blanco</span>
+          <span className="font-display w-5 text-sm font-bold text-white/50">I</span>
+          <span className="flex flex-col gap-1">
+            <span className="font-display text-base font-medium text-white">Bordes blancos</span>
+            <span className="font-label text-[10.5px] font-light text-white/50">Enmarca una foto con borde blanco</span>
+          </span>
         </button>
 
         <button
           type="button"
           onClick={() => setMode('collage')}
-          className="rounded-2xl border border-polar-200 bg-polar-50 px-5 py-3.5 text-center text-polar-700 shadow-sm transition duration-200 hover:bg-polar-100 hover:shadow-md active:scale-[0.97]"
+          className="flex items-baseline gap-3 border-b border-white/15 py-5 text-left"
         >
-          <span className="block text-sm font-semibold uppercase tracking-wide">Collage</span>
-          <span className="block text-sm text-polar-600/80">Combina varias fotos en una grilla</span>
+          <span className="font-display w-5 text-sm font-bold text-white/50">II</span>
+          <span className="flex flex-col gap-1">
+            <span className="font-display text-base font-medium text-white">Collage</span>
+            <span className="font-label text-[10.5px] font-light text-white/50">Combina varias fotos en una grilla</span>
+          </span>
         </button>
       </div>
 
@@ -49,7 +56,7 @@ export function HomeScreen() {
         type="button"
         onClick={handleUpdate}
         disabled={updating}
-        className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-slate-400 transition duration-200 active:scale-95 disabled:opacity-60 disabled:active:scale-100"
+        className="flex items-center gap-1.5 font-label text-[10px] font-light uppercase tracking-[0.14em] text-white/35 transition duration-200 active:scale-95 disabled:opacity-60 disabled:active:scale-100"
       >
         <IconRefresh className={`h-3.5 w-3.5 ${updating ? 'animate-spin' : ''}`} />
         {updating ? 'Actualizando…' : 'Actualizar app'}

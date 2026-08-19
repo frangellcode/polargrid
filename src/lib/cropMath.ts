@@ -1,4 +1,4 @@
-import type { PhotoTransform } from '../types'
+import type { PhotoFit, PhotoTransform } from '../types'
 
 export const DEFAULT_TRANSFORM: PhotoTransform = { offsetX: 0, offsetY: 0, zoom: 1 }
 
@@ -10,10 +10,27 @@ export function coverScale(innerW: number, innerH: number, imgW: number, imgH: n
   return Math.max(innerW / imgW, innerH / imgH)
 }
 
+/** Scale needed so the image fits entirely inside a rect of innerW x innerH (no crop). */
+export function containScale(innerW: number, innerH: number, imgW: number, imgH: number): number {
+  if (imgW <= 0 || imgH <= 0) return 1
+  return Math.min(innerW / imgW, innerH / imgH)
+}
+
+/** Normalizes a fit value to a 0 (cover) .. 1 (contain) blend amount, so callers
+ *  can pass either the exact mode or an animated in-between value. */
+function fitMix(fit: PhotoFit | number): number {
+  if (typeof fit === 'number') return Math.min(1, Math.max(0, fit))
+  return fit === 'contain' ? 1 : 0
+}
+
 /**
- * Where to draw the (possibly larger-than-cell) image, in coordinates local to the
- * inner rect's own top-left corner. offsetX/offsetY are normalized pan amounts in
- * [-1, 1]: 0 = centered, +-1 = panned all the way to the edge of the cover area.
+ * Where to draw the image, in coordinates local to the inner rect's own top-left
+ * corner. offsetX/offsetY are normalized pan amounts in [-1, 1]: 0 = centered,
+ * +-1 = panned all the way to the edge of the fit area. `fit` picks 'cover'
+ * (crop to fill, the default) or 'contain' (shrink to show the whole image,
+ * leaving gaps on the mismatched axis for the border-unlocked mode) — or any
+ * number in between, so the border-lock toggle can animate smoothly through
+ * every in-between scale instead of snapping between the two fits.
  */
 export function getImageDrawRect(
   innerW: number,
@@ -21,8 +38,12 @@ export function getImageDrawRect(
   imgW: number,
   imgH: number,
   transform: PhotoTransform,
+  fit: PhotoFit | number = 'cover',
 ) {
-  const base = coverScale(innerW, innerH, imgW, imgH)
+  const mix = fitMix(fit)
+  const cover = coverScale(innerW, innerH, imgW, imgH)
+  const contain = containScale(innerW, innerH, imgW, imgH)
+  const base = cover + (contain - cover) * mix
   const scale = base * Math.max(1, transform.zoom)
   const width = imgW * scale
   const height = imgH * scale
@@ -89,6 +110,34 @@ export function computeNativeCanvasSize(
   return { width: Math.round(width), height: Math.round(height) }
 }
 
+/**
+ * Same idea as `computeNativeCanvasSize`, but for the border-unlocked
+ * ('contain') mode: the photo is never upscaled past native there either,
+ * except contain's binding axis is the *loose* one (Math.max of the two
+ * candidate short sides instead of Math.min) since the photo only needs to
+ * fill the tighter axis exactly — the other axis is where the extra border
+ * (the whole point of unlocking) shows up.
+ */
+export function computeNativeCanvasSizeContain(
+  photoW: number,
+  photoH: number,
+  ratio: number,
+  borderPct: number,
+  zoom = 1,
+) {
+  const pct = Math.min(0.45, Math.max(0, borderPct))
+  const z = Math.max(1, zoom)
+
+  const shortSide =
+    ratio >= 1
+      ? Math.max(photoH / Math.max(0.05, 1 - 2 * pct), photoW / Math.max(0.05, ratio - 2 * pct)) / z
+      : Math.max(photoW / Math.max(0.05, 1 - 2 * pct), photoH / Math.max(0.05, 1 / ratio - 2 * pct)) / z
+
+  const width = ratio >= 1 ? ratio * shortSide : shortSide
+  const height = ratio >= 1 ? shortSide : shortSide / ratio
+  return { width: Math.round(width), height: Math.round(height) }
+}
+
 /** Convert a screen-space drag delta into a transform offset delta. */
 export function panDeltaToOffset(
   dx: number,
@@ -98,8 +147,12 @@ export function panDeltaToOffset(
   imgW: number,
   imgH: number,
   transform: PhotoTransform,
+  fit: PhotoFit | number = 'cover',
 ): { offsetX: number; offsetY: number } {
-  const base = coverScale(innerW, innerH, imgW, imgH)
+  const mix = fitMix(fit)
+  const cover = coverScale(innerW, innerH, imgW, imgH)
+  const contain = containScale(innerW, innerH, imgW, imgH)
+  const base = cover + (contain - cover) * mix
   const scale = base * Math.max(1, transform.zoom)
   const width = imgW * scale
   const height = imgH * scale

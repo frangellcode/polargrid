@@ -51,15 +51,15 @@ export const Toolbar = forwardRef<ToolbarHandle, ToolbarProps>(function Toolbar(
   }
 
   return (
-    <div className="flex items-center justify-between gap-3 border-b border-polar-100 bg-white px-4 pb-3 pt-[max(0.75rem,env(safe-area-inset-top))]">
+    <div className="flex items-center justify-between gap-3 border-b border-white/10 bg-ink-900 px-4 pb-3 pt-[max(0.75rem,env(safe-area-inset-top))]">
       <button
         type="button"
         onClick={onBack}
-        className="-ml-2 flex items-center gap-1.5 rounded-full py-2 pl-2 pr-3 text-slate-700 transition duration-200 hover:bg-polar-50 active:scale-95 active:bg-polar-100"
+        className="-ml-2 flex items-center gap-1.5 rounded-full py-2 pl-2 pr-3 text-white transition duration-200 hover:bg-white/10 active:scale-95 active:bg-white/15"
         aria-label={`Volver, ${title}`}
       >
         <span className="text-2xl leading-none">←</span>
-        <span className="text-sm font-semibold uppercase tracking-wide">Atrás</span>
+        <span className="font-label text-sm font-semibold uppercase tracking-wide">Atrás</span>
       </button>
       <div className="flex items-center gap-2">
         <input
@@ -73,7 +73,7 @@ export const Toolbar = forwardRef<ToolbarHandle, ToolbarProps>(function Toolbar(
         <button
           type="button"
           onClick={() => inputRef.current?.click()}
-          className="rounded-full bg-polar-50 px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-polar-700 transition duration-200 hover:bg-polar-100 active:scale-95"
+          className="font-label rounded-full bg-white/10 px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-white transition duration-200 hover:bg-white/15 active:scale-95"
         >
           {uploadLabel}
         </button>
@@ -81,7 +81,7 @@ export const Toolbar = forwardRef<ToolbarHandle, ToolbarProps>(function Toolbar(
           type="button"
           onClick={() => setSheetOpen(true)}
           disabled={exporting || !canExport}
-          className="rounded-full bg-polar-500 px-4 py-1.5 text-xs font-semibold uppercase tracking-wide text-white transition duration-200 hover:bg-polar-600 active:scale-95 disabled:cursor-not-allowed disabled:opacity-40 disabled:active:scale-100"
+          className="font-label rounded-full bg-white px-4 py-1.5 text-xs font-semibold uppercase tracking-wide text-ink-900 transition duration-200 hover:bg-white/90 active:scale-95 disabled:cursor-not-allowed disabled:opacity-40 disabled:active:scale-100"
         >
           {exporting ? 'Exportando…' : 'Exportar'}
         </button>

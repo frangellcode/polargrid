@@ -4,16 +4,11 @@ interface LogoProps {
   rounded?: boolean
 }
 
-let uid = 0
-
 /**
- * PolarGrid mark: a small, fully-rounded teddy-style polar bear cub (round
- * ears, head, body and feet), holding its camera with both paws, amid soft
- * snowflakes, on a sky-blue badge.
+ * PolarGrid mark: a Polaroid camera icon on a petrol-blue badge.
  * Keep this in sync with scripts/generate-icons.mjs (used to rasterize app icons).
  */
 export function Logo({ size = 96, className, rounded = true }: LogoProps) {
-  const id = `pg${uid++}`
   return (
     <svg
       width={size}
@@ -23,77 +18,37 @@ export function Logo({ size = 96, className, rounded = true }: LogoProps) {
       role="img"
       aria-label="PolarGrid"
     >
-      <defs>
-        <radialGradient id={`${id}-fur`} cx="35%" cy="28%" r="75%">
-          <stop offset="0%" stopColor="#f9fcff" />
-          <stop offset="100%" stopColor="#c3d6e4" />
-        </radialGradient>
-        <radialGradient id={`${id}-eye`} cx="36%" cy="30%" r="70%">
-          <stop offset="0%" stopColor="#4a3a2a" />
-          <stop offset="45%" stopColor="#221a12" />
-          <stop offset="100%" stopColor="#0a0806" />
-        </radialGradient>
-        <linearGradient id={`${id}-badge`} x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0%" stopColor="#38bdf8" />
-          <stop offset="100%" stopColor="#0284c7" />
-        </linearGradient>
-        <linearGradient id={`${id}-cam`} x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="#0ea5e9" />
-          <stop offset="100%" stopColor="#0369a1" />
-        </linearGradient>
-        <filter id={`${id}-blur`} x="-60%" y="-60%" width="220%" height="220%">
-          <feGaussianBlur stdDeviation="4" />
-        </filter>
-        <filter id={`${id}-blur-sm`} x="-80%" y="-80%" width="260%" height="260%">
-          <feGaussianBlur stdDeviation="1.6" />
-        </filter>
-      </defs>
-
-      <rect x={0} y={0} width={200} height={200} rx={rounded ? 46 : 0} fill={`url(#${id}-badge)`} />
-
-      {/* snowflakes */}
-      <g opacity={0.75} filter={`url(#${id}-blur-sm)`} stroke="#fff" strokeWidth={2} strokeLinecap="round">
-        <path d="M40,44 L40,54 M35,49 L45,49 M36.5,45.5 L43.5,52.5 M43.5,45.5 L36.5,52.5" />
-        <path d="M164,40 L164,50 M159,45 L169,45" strokeWidth={1.8} />
-        <path d="M156,130 L156,138 M152,134 L160,134" strokeWidth={1.6} />
+      <rect x={0} y={0} width={200} height={200} rx={rounded ? 46 : 0} fill="#141e30" />
+      <g transform="translate(34,34) scale(0.2578)">
+        <path fill="#4E5058" d="M349.867,51.2H162.133V8.533c0-4.713,3.821-8.533,8.533-8.533h170.667c4.713,0,8.533,3.821,8.533,8.533V51.2z" />
+        <path fill="#383A43" d="M187.733,0h-17.067c-4.713,0-8.533,3.821-8.533,8.533V51.2H179.2V8.533C179.2,3.821,183.021,0,187.733,0z" />
+        <path fill="#D3D3D5" d="M469.333,256H42.667V42.667c0-4.713,3.821-8.533,8.533-8.533h409.6c4.713,0,8.533,3.821,8.533,8.533V256z" />
+        <path fill="#BDBDC0" d="M68.267,34.133H51.2c-4.713,0-8.533,3.821-8.533,8.533V256h17.067V42.667C59.733,37.954,63.554,34.133,68.267,34.133z" />
+        <polygon fill="#E9E9EA" points="503.467,349.867 8.533,349.867 42.667,256 469.333,256 " />
+        <polygon fill="#D3D3D5" points="42.667,256 8.533,349.867 25.6,349.867 59.733,256 " />
+        <path fill="#4E5058" d="M494.933,460.8H17.067c-4.713,0-8.533-3.821-8.533-8.533v-102.4h494.933v102.4C503.467,456.979,499.646,460.8,494.933,460.8z" />
+        <path fill="#383A43" d="M29.867,443.733c-2.356,0-4.267-1.91-4.267-4.267v-89.6H8.533v102.4c0,4.713,3.821,8.533,8.533,8.533h477.867c4.713,0,8.533-3.821,8.533-8.533v-8.533H29.867z" />
+        <path fill="#E9E9EA" d="M426.667,153.6H358.4c-4.713,0-8.533-3.821-8.533-8.533V76.8c0-4.713,3.821-8.533,8.533-8.533h68.267c4.713,0,8.533,3.821,8.533,8.533v68.267C435.2,149.779,431.379,153.6,426.667,153.6z" />
+        <path fill="#A7A7AB" d="M358.4,68.267c-4.713,0-8.533,3.821-8.533,8.533v41.067l49.6-49.6H358.4z" />
+        <path fill="#A7A7AB" d="M434.441,73.293l-79.547,79.547c1.071,0.484,2.256,0.759,3.507,0.759h31.467l45.333-45.333V76.8C435.2,75.549,434.924,74.364,434.441,73.293z" />
+        <path fill="#A7A7AB" d="M404.8,153.6h21.867c4.713,0,8.533-3.821,8.533-8.533V123.2L404.8,153.6z" />
+        <path fill="#7A7C82" d="M426.667,68.267H358.4c-4.713,0-8.533,3.821-8.533,8.533v68.267c0,4.713,3.821,8.533,8.533,8.533h68.267c4.713,0,8.533-3.821,8.533-8.533V76.8C435.2,72.087,431.379,68.267,426.667,68.267z M426.667,145.067H358.4V76.8h68.267V145.067z" />
+        <path fill="#7A7C82" d="M392.533,392.533H119.467c-4.713,0-8.533,3.821-8.533,8.533v17.067V435.2c0,4.713,3.821,8.533,8.533,8.533h273.067c4.713,0,8.533-3.821,8.533-8.533v-17.067v-17.067C401.067,396.354,397.246,392.533,392.533,392.533z" />
+        <path fill="#E9E9EA" d="M375.467,512H136.533c-4.713,0-8.533-3.821-8.533-8.533V392.533h256v110.933C384,508.179,380.179,512,375.467,512z" />
+        <rect x={128} y={392.533} fill="#D3D3D5" width={256} height={17.422} />
+        <circle fill="#D14D7B" cx={136.533} cy={196.267} r={25.6} />
+        <circle fill="#FD5E95" cx={136.533} cy={196.267} r={17.067} />
+        <circle fill="#64666D" cx={375.467} cy={196.267} r={25.6} />
+        <circle fill="#909296" cx={256} cy={145.067} r={76.8} />
+        <circle fill="#64666D" cx={256} cy={145.067} r={59.733} />
+        <path fill="#4E5058" d="M273.067,187.733c-32.99,0-59.733-26.743-59.733-59.733c0-12.129,3.626-23.407,9.837-32.83c-16.204,10.684-26.903,29.036-26.903,49.897c0,32.99,26.743,59.733,59.733,59.733c20.861,0,39.213-10.7,49.897-26.903C296.474,184.108,285.196,187.733,273.067,187.733z" />
+        <circle fill="#BDBDC0" cx={273.067} cy={119.467} r={17.067} />
+        <path fill="#7A7C82" d="M153.6,119.467H85.333c-4.713,0-8.533-3.821-8.533-8.533s3.821-8.533,8.533-8.533H153.6c4.713,0,8.533,3.821,8.533,8.533S158.313,119.467,153.6,119.467z" />
+        <path fill="#7A7C82" d="M153.6,153.6H85.333c-4.713,0-8.533-3.821-8.533-8.533c0-4.713,3.821-8.533,8.533-8.533H153.6c4.713,0,8.533,3.821,8.533,8.533C162.133,149.779,158.313,153.6,153.6,153.6z" />
+        <rect x={238.933} y={256} fill="#FD5E95" width={34.133} height={93.867} />
+        <rect x={273.067} y={256} fill="#45CAE0" width={34.133} height={93.867} />
+        <rect x={204.8} y={256} fill="#FFE88A" width={34.133} height={93.867} />
       </g>
-
-      <ellipse cx={100} cy={180} rx={46} ry={7} fill="#075985" opacity={0.22} filter={`url(#${id}-blur)`} />
-
-      {/* feet */}
-      <circle cx={80} cy={167} r={13} fill={`url(#${id}-fur)`} />
-      <circle cx={120} cy={167} r={13} fill={`url(#${id}-fur)`} />
-
-      {/* body */}
-      <circle cx={100} cy={140} r={34} fill={`url(#${id}-fur)`} />
-
-      {/* ears */}
-      <circle cx={74} cy={50} r={13} fill={`url(#${id}-fur)`} />
-      <circle cx={126} cy={50} r={13} fill={`url(#${id}-fur)`} />
-      <circle cx={74} cy={53} r={6.5} fill="#a9c6da" opacity={0.85} />
-      <circle cx={126} cy={53} r={6.5} fill="#a9c6da" opacity={0.85} />
-
-      {/* head */}
-      <circle cx={100} cy={82} r={36} fill={`url(#${id}-fur)`} />
-
-      {/* eyes */}
-      <circle cx={86} cy={78} r={7} fill={`url(#${id}-eye)`} />
-      <circle cx={114} cy={78} r={7} fill={`url(#${id}-eye)`} />
-      <circle cx={88} cy={75.5} r={2} fill="#fff" opacity={0.9} />
-      <circle cx={116} cy={75.5} r={2} fill="#fff" opacity={0.9} />
-
-      {/* nose + mouth */}
-      <ellipse cx={100} cy={91} rx={5} ry={3.6} fill="#1c1712" />
-      <path d="M92,99 Q100,104 108,99" stroke="#1c1712" strokeWidth={2} strokeLinecap="round" fill="none" />
-
-      {/* camera, held between both paws */}
-      <rect x={82} y={122} width={36} height={26} rx={9} fill={`url(#${id}-cam)`} stroke="#fff" strokeWidth={2.5} />
-      <circle cx={100} cy={135} r={8} fill="#fff" />
-      <circle cx={100} cy={135} r={4.6} fill="#075985" />
-
-      {/* paws gripping the camera's sides */}
-      <circle cx={72} cy={137} r={14} fill={`url(#${id}-fur)`} />
-      <circle cx={128} cy={137} r={14} fill={`url(#${id}-fur)`} />
     </svg>
   )
 }

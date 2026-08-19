@@ -17,21 +17,22 @@ import { CanvasStage } from './CanvasStage'
 import { PhotoCell } from './PhotoCell'
 import { Dropzone } from './Dropzone'
 import { EditorBottomBar, type BottomBarTool } from './EditorBottomBar'
+import { ExportSuccessToast } from './ExportSuccessToast'
 import { WorkspaceBackgroundPicker } from './WorkspaceBackgroundPicker'
 import { IconCrop, IconDrop, IconFrame, IconGrid } from './icons'
 
 const PREVIEW_LONG_EDGE = 900
 
 const GRID_TOOLS: BottomBarTool[] = [
+  { id: 'fondo', label: 'Fondo', icon: <IconDrop /> },
   { id: 'formato', label: 'Formato', icon: <IconCrop /> },
   { id: 'plantilla', label: 'Plantilla', icon: <IconGrid /> },
   { id: 'bordes', label: 'Bordes', icon: <IconFrame /> },
-  { id: 'fondo', label: 'Fondo', icon: <IconDrop /> },
 ]
 
 const FREE_TOOLS: BottomBarTool[] = [
-  { id: 'formato', label: 'Formato', icon: <IconCrop /> },
   { id: 'fondo', label: 'Fondo', icon: <IconDrop /> },
+  { id: 'formato', label: 'Formato', icon: <IconCrop /> },
 ]
 
 interface FreeItemsLayerProps {
@@ -128,6 +129,7 @@ export function CollageEditor() {
   const { photos, collage } = store
   const { loadFiles } = useImageBitmap()
   const [exporting, setExporting] = useState(false)
+  const [showSuccessToast, setShowSuccessToast] = useState(false)
   const [pendingCellId, setPendingCellId] = useState<string | null>(null)
   const [selectedFreeId, setSelectedFreeId] = useState<string | null>(null)
   const [activeTool, setActiveTool] = useState<string | null>(null)
@@ -179,19 +181,19 @@ export function CollageEditor() {
     store.setCollageExportQuality(quality)
     setExporting(true)
     try {
-      if (collage.layoutMode === 'grid') {
-        await exportCollageGrid(
-          template,
-          collage.assignments,
-          photos,
-          ratio,
-          collage.outerBorderPct,
-          collage.gutterPct,
-          quality,
-        )
-      } else {
-        await exportCollageFree(collage.freeItems, photos, ratio, quality)
-      }
+      const saved =
+        collage.layoutMode === 'grid'
+          ? await exportCollageGrid(
+              template,
+              collage.assignments,
+              photos,
+              ratio,
+              collage.outerBorderPct,
+              collage.gutterPct,
+              quality,
+            )
+          : await exportCollageFree(collage.freeItems, photos, ratio, quality)
+      if (saved) setShowSuccessToast(true)
     } finally {
       setExporting(false)
     }
@@ -201,7 +203,7 @@ export function CollageEditor() {
     collage.layoutMode === 'grid' ? collage.assignments.some((a) => a.photoId) : collage.freeItems.length > 0
 
   return (
-    <div className="flex h-full flex-col bg-slate-50">
+    <div className="flex h-full flex-col bg-ink-900">
       <Toolbar
         ref={toolbarRef}
         title="Collage"
@@ -218,14 +220,14 @@ export function CollageEditor() {
         multiple
       />
 
-      <div className="flex items-center justify-center gap-2 border-b border-polar-100 bg-white px-4 py-2">
+      <div className="flex items-center justify-center gap-2 border-b border-white/10 bg-ink-900 px-4 py-2">
         {(['grid', 'free'] as const).map((m) => (
           <button
             key={m}
             type="button"
             onClick={() => store.setCollageLayoutMode(m)}
-            className={`rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-wide transition duration-200 active:scale-90 ${
-              collage.layoutMode === m ? 'bg-polar-500 text-white' : 'bg-polar-50 text-polar-700'
+            className={`font-label rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-wide transition duration-200 active:scale-90 ${
+              collage.layoutMode === m ? 'bg-white text-ink-900' : 'bg-white/10 text-white/70'
             }`}
           >
             {m === 'grid' ? 'Plantilla' : 'Libre'}
@@ -276,14 +278,14 @@ export function CollageEditor() {
       </div>
 
       {collage.layoutMode === 'free' && selectedFreeId && (
-        <div className="fade-in flex items-center justify-end border-t border-polar-100 bg-white px-4 py-2">
+        <div className="fade-in flex items-center justify-end border-t border-white/10 bg-ink-900 px-4 py-2">
           <button
             type="button"
             onClick={() => {
               store.removeFreeItem(selectedFreeId)
               setSelectedFreeId(null)
             }}
-            className="rounded-full bg-red-50 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-red-600 transition duration-200 hover:bg-red-100 active:scale-90"
+            className="font-label rounded-full bg-red-500/15 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-red-300 transition duration-200 hover:bg-red-500/25 active:scale-90"
           >
             Eliminar foto
           </button>
@@ -293,7 +295,7 @@ export function CollageEditor() {
       <EditorBottomBar tools={tools} activeId={activeToolId} onSelect={setActiveTool}>
         {activeToolId === 'formato' && (
           <div>
-            <p className="mb-2 text-center text-xs font-semibold uppercase tracking-wider text-slate-400">Formato del lienzo</p>
+            <p className="font-label mb-2 text-center text-xs font-semibold uppercase tracking-wider text-white/40">Formato del lienzo</p>
             <AspectRatioPicker
               value={collage.aspectRatioId}
               onChange={store.setCollageAspectRatio}
@@ -308,15 +310,15 @@ export function CollageEditor() {
           <>
             <div className="flex flex-wrap justify-center gap-4">
               <div>
-                <p className="mb-2 text-center text-xs font-semibold uppercase tracking-wider text-slate-400">Estilo</p>
+                <p className="font-label mb-2 text-center text-xs font-semibold uppercase tracking-wider text-white/40">Estilo</p>
                 <div className="flex justify-center gap-2">
                   {(['normal', 'creative'] as const).map((s) => (
                     <button
                       key={s}
                       type="button"
                       onClick={() => store.setCollageStyle(s)}
-                      className={`rounded-full px-4 py-1.5 text-xs font-semibold uppercase tracking-wide transition duration-200 active:scale-90 ${
-                        collage.style === s ? 'bg-polar-500 text-white' : 'bg-polar-50 text-polar-700 hover:bg-polar-100'
+                      className={`font-label rounded-full px-4 py-1.5 text-xs font-semibold uppercase tracking-wide transition duration-200 active:scale-90 ${
+                        collage.style === s ? 'bg-white text-ink-900' : 'bg-white/10 text-white/70 hover:bg-white/15'
                       }`}
                     >
                       {s === 'normal' ? 'Normal' : 'Creativo'}
@@ -325,17 +327,17 @@ export function CollageEditor() {
                 </div>
               </div>
               <div>
-                <p className="mb-2 text-center text-xs font-semibold uppercase tracking-wider text-slate-400">Orientación</p>
+                <p className="font-label mb-2 text-center text-xs font-semibold uppercase tracking-wider text-white/40">Orientación</p>
                 <div className="flex justify-center gap-2">
                   {(['vertical', 'horizontal'] as const).map((o) => (
                     <button
                       key={o}
                       type="button"
                       onClick={() => store.setCollageOrientation(o)}
-                      className={`rounded-full px-4 py-1.5 text-xs font-semibold uppercase tracking-wide transition duration-200 active:scale-90 ${
+                      className={`font-label rounded-full px-4 py-1.5 text-xs font-semibold uppercase tracking-wide transition duration-200 active:scale-90 ${
                         collage.orientation === o
-                          ? 'bg-polar-500 text-white'
-                          : 'bg-polar-50 text-polar-700 hover:bg-polar-100'
+                          ? 'bg-white text-ink-900'
+                          : 'bg-white/10 text-white/70 hover:bg-white/15'
                       }`}
                     >
                       {o === 'vertical' ? 'Vertical' : 'Horizontal'}
@@ -345,7 +347,7 @@ export function CollageEditor() {
               </div>
             </div>
             <div>
-              <p className="mb-2 text-center text-xs font-semibold uppercase tracking-wider text-slate-400">
+              <p className="font-label mb-2 text-center text-xs font-semibold uppercase tracking-wider text-white/40">
                 Cantidad de fotos (máx. {MAX_COLLAGE_PHOTOS})
               </p>
               <GridTemplatePicker
@@ -355,7 +357,7 @@ export function CollageEditor() {
                 onChange={store.setCollagePhotoCount}
               />
             </div>
-            <p className="text-center text-xs text-slate-400">Toca una celda vacía en el lienzo para subir una foto.</p>
+            <p className="font-label text-center text-xs text-white/40">Toca una celda vacía en el lienzo para subir una foto.</p>
           </>
         )}
 
@@ -389,10 +391,10 @@ export function CollageEditor() {
                       setGutterLinked(true)
                     }
                   }}
-                  className={`rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-wide transition duration-200 active:scale-90 ${
+                  className={`font-label rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-wide transition duration-200 active:scale-90 ${
                     gutterLinked
-                      ? 'bg-polar-500 text-white hover:bg-polar-600'
-                      : 'bg-polar-50 text-polar-700 hover:bg-polar-100'
+                      ? 'bg-white text-ink-900 hover:bg-white/90'
+                      : 'bg-white/10 text-white/70 hover:bg-white/15'
                   }`}
                 >
                   {gutterLinked ? 'Vinculado con el borde exterior ✓' : 'Igualar con el borde exterior'}
@@ -406,6 +408,16 @@ export function CollageEditor() {
           <WorkspaceBackgroundPicker value={store.workspaceBackground} onChange={store.setWorkspaceBackground} />
         )}
       </EditorBottomBar>
+
+      <ExportSuccessToast
+        open={showSuccessToast}
+        onClose={() => setShowSuccessToast(false)}
+        onCreateAnother={() => {
+          setShowSuccessToast(false)
+          store.setMode('home')
+          store.resetCollage()
+        }}
+      />
     </div>
   )
 }

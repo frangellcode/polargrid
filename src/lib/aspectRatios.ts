@@ -12,7 +12,6 @@ export const ASPECT_RATIOS: AspectRatioPreset[] = [
   { id: '5-6', label: '5:6', ratio: 5 / 6, orientable: true },
   { id: '3-4', label: '3:4', ratio: 3 / 4, orientable: true },
   { id: '9-16', label: '9:16', ratio: 9 / 16, orientable: true },
-  { id: 'manual', label: 'Manual', ratio: null, manual: true },
 ]
 
 export const DEFAULT_ASPECT_RATIO_ID = 'original'

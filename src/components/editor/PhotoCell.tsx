@@ -1,7 +1,7 @@
 import { useRef } from 'react'
 import { Group, Image as KonvaImage, Rect, Text } from 'react-konva'
 import type Konva from 'konva'
-import type { LoadedPhoto, PhotoTransform } from '../../types'
+import type { LoadedPhoto, PhotoFit, PhotoTransform } from '../../types'
 import { clampTransform, getImageDrawRect, MAX_ZOOM } from '../../lib/cropMath'
 
 interface PhotoCellProps {
@@ -13,9 +13,12 @@ interface PhotoCellProps {
   transform: PhotoTransform
   onTransformChange: (t: PhotoTransform) => void
   onEmptyClick?: () => void
+  /** 'cover' (default) crops to fill; 'contain' shows the whole photo (border-unlocked
+   *  mode); a number 0..1 blends between them, for animating the toggle smoothly. */
+  fit?: PhotoFit | number
 }
 
-/** One photo inside a clipped rect: cover-fit, draggable to pan, wheel/pinch to zoom. */
+/** One photo inside a clipped rect: cover- or contain-fit, draggable to pan, wheel/pinch to zoom. */
 export function PhotoCell({
   x,
   y,
@@ -25,6 +28,7 @@ export function PhotoCell({
   transform,
   onTransformChange,
   onEmptyClick,
+  fit = 'cover',
 }: PhotoCellProps) {
   const pinchDist = useRef<number | null>(null)
   const imageRef = useRef<Konva.Image>(null)
@@ -48,7 +52,7 @@ export function PhotoCell({
     )
   }
 
-  const draw = getImageDrawRect(width, height, photo.width, photo.height, transform)
+  const draw = getImageDrawRect(width, height, photo.width, photo.height, transform, fit)
 
   // Konva's dragBoundFunc receives/returns ABSOLUTE (stage) coordinates, which are
   // in canvas-pixel space — i.e. our virtual (unscaled) coordinates multiplied by

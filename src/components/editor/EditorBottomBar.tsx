@@ -45,7 +45,7 @@ export function EditorBottomBar({ tools, activeId, onSelect, children }: EditorB
   }, [open, activeId])
 
   return (
-    <div className="border-t border-polar-100 bg-white">
+    <div className="border-t border-white/10 bg-ink-900">
       <div className={`overflow-hidden transition-[height] duration-300 ${EASE}`} style={{ height }}>
         <div ref={contentRef} className="space-y-4 px-4 pb-3 pt-4">
           {children}
@@ -59,16 +59,16 @@ export function EditorBottomBar({ tools, activeId, onSelect, children }: EditorB
               key={tool.id}
               type="button"
               onClick={() => onSelect(active ? null : tool.id)}
-              className="group flex flex-1 flex-col items-center gap-1 rounded-xl py-1 text-[10px] font-semibold uppercase tracking-wide transition"
+              className="font-label group flex flex-1 flex-col items-center gap-1 rounded-xl py-1 text-[10px] font-semibold uppercase tracking-wide transition"
             >
               <span
                 className={`flex h-10 w-10 items-center justify-center rounded-full transition duration-200 group-active:scale-90 ${
-                  active ? 'bg-polar-500 text-white' : 'bg-polar-50 text-polar-600'
+                  active ? 'bg-white text-ink-900' : 'bg-white/10 text-white/60'
                 }`}
               >
                 {tool.icon}
               </span>
-              <span className={`transition-colors duration-200 ${active ? 'text-polar-600' : 'text-slate-500'}`}>
+              <span className={`transition-colors duration-200 ${active ? 'text-white' : 'text-white/45'}`}>
                 {tool.label}
               </span>
             </button>

@@ -24,7 +24,7 @@ export function GridTemplatePicker({ value, style, orientation, onChange }: Grid
             onClick={() => onChange(count)}
             title={`${count} fotos`}
             className={`grid h-11 w-11 gap-0.5 rounded-lg border p-1 transition duration-200 active:scale-90 ${
-              active ? 'border-polar-500 bg-polar-50' : 'border-polar-100 bg-white hover:border-polar-300'
+              active ? 'border-white bg-white/10' : 'border-white/15 bg-white/5 hover:border-white/30'
             }`}
             style={{
               gridTemplateColumns: `repeat(${template.cols}, 1fr)`,
@@ -34,7 +34,7 @@ export function GridTemplatePicker({ value, style, orientation, onChange }: Grid
             {template.cells.map((cell, i) => (
               <span
                 key={i}
-                className={active ? 'bg-polar-400' : 'bg-polar-200'}
+                className={active ? 'bg-white' : 'bg-white/25'}
                 style={{
                   gridColumn: `${cell.col + 1} / span ${cell.colSpan}`,
                   gridRow: `${cell.row + 1} / span ${cell.rowSpan}`,
