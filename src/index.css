@@ -41,7 +41,6 @@ html {
 body {
   background-color: #ffffff;
   color: #1e293b;
-  -webkit-tap-highlight-color: transparent;
   /* Prevents the iOS text-selection callout from popping up on a
      press-and-hold anywhere in the app's chrome (buttons, labels,
      headings) — re-enabled below for actual editable fields. */
@@ -59,6 +58,13 @@ textarea {
 
 * {
   box-sizing: border-box;
+  /* -webkit-tap-highlight-color doesn't reliably cascade from body to
+     every descendant in practice — applying it everywhere directly is
+     what actually stops WebKit's default translucent-gray tap flash.
+     On a large tap target like the Dropzone (versus its small icon,
+     where the flash barely covers anything) that flash reads as a big
+     dark blob covering the whole box. */
+  -webkit-tap-highlight-color: transparent;
 }
 
 /* Opacity-only on purpose — no transform/scale. A transform here (even one
