@@ -24,18 +24,17 @@ html {
      for the very first (pre-CSS) frame when the system is in Dark Mode,
      which shows up as a dark flash at the top/bottom edges on launch. */
   color-scheme: light;
-  /* No vh-family unit (vh, dvh, -webkit-fill-available) has proven
-     reliable across the full range of Safari/WebKit contexts this app
-     runs in — full-screen iPhone Safari, an installed standalone PWA,
-     and a resized windowed iPad Safari have each been observed sizing
-     the page to its content instead of the viewport with one unit or
-     another. --app-height is set from window.innerHeight in
-     src/lib/viewportHeight.ts, which every one of those contexts
-     reports correctly and consistently — the two `height` lines below
-     are just pre-JS/no-JS fallbacks, in increasingly-better order. */
-  height: 100vh;
+  /* Plain `height: 100%` above can still leave a gap behind iOS Safari's
+     collapsing address bar — the same class of bug 100vh has, since both
+     resolve against the "large" viewport. -webkit-fill-available is
+     WebKit's own fix for exactly this — confirmed fixing the real
+     overflow bug on iPhone, and it's the same mechanism neonfinanzas
+     uses successfully (including in a resized PWA window on iPad, where
+     a JS-measured height tried here previously broke instead — neither
+     other app in this family reaches for JS for this, and this app
+     shouldn't either). */
+  min-height: 100vh;
   height: -webkit-fill-available;
-  height: var(--app-height, 100vh);
 }
 
 body {
