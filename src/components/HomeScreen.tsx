@@ -21,7 +21,7 @@ export function HomeScreen() {
         <Logo size={80} />
         <h1 className="text-xl font-bold uppercase tracking-[0.15em] text-slate-800">PolarGrid</h1>
         <p className="max-w-xs text-sm text-slate-500">
-          Bordes blancos y collages para tus fotos, en alta calidad y sin conexión.
+          Bordes blancos y collages hermosos para tus fotos, en alta calidad y completamente sin conexión.
         </p>
       </div>
 
@@ -29,7 +29,7 @@ export function HomeScreen() {
         <button
           type="button"
           onClick={() => setMode('border')}
-          className="rounded-2xl bg-polar-500 px-5 py-3.5 text-left text-white shadow-sm transition duration-200 hover:bg-polar-600 hover:shadow-md active:scale-[0.97]"
+          className="rounded-2xl bg-polar-500 px-5 py-3.5 text-center text-white shadow-sm transition duration-200 hover:bg-polar-600 hover:shadow-md active:scale-[0.97]"
         >
           <span className="block text-sm font-semibold uppercase tracking-wide">Bordes blancos</span>
           <span className="block text-sm text-polar-50/90">Enmarca una foto con borde blanco</span>
@@ -38,7 +38,7 @@ export function HomeScreen() {
         <button
           type="button"
           onClick={() => setMode('collage')}
-          className="rounded-2xl border border-polar-200 bg-polar-50 px-5 py-3.5 text-left text-polar-700 shadow-sm transition duration-200 hover:bg-polar-100 hover:shadow-md active:scale-[0.97]"
+          className="rounded-2xl border border-polar-200 bg-polar-50 px-5 py-3.5 text-center text-polar-700 shadow-sm transition duration-200 hover:bg-polar-100 hover:shadow-md active:scale-[0.97]"
         >
           <span className="block text-sm font-semibold uppercase tracking-wide">Collage</span>
           <span className="block text-sm text-polar-600/80">Combina varias fotos en una grilla</span>
