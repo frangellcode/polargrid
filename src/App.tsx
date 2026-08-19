@@ -43,7 +43,15 @@ function App() {
   const viewClassName = isExiting ? 'view-exit' : entered ? '' : 'view-enter'
 
   return (
-    <div className="h-full w-full overflow-hidden">
+    // fixed + inset-0 instead of h-full: sizing this off a height:100%
+    // chain (html -> body -> #root -> this wrapper) depends on every link
+    // computing a definite height, and -webkit-fill-available/dvh have
+    // both been observed not propagating reliably through that many
+    // nested layers in some Safari/WebKit contexts (confirmed against
+    // neonfinanzas, which sidesteps the whole chain the same way for its
+    // own app shell). fixed + inset-0 is pinned to the viewport directly,
+    // no ancestor height involved at all.
+    <div className="fixed inset-0 overflow-hidden">
       <div
         key={displayedMode}
         className={`h-full w-full ${viewClassName}`}
