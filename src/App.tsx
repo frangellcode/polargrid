@@ -96,13 +96,17 @@ function App() {
       if (displayedMode === 'collage') useEditorStore.getState().resetCollage()
       setDisplayedMode(mode)
       setIsExiting(false)
+      // Must land in the same batch as setDisplayedMode above, not in a
+      // separate effect keyed on displayedMode — that ran one tick later, so
+      // the freshly-mounted screen's first paint still saw the *previous*
+      // screen's stale `entered: true` and skipped the view-enter class
+      // entirely. It popped in fully visible with no fade, then the class
+      // landed a frame later and restarted the animation from its opacity-0
+      // "from" state on already-visible content — the actual jump reported.
+      setEntered(false)
     }, EXIT_MS)
     return () => clearTimeout(t)
   }, [mode, displayedMode])
-
-  useEffect(() => {
-    setEntered(false)
-  }, [displayedMode])
 
   // The view-enter animation ends on translateY(0) scale(1) — visually a
   // no-op, but `animation: ... both` keeps that transform (and the
