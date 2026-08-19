@@ -7,7 +7,14 @@
     <meta name="description" content="Bordes blancos y collages de fotos en alta calidad, 100% offline." />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Syne:wght@500;700&family=Jost:wght@300;400;500&display=swap" />
+    <!-- display=optional (not swap): with swap, the fallback system font
+         paints first and then gets replaced by Syne/Jost once they load —
+         since the two have different line-heights, that swap reflows the
+         Toolbar's height and visibly shifts everything below it down by a
+         few px right after the screen has already appeared. optional
+         either has the real font ready in time for the first paint or
+         sticks with the fallback for that load — no swap, no shift. -->
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Syne:wght@500;700&family=Jost:wght@300;400;500&display=optional" />
     <!-- Debe coincidir con el fondo real de la app (todas las pantallas son
          bg-ink-900, #141e30) — en Safari (modo no instalado) esto tiñe la
          barra de herramientas/tarjeta del selector de apps, así que un
