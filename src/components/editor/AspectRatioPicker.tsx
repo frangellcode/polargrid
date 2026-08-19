@@ -33,7 +33,7 @@ export function AspectRatioPicker({
             key={preset.id}
             type="button"
             onClick={() => onChange(preset.id)}
-            className={`rounded-full px-4 py-1.5 text-xs font-semibold uppercase tracking-wide transition ${
+            className={`rounded-full px-4 py-1.5 text-xs font-semibold uppercase tracking-wide transition duration-200 active:scale-90 ${
               value === preset.id
                 ? 'bg-polar-500 text-white'
                 : 'bg-polar-50 text-polar-700 hover:bg-polar-100'
@@ -45,7 +45,7 @@ export function AspectRatioPicker({
       </div>
 
       {showOrientation && (
-        <div className="flex justify-center gap-2">
+        <div className="fade-in flex justify-center gap-2">
           {(['vertical', 'horizontal'] as const).map((o) => (
             <button
               key={o}

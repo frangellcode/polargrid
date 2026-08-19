@@ -20,7 +20,7 @@ export function WorkspaceBackgroundPicker({ value, onChange }: WorkspaceBackgrou
               onClick={() => onChange(bg.id)}
               title={bg.label}
               aria-label={bg.label}
-              className={`flex h-11 w-11 items-center justify-center rounded-full ring-2 transition ${
+              className={`flex h-11 w-11 items-center justify-center rounded-full ring-2 transition duration-200 active:scale-90 ${
                 active ? 'ring-polar-500' : 'ring-transparent hover:ring-polar-200'
               }`}
             >

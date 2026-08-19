@@ -29,7 +29,7 @@ export function HomeScreen() {
         <button
           type="button"
           onClick={() => setMode('border')}
-          className="rounded-2xl bg-polar-500 px-5 py-3.5 text-left text-white shadow-sm transition hover:bg-polar-600"
+          className="rounded-2xl bg-polar-500 px-5 py-3.5 text-left text-white shadow-sm transition duration-200 hover:bg-polar-600 hover:shadow-md active:scale-[0.97]"
         >
           <span className="block text-sm font-semibold uppercase tracking-wide">Bordes blancos</span>
           <span className="block text-sm text-polar-50/90">Enmarca una foto con borde blanco</span>
@@ -38,7 +38,7 @@ export function HomeScreen() {
         <button
           type="button"
           onClick={() => setMode('collage')}
-          className="rounded-2xl border border-polar-200 bg-polar-50 px-5 py-3.5 text-left text-polar-700 shadow-sm transition hover:bg-polar-100"
+          className="rounded-2xl border border-polar-200 bg-polar-50 px-5 py-3.5 text-left text-polar-700 shadow-sm transition duration-200 hover:bg-polar-100 hover:shadow-md active:scale-[0.97]"
         >
           <span className="block text-sm font-semibold uppercase tracking-wide">Collage</span>
           <span className="block text-sm text-polar-600/80">Combina varias fotos en una grilla</span>
@@ -49,7 +49,7 @@ export function HomeScreen() {
         type="button"
         onClick={handleUpdate}
         disabled={updating}
-        className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-slate-400 disabled:opacity-60"
+        className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-slate-400 transition duration-200 active:scale-95 disabled:opacity-60 disabled:active:scale-100"
       >
         <IconRefresh className={`h-3.5 w-3.5 ${updating ? 'animate-spin' : ''}`} />
         {updating ? 'Actualizando…' : 'Actualizar app'}

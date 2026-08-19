@@ -55,7 +55,7 @@ export const Toolbar = forwardRef<ToolbarHandle, ToolbarProps>(function Toolbar(
       <button
         type="button"
         onClick={onBack}
-        className="-ml-2 flex items-center gap-1.5 rounded-full py-2 pl-2 pr-3 text-slate-700 hover:bg-polar-50 active:bg-polar-100"
+        className="-ml-2 flex items-center gap-1.5 rounded-full py-2 pl-2 pr-3 text-slate-700 transition duration-200 hover:bg-polar-50 active:scale-95 active:bg-polar-100"
         aria-label={`Volver, ${title}`}
       >
         <span className="text-2xl leading-none">←</span>
@@ -73,7 +73,7 @@ export const Toolbar = forwardRef<ToolbarHandle, ToolbarProps>(function Toolbar(
         <button
           type="button"
           onClick={() => inputRef.current?.click()}
-          className="rounded-full bg-polar-50 px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-polar-700 hover:bg-polar-100"
+          className="rounded-full bg-polar-50 px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-polar-700 transition duration-200 hover:bg-polar-100 active:scale-95"
         >
           {uploadLabel}
         </button>
@@ -81,7 +81,7 @@ export const Toolbar = forwardRef<ToolbarHandle, ToolbarProps>(function Toolbar(
           type="button"
           onClick={() => setSheetOpen(true)}
           disabled={exporting || !canExport}
-          className="rounded-full bg-polar-500 px-4 py-1.5 text-xs font-semibold uppercase tracking-wide text-white hover:bg-polar-600 disabled:cursor-not-allowed disabled:opacity-40"
+          className="rounded-full bg-polar-500 px-4 py-1.5 text-xs font-semibold uppercase tracking-wide text-white transition duration-200 hover:bg-polar-600 active:scale-95 disabled:cursor-not-allowed disabled:opacity-40 disabled:active:scale-100"
         >
           {exporting ? 'Exportando…' : 'Exportar'}
         </button>

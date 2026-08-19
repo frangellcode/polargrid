@@ -224,7 +224,7 @@ export function CollageEditor() {
             key={m}
             type="button"
             onClick={() => store.setCollageLayoutMode(m)}
-            className={`rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-wide ${
+            className={`rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-wide transition duration-200 active:scale-90 ${
               collage.layoutMode === m ? 'bg-polar-500 text-white' : 'bg-polar-50 text-polar-700'
             }`}
           >
@@ -276,14 +276,14 @@ export function CollageEditor() {
       </div>
 
       {collage.layoutMode === 'free' && selectedFreeId && (
-        <div className="flex items-center justify-end border-t border-polar-100 bg-white px-4 py-2">
+        <div className="fade-in flex items-center justify-end border-t border-polar-100 bg-white px-4 py-2">
           <button
             type="button"
             onClick={() => {
               store.removeFreeItem(selectedFreeId)
               setSelectedFreeId(null)
             }}
-            className="rounded-full bg-red-50 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-red-600 hover:bg-red-100"
+            className="rounded-full bg-red-50 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-red-600 transition duration-200 hover:bg-red-100 active:scale-90"
           >
             Eliminar foto
           </button>
@@ -315,7 +315,7 @@ export function CollageEditor() {
                       key={s}
                       type="button"
                       onClick={() => store.setCollageStyle(s)}
-                      className={`rounded-full px-4 py-1.5 text-xs font-semibold uppercase tracking-wide transition ${
+                      className={`rounded-full px-4 py-1.5 text-xs font-semibold uppercase tracking-wide transition duration-200 active:scale-90 ${
                         collage.style === s ? 'bg-polar-500 text-white' : 'bg-polar-50 text-polar-700 hover:bg-polar-100'
                       }`}
                     >
@@ -332,7 +332,7 @@ export function CollageEditor() {
                       key={o}
                       type="button"
                       onClick={() => store.setCollageOrientation(o)}
-                      className={`rounded-full px-4 py-1.5 text-xs font-semibold uppercase tracking-wide transition ${
+                      className={`rounded-full px-4 py-1.5 text-xs font-semibold uppercase tracking-wide transition duration-200 active:scale-90 ${
                         collage.orientation === o
                           ? 'bg-polar-500 text-white'
                           : 'bg-polar-50 text-polar-700 hover:bg-polar-100'
@@ -389,7 +389,7 @@ export function CollageEditor() {
                       setGutterLinked(true)
                     }
                   }}
-                  className={`rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-wide transition ${
+                  className={`rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-wide transition duration-200 active:scale-90 ${
                     gutterLinked
                       ? 'bg-polar-500 text-white hover:bg-polar-600'
                       : 'bg-polar-50 text-polar-700 hover:bg-polar-100'

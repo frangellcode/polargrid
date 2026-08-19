@@ -75,7 +75,7 @@ export function ExportQualitySheet({ open, defaultQuality, onClose, onExport }: 
               key={preset.id}
               type="button"
               onClick={() => setSelected(preset.id)}
-              className={`flex items-center justify-between rounded-2xl border px-4 py-3 text-left transition-colors ${
+              className={`flex items-center justify-between rounded-2xl border px-4 py-3 text-left transition duration-200 active:scale-[0.98] ${
                 selected === preset.id
                   ? 'border-polar-500 bg-polar-50'
                   : 'border-polar-100 bg-white hover:bg-polar-50/60'
@@ -86,11 +86,11 @@ export function ExportQualitySheet({ open, defaultQuality, onClose, onExport }: 
                 <p className="text-xs text-slate-400">{preset.hint}</p>
               </div>
               <div
-                className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 ${
+                className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 transition-colors duration-200 ${
                   selected === preset.id ? 'border-polar-500' : 'border-polar-200'
                 }`}
               >
-                {selected === preset.id && <div className="h-2.5 w-2.5 rounded-full bg-polar-500" />}
+                {selected === preset.id && <div className="fade-in h-2.5 w-2.5 rounded-full bg-polar-500" />}
               </div>
             </button>
           ))}
@@ -100,14 +100,14 @@ export function ExportQualitySheet({ open, defaultQuality, onClose, onExport }: 
           <button
             type="button"
             onClick={onClose}
-            className="flex-1 rounded-2xl bg-polar-50 py-3 text-xs font-semibold uppercase tracking-wide text-polar-700"
+            className="flex-1 rounded-2xl bg-polar-50 py-3 text-xs font-semibold uppercase tracking-wide text-polar-700 transition duration-200 active:scale-95"
           >
             Cancelar
           </button>
           <button
             type="button"
             onClick={() => onExport(selected)}
-            className="flex-[2] rounded-2xl bg-polar-500 py-3 text-xs font-semibold uppercase tracking-wide text-white hover:bg-polar-600"
+            className="flex-[2] rounded-2xl bg-polar-500 py-3 text-xs font-semibold uppercase tracking-wide text-white transition duration-200 hover:bg-polar-600 active:scale-95"
           >
             Exportar
           </button>

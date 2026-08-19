@@ -23,7 +23,7 @@ export function GridTemplatePicker({ value, style, orientation, onChange }: Grid
             type="button"
             onClick={() => onChange(count)}
             title={`${count} fotos`}
-            className={`grid h-11 w-11 gap-0.5 rounded-lg border p-1 transition ${
+            className={`grid h-11 w-11 gap-0.5 rounded-lg border p-1 transition duration-200 active:scale-90 ${
               active ? 'border-polar-500 bg-polar-50' : 'border-polar-100 bg-white hover:border-polar-300'
             }`}
             style={{

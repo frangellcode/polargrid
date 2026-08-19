@@ -66,36 +66,59 @@ textarea {
   -webkit-tap-highlight-color: transparent;
 }
 
-/* Opacity-only on purpose — no transform/scale. A transform here (even one
-   that ends on an identity-equivalent value like translateY(0) scale(1) via
-   `animation: ... both`) forces the view onto its own compositing layer,
-   and iOS Safari can leave taps "dead" on buttons inside that layer: the
-   paint updates correctly but the hit-test region gets stuck, so you end up
-   tapping through to whatever is visually below/behind the real button. */
+/* A transform that's still applied once the animation ends (even an
+   identity-equivalent one, via `animation: ... both`) pins the element on
+   its own compositing layer — that's what broke taps on iOS a few fixes
+   ago. Safe to use transform again now that the actual cause (an always-
+   mounted fixed overlay elsewhere) is fixed, because App.tsx drops this
+   class entirely once the animation finishes (see the `entered` state),
+   so nothing is ever left running after it settles. */
 @keyframes view-fade-in {
   from {
     opacity: 0;
+    transform: translateY(14px) scale(0.98);
   }
   to {
     opacity: 1;
+    transform: translateY(0) scale(1);
   }
 }
 
 @keyframes view-fade-out {
   from {
     opacity: 1;
+    transform: translateY(0) scale(1);
   }
   to {
     opacity: 0;
+    transform: translateY(-8px) scale(0.98);
   }
 }
 
 .view-enter {
-  animation: view-fade-in 220ms ease-out both;
+  animation: view-fade-in 380ms cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
 .view-exit {
-  animation: view-fade-out 140ms ease-in both;
+  animation: view-fade-out 200ms cubic-bezier(0.4, 0, 1, 1) both;
+}
+
+/* Small reusable "pop in" for content that appears conditionally within an
+   already-mounted screen (an orientation toggle showing up, a manual-ratio
+   row, a contextual action bar) — same idea as view-enter, smaller motion. */
+@keyframes fade-in-up {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.fade-in {
+  animation: fade-in-up 220ms cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
 @media (prefers-reduced-motion: reduce) {

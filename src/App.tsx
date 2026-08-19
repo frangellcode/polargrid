@@ -5,7 +5,7 @@ import { BorderEditor } from './components/editor/BorderEditor'
 import { CollageEditor } from './components/editor/CollageEditor'
 import type { AppMode } from './types'
 
-const EXIT_MS = 140
+const EXIT_MS = 200
 
 function renderView(mode: AppMode) {
   if (mode === 'home') return <HomeScreen />

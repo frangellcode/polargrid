@@ -132,7 +132,7 @@ export function BorderEditor() {
                 onOrientationChange={setBorderRatioOrientation}
               />
               {border.aspectRatioId === 'manual' && (
-                <div className="mt-3 flex items-center justify-center gap-2">
+                <div className="fade-in mt-3 flex items-center justify-center gap-2">
                   <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">Proporción</span>
                   <input
                     type="number"

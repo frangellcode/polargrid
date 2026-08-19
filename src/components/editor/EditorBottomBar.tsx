@@ -59,16 +59,18 @@ export function EditorBottomBar({ tools, activeId, onSelect, children }: EditorB
               key={tool.id}
               type="button"
               onClick={() => onSelect(active ? null : tool.id)}
-              className="flex flex-1 flex-col items-center gap-1 rounded-xl py-1 text-[10px] font-semibold uppercase tracking-wide transition"
+              className="group flex flex-1 flex-col items-center gap-1 rounded-xl py-1 text-[10px] font-semibold uppercase tracking-wide transition"
             >
               <span
-                className={`flex h-10 w-10 items-center justify-center rounded-full transition-colors ${
+                className={`flex h-10 w-10 items-center justify-center rounded-full transition duration-200 group-active:scale-90 ${
                   active ? 'bg-polar-500 text-white' : 'bg-polar-50 text-polar-600'
                 }`}
               >
                 {tool.icon}
               </span>
-              <span className={active ? 'text-polar-600' : 'text-slate-500'}>{tool.label}</span>
+              <span className={`transition-colors duration-200 ${active ? 'text-polar-600' : 'text-slate-500'}`}>
+                {tool.label}
+              </span>
             </button>
           )
         })}

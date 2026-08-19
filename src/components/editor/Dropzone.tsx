@@ -45,12 +45,12 @@ export function Dropzone({ label, hint, onFiles, multiple = true }: DropzoneProp
       }}
       onDragLeave={() => setIsDragOver(false)}
       onDrop={handleDrop}
-      className={`flex h-full w-full cursor-pointer flex-col items-center justify-center gap-4 rounded-2xl border-2 border-dashed text-center transition-colors duration-150 ${
+      className={`group flex h-full w-full cursor-pointer flex-col items-center justify-center gap-4 rounded-2xl border-2 border-dashed text-center transition-colors duration-200 ${
         isDragOver ? 'border-polar-500 bg-polar-100' : 'border-polar-200 bg-polar-50/60 active:bg-polar-100'
       }`}
     >
       <input ref={inputRef} type="file" accept="image/*" multiple={multiple} className="hidden" onChange={handleChange} />
-      <div className="flex h-16 w-16 items-center justify-center rounded-full bg-polar-500 text-white shadow-sm">
+      <div className="flex h-16 w-16 items-center justify-center rounded-full bg-polar-500 text-white shadow-sm transition duration-200 group-active:scale-90">
         <svg width={28} height={28} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
           <path d="M12 16V4M12 4l-4 4M12 4l4 4" />
           <path d="M4 16v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2" />
