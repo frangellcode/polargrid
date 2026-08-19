@@ -37,7 +37,6 @@ export function BorderEditor() {
     setBorderThickness,
     setBorderTransform,
     setBorderExportQuality,
-    resetBorder,
     workspaceBackground,
     setWorkspaceBackground,
   } = useEditorStore()
@@ -92,10 +91,7 @@ export function BorderEditor() {
     <div className="flex h-full flex-col bg-ink-900">
       <Toolbar
         title="Bordes blancos"
-        onBack={() => {
-          setMode('home')
-          resetBorder()
-        }}
+        onBack={() => setMode('home')}
         onUpload={handleUpload}
         onExport={handleExport}
         exportQuality={border.exportQuality}
@@ -185,7 +181,6 @@ export function BorderEditor() {
         onCreateAnother={() => {
           setShowSuccessToast(false)
           setMode('home')
-          resetBorder()
         }}
       />
     </div>

@@ -207,10 +207,7 @@ export function CollageEditor() {
       <Toolbar
         ref={toolbarRef}
         title="Collage"
-        onBack={() => {
-          store.setMode('home')
-          store.resetCollage()
-        }}
+        onBack={() => store.setMode('home')}
         onUpload={handleUpload}
         onExport={handleExport}
         exportQuality={collage.exportQuality}
@@ -415,7 +412,6 @@ export function CollageEditor() {
         onCreateAnother={() => {
           setShowSuccessToast(false)
           store.setMode('home')
-          store.resetCollage()
         }}
       />
     </div>
