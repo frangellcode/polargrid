@@ -3,6 +3,7 @@ import { Group, Image as KonvaImage, Rect, Text } from 'react-konva'
 import type Konva from 'konva'
 import type { LoadedPhoto, PhotoFit, PhotoTransform } from '../../types'
 import { clampTransform, getImageDrawRect, MAX_ZOOM } from '../../lib/cropMath'
+import { useAnimatedNumber } from '../../hooks/useAnimatedNumber'
 
 interface PhotoCellProps {
   x: number
@@ -16,22 +17,40 @@ interface PhotoCellProps {
   /** 'cover' (default) crops to fill; 'contain' shows the whole photo (border-unlocked
    *  mode); a number 0..1 blends between them, for animating the toggle smoothly. */
   fit?: PhotoFit | number
+  /** Tweens x/y/width/height whenever they jump, instead of snapping — for Collage's
+   *  grid mode, where switching templates changes every cell's rect outright. Off by
+   *  default: Border's single photo and Collage's free-mode items already feed in
+   *  either pre-smoothed (useAnimatedNumber upstream) or live-dragged values, where
+   *  another layer of easing here would just add lag on top. */
+  animateLayout?: boolean
 }
 
 /** One photo inside a clipped rect: cover- or contain-fit, draggable to pan, wheel/pinch to zoom. */
 export function PhotoCell({
-  x,
-  y,
-  width,
-  height,
+  x: xTarget,
+  y: yTarget,
+  width: widthTarget,
+  height: heightTarget,
   photo,
   transform,
   onTransformChange,
   onEmptyClick,
   fit = 'cover',
+  animateLayout = false,
 }: PhotoCellProps) {
   const pinchDist = useRef<number | null>(null)
   const imageRef = useRef<Konva.Image>(null)
+
+  // Always called (never behind the `animateLayout` flag) so this instance's hook
+  // count stays identical across renders regardless of that flag's value.
+  const animatedX = useAnimatedNumber(xTarget)
+  const animatedY = useAnimatedNumber(yTarget)
+  const animatedWidth = useAnimatedNumber(widthTarget)
+  const animatedHeight = useAnimatedNumber(heightTarget)
+  const x = animateLayout ? animatedX : xTarget
+  const y = animateLayout ? animatedY : yTarget
+  const width = animateLayout ? animatedWidth : widthTarget
+  const height = animateLayout ? animatedHeight : heightTarget
 
   if (width <= 0 || height <= 0) return null
 
