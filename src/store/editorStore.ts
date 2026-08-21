@@ -13,13 +13,7 @@ import type {
 } from '../types'
 import { DEFAULT_ASPECT_RATIO_ID } from '../lib/aspectRatios'
 import { DEFAULT_TRANSFORM, clampTransform } from '../lib/cropMath'
-import {
-  GRID_TEMPLATES,
-  MAX_COLLAGE_PHOTOS,
-  MIN_COLLAGE_PHOTOS,
-  getTemplatesForCount,
-  resolveShape,
-} from '../lib/collageTemplates'
+import { GRID_TEMPLATES, MAX_COLLAGE_PHOTOS, MIN_COLLAGE_PHOTOS, getTemplatesForCount } from '../lib/collageTemplates'
 import { DEFAULT_EXPORT_QUALITY } from '../lib/exportQuality'
 import { DEFAULT_WORKSPACE_BACKGROUND } from '../lib/workspaceBackgrounds'
 
@@ -55,7 +49,7 @@ interface CollageState {
   layoutMode: CollageLayoutMode
   photoCount: number
   templateId: string
-  /** Cell clip shape, chosen independently of the layout — see resolveShape. */
+  /** Cell clip shape, chosen independently of the layout. */
   shape: CellShape
   orientation: CollageOrientation
   assignments: CellAssignment[]
@@ -212,15 +206,12 @@ export const useEditorStore = create<EditorStoreState>((set, get) => ({
   // Selecting a template only ever happens among templates matching the
   // current photo count (the picker filters by it), so this normally just
   // swaps the layout. Resizing assignments here too keeps it safe if that
-  // ever isn't the case. If the new layout doesn't support a circle crop and
-  // 'circle' was picked, fall back to 'rect' rather than keep a shape that
-  // no longer applies.
+  // ever isn't the case.
   setCollageTemplateId: (templateId) =>
     set((state) => {
       const count = GRID_TEMPLATES.find((t) => t.id === templateId)?.count ?? state.collage.photoCount
-      const shape = resolveShape(templateId, state.collage.shape, count)
       if (count === state.collage.photoCount) {
-        return { collage: { ...state.collage, templateId, shape } }
+        return { collage: { ...state.collage, templateId } }
       }
       const nextAssignments = buildAssignmentsForCount(count)
       const existingPhotoIds = state.collage.assignments.filter((a) => a.photoId).map((a) => a.photoId)
@@ -228,14 +219,11 @@ export const useEditorStore = create<EditorStoreState>((set, get) => ({
         if (existingPhotoIds[i]) cell.photoId = existingPhotoIds[i]
       })
       return {
-        collage: { ...state.collage, templateId, shape, photoCount: count, assignments: nextAssignments },
+        collage: { ...state.collage, templateId, photoCount: count, assignments: nextAssignments },
       }
     }),
 
-  setCollageShape: (shape) =>
-    set((state) => ({
-      collage: { ...state.collage, shape: resolveShape(state.collage.templateId, shape, state.collage.photoCount) },
-    })),
+  setCollageShape: (shape) => set((state) => ({ collage: { ...state.collage, shape } })),
 
   setCollageOrientation: (orientation) =>
     set((state) => ({ collage: { ...state.collage, orientation } })),
@@ -301,10 +289,9 @@ export const useEditorStore = create<EditorStoreState>((set, get) => ({
       }
       return cell
     })
-    const shape = resolveShape(templateId, state.collage.shape, photoCount)
     set((s) => ({
       photos: { ...s.photos, ...photoRecord },
-      collage: { ...s.collage, assignments, photoCount, templateId, shape },
+      collage: { ...s.collage, assignments, photoCount, templateId },
     }))
   },
 

@@ -20,10 +20,7 @@ const ROUNDED_RADIUS_RATIO = 0.12
  *  the path so it can be reused for both Konva's clipFunc and canvas export. */
 export function traceShapePath(ctx: PathContext, shape: CellShape, width: number, height: number) {
   ctx.beginPath()
-  if (shape === 'circle') {
-    const r = Math.min(width, height) / 2
-    ctx.arc(width / 2, height / 2, r, 0, Math.PI * 2)
-  } else if (shape === 'rounded') {
+  if (shape === 'rounded') {
     const r = Math.min(width, height) * ROUNDED_RADIUS_RATIO
     ctx.moveTo(r, 0)
     ctx.lineTo(width - r, 0)

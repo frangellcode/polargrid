@@ -1,4 +1,4 @@
-import type { CellShape, GridTemplate } from '../types'
+import type { GridTemplate } from '../types'
 
 type CellSpec = { col: number; row: number; colSpan: number; rowSpan: number }
 
@@ -13,54 +13,15 @@ interface GeometryDef {
 
 /**
  * Hand-picked grid layouts (geometries). Most tile their cols x rows unit
- * grid exactly (no gaps) — sum of colSpan*rowSpan per row == cols. A few
- * deliberately don't: the single-photo layouts inset their one cell so the
- * workspace background shows through as a mat/frame, and a couple of
- * small-count layouts (grid-2-diagonal, grid-3-corner) leave part of the
- * grid empty on purpose, as a designed accent rather than a full tiling.
+ * grid exactly (no gaps) — sum of colSpan*rowSpan per row == cols. A couple
+ * of small-count layouts (grid-2-diagonal, grid-3-corner) deliberately don't:
+ * they leave part of the grid empty on purpose, as a designed accent rather
+ * than a full tiling.
  *
- * Every photo count (1-9) gets 4 layouts. The cell "shape" (rect / rounded /
- * circle) is a separate, orthogonal choice made in the UI — not baked into
- * separate near-duplicate template entries — so each layout appears exactly
- * once here. `circleEligible` (computed below) says whether that layout's
- * cells are close enough to square for a circle crop to look intentional
- * rather than leaving stray dead space.
+ * Every photo count (2-9) gets 4 layouts. The cell "shape" (rect / rounded)
+ * is a separate, orthogonal choice made in the UI, not baked into these.
  */
 const GEOMETRIES: GeometryDef[] = [
-  // ---- 1 photo (inset within a 20x20 unit grid, so the mat shows around it) ----
-  {
-    key: 'grid-1-full',
-    label: '1 foto · completa',
-    count: 1,
-    cols: 20,
-    rows: 20,
-    cells: [{ col: 0, row: 0, colSpan: 20, rowSpan: 20 }],
-  },
-  {
-    key: 'grid-1-inset-sm',
-    label: '1 foto · marco fino',
-    count: 1,
-    cols: 20,
-    rows: 20,
-    cells: [{ col: 1, row: 1, colSpan: 18, rowSpan: 18 }],
-  },
-  {
-    key: 'grid-1-inset-lg',
-    label: '1 foto · marco grande',
-    count: 1,
-    cols: 20,
-    rows: 20,
-    cells: [{ col: 3, row: 3, colSpan: 14, rowSpan: 14 }],
-  },
-  {
-    key: 'grid-1-mat',
-    label: '1 foto · estilo polaroid',
-    count: 1,
-    cols: 20,
-    rows: 20,
-    cells: [{ col: 2, row: 2, colSpan: 16, rowSpan: 13 }],
-  },
-
   // ---- 2 photos ----
   {
     key: 'grid-2-normal',
@@ -100,8 +61,7 @@ const GEOMETRIES: GeometryDef[] = [
   {
     // Two square cells on the diagonal of a 2x2 grid, the other two units left
     // as deliberate negative space — reads as a designed accent rather than a
-    // leftover gap, and (being genuinely square) is the one 2-photo layout
-    // that also looks right with the circle-crop shape.
+    // leftover gap.
     key: 'grid-2-diagonal',
     label: '2 fotos · acento diagonal',
     count: 2,
@@ -153,8 +113,7 @@ const GEOMETRIES: GeometryDef[] = [
   },
   {
     // Three square cells filling an L in a 2x2 block, one corner left open —
-    // a compact, deliberate accent (not a leftover gap) and, being square
-    // cells, the one 3-photo layout that also works with circle crops.
+    // a compact, deliberate accent, not a leftover gap.
     key: 'grid-3-corner',
     label: '3 fotos · esquina',
     count: 3,
@@ -391,9 +350,7 @@ const GEOMETRIES: GeometryDef[] = [
     ],
   },
   {
-    // A 3x3 grid with the center and top-middle left open — a "U" of 7 square
-    // cells. All-square, so (unlike a plain 7-in-a-row strip) it also works
-    // as a circle-crop layout.
+    // A 3x3 grid with the center and top-middle left open — a "U" of 7 cells.
     key: 'grid-7-horseshoe',
     label: '7 fotos · herradura',
     count: 7,
@@ -555,25 +512,6 @@ const GEOMETRIES: GeometryDef[] = [
   },
 ]
 
-/** How far a cell's box may stray from square (as width/height) and still get
- *  a circle crop that looks intentional. Outside this range the inscribed
- *  circle leaves so much bare box on the long axis that it reads as a
- *  mistake rather than a design choice — so a 'circle' shape pick falls back
- *  to 'rect' for that layout (see resolveShape). */
-const CIRCLE_MIN_ASPECT = 0.6
-const CIRCLE_MAX_ASPECT = 1.67
-
-function cellAspect(cell: CellSpec, cols: number, rows: number): number {
-  return (cell.colSpan / cols) / (cell.rowSpan / rows)
-}
-
-function isCircleEligible(g: GeometryDef): boolean {
-  return g.cells.every((c) => {
-    const a = cellAspect(c, g.cols, g.rows)
-    return a >= CIRCLE_MIN_ASPECT && a <= CIRCLE_MAX_ASPECT
-  })
-}
-
 export const GRID_TEMPLATES: GridTemplate[] = GEOMETRIES.map((g) => ({
   id: g.key,
   label: g.label,
@@ -581,13 +519,12 @@ export const GRID_TEMPLATES: GridTemplate[] = GEOMETRIES.map((g) => ({
   cols: g.cols,
   rows: g.rows,
   cells: g.cells,
-  circleEligible: isCircleEligible(g),
 }))
 
-export const MIN_COLLAGE_PHOTOS = 1
+export const MIN_COLLAGE_PHOTOS = 2
 export const MAX_COLLAGE_PHOTOS = 9
 
-/** All templates available for a given photo count (1-9), in a stable order. */
+/** All templates available for a given photo count (2-9), in a stable order. */
 export function getTemplatesForCount(count: number): GridTemplate[] {
   const clamped = Math.min(MAX_COLLAGE_PHOTOS, Math.max(MIN_COLLAGE_PHOTOS, count))
   return GRID_TEMPLATES.filter((t) => t.count === clamped)
@@ -596,13 +533,6 @@ export function getTemplatesForCount(count: number): GridTemplate[] {
 /** Looks up a template by id, falling back to the first template for that photo count. */
 export function getTemplateById(id: string, fallbackCount: number): GridTemplate {
   return GRID_TEMPLATES.find((t) => t.id === id) ?? getTemplatesForCount(fallbackCount)[0]
-}
-
-/** The shape actually usable for a layout: 'circle' falls back to 'rect' when
- *  the layout's cells aren't square-ish enough (see circleEligible). */
-export function resolveShape(templateId: string, shape: CellShape, fallbackCount: number): CellShape {
-  const template = getTemplateById(templateId, fallbackCount)
-  return shape === 'circle' && !template.circleEligible ? 'rect' : shape
 }
 
 /**

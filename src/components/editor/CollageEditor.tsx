@@ -342,32 +342,26 @@ export function CollageEditor() {
                     [
                       { shape: 'rect' as const, label: 'Rectangular' },
                       { shape: 'rounded' as const, label: 'Redondeado' },
-                      { shape: 'circle' as const, label: 'Círculo' },
                     ]
-                  ).map(({ shape, label }) => {
-                    const disabled = shape === 'circle' && !template.circleEligible
-                    return (
-                      <button
-                        key={shape}
-                        type="button"
-                        disabled={disabled}
-                        onClick={() => store.setCollageShape(shape)}
-                        title={disabled ? 'Este diseño no tiene celdas cuadradas para recortar en círculo' : undefined}
-                        className={`font-label rounded-full px-4 py-1.5 text-xs font-semibold uppercase tracking-wide transition duration-200 active:scale-90 disabled:cursor-not-allowed disabled:opacity-30 disabled:active:scale-100 ${
-                          collage.shape === shape
-                            ? 'bg-white text-ink-900'
-                            : 'bg-white/10 text-white/70 hover:bg-white/15'
-                        }`}
-                      >
-                        {label}
-                      </button>
-                    )
-                  })}
+                  ).map(({ shape, label }) => (
+                    <button
+                      key={shape}
+                      type="button"
+                      onClick={() => store.setCollageShape(shape)}
+                      className={`font-label rounded-full px-4 py-1.5 text-xs font-semibold uppercase tracking-wide transition duration-200 active:scale-90 ${
+                        collage.shape === shape
+                          ? 'bg-white text-ink-900'
+                          : 'bg-white/10 text-white/70 hover:bg-white/15'
+                      }`}
+                    >
+                      {label}
+                    </button>
+                  ))}
                 </div>
               </div>
               <div>
                 <p className="font-label mb-2 text-center text-xs font-semibold uppercase tracking-wider text-white/40">
-                  Diseño ({collage.photoCount} {collage.photoCount === 1 ? 'foto' : 'fotos'})
+                  Diseño ({collage.photoCount} fotos)
                 </p>
                 <GridTemplatePicker
                   count={collage.photoCount}

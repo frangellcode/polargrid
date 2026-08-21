@@ -24,7 +24,7 @@ interface PhotoCellProps {
    *  either pre-smoothed (useAnimatedNumber upstream) or live-dragged values, where
    *  another layer of easing here would just add lag on top. */
   animateLayout?: boolean
-  /** How the cell is clipped: plain rect (default), rounded corners, or an inscribed circle. */
+  /** How the cell is clipped: plain rect (default) or rounded corners. */
   shape?: CellShape
 }
 

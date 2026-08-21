@@ -4,9 +4,7 @@ import { getTemplatesForCount, transposeTemplate } from '../../lib/collageTempla
 interface GridTemplatePickerProps {
   count: number
   value: string
-  /** Currently selected cell shape, just for previewing each thumbnail —
-   *  layouts that can't take a circle crop (see circleEligible) preview as
-   *  rectangular instead, matching what picking them would actually do. */
+  /** Currently selected cell shape, just for previewing each thumbnail. */
   shape: CellShape
   orientation: CollageOrientation
   onChange: (templateId: string) => void
@@ -14,9 +12,8 @@ interface GridTemplatePickerProps {
 
 /** Corner radius for a thumbnail cell, matching the previewed shape. Percentage-based
  *  (not a fixed px grid) so it stays correct at thumbnail scale for both coarse
- *  tilings and the fine inset grids used by single-photo templates. */
+ *  tilings and finer grids alike. */
 function cellRadius(shape: CellShape) {
-  if (shape === 'circle') return '9999px'
   if (shape === 'rounded') return '28%'
   return '2px'
 }
@@ -28,7 +25,6 @@ export function GridTemplatePicker({ count, value, shape, orientation, onChange 
       {templates.map((base) => {
         const template = orientation === 'vertical' ? transposeTemplate(base) : base
         const active = value === base.id
-        const previewShape = shape === 'circle' && !base.circleEligible ? 'rect' : shape
         return (
           <button
             key={base.id}
@@ -52,7 +48,7 @@ export function GridTemplatePicker({ count, value, shape, orientation, onChange 
                     top: `calc(${(cell.row / template.rows) * 100}% + 1px)`,
                     width: `calc(${(cell.colSpan / template.cols) * 100}% - 2px)`,
                     height: `calc(${(cell.rowSpan / template.rows) * 100}% - 2px)`,
-                    borderRadius: cellRadius(previewShape),
+                    borderRadius: cellRadius(shape),
                   }}
                 />
               ))}
