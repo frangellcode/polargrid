@@ -87,7 +87,9 @@ interface EditorStoreState {
   setCollageTemplateId: (templateId: string) => void
   setCollageShape: (shape: CellShape) => void
   setCollageOrientation: (orientation: CollageOrientation) => void
-  addCollagePhotos: (photos: LoadedPhoto[]) => void
+  /** Returns false (and leaves state untouched) if starting a fresh collage
+   *  with fewer than MIN_COLLAGE_PHOTOS photos — otherwise true. */
+  addCollagePhotos: (photos: LoadedPhoto[]) => boolean
   removeCollagePhoto: (photoId: string) => void
   setCollageAspectRatio: (id: string) => void
   setCollageRatioOrientation: (orientation: Orientation) => void
@@ -235,7 +237,14 @@ export const useEditorStore = create<EditorStoreState>((set, get) => ({
         ? MAX_COLLAGE_PHOTOS - state.collage.freeItems.length
         : MAX_COLLAGE_PHOTOS - state.collage.assignments.filter((a) => a.photoId).length
     const newPhotos = allNewPhotos.slice(0, Math.max(0, capacity))
-    if (newPhotos.length === 0) return
+    if (newPhotos.length === 0) return false
+    const startingFresh =
+      state.collage.layoutMode === 'free'
+        ? state.collage.freeItems.length === 0
+        : state.collage.assignments.every((a) => !a.photoId)
+    // A collage needs at least two photos — don't let a single dropped photo
+    // silently start one (it used to, with the second cell just left empty).
+    if (startingFresh && newPhotos.length < MIN_COLLAGE_PHOTOS) return false
     const photoRecord = Object.fromEntries(newPhotos.map((p) => [p.id, p]))
     if (state.collage.layoutMode === 'free') {
       const startIndex = state.collage.freeItems.length
@@ -253,7 +262,7 @@ export const useEditorStore = create<EditorStoreState>((set, get) => ({
         photos: { ...s.photos, ...photoRecord },
         collage: { ...s.collage, freeItems: [...s.collage.freeItems, ...items] },
       }))
-      return
+      return true
     }
     // grid mode: fill empty cells in order, growing the template if needed
     let assignments = state.collage.assignments
@@ -293,6 +302,7 @@ export const useEditorStore = create<EditorStoreState>((set, get) => ({
       photos: { ...s.photos, ...photoRecord },
       collage: { ...s.collage, assignments, photoCount, templateId },
     }))
+    return true
   },
 
   removeCollagePhoto: (photoId) =>

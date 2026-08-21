@@ -4,6 +4,8 @@ import type { ChangeEvent, DragEvent } from 'react'
 interface DropzoneProps {
   label: string
   hint?: string
+  /** Transient validation message (e.g. "need at least N photos"), shown in place of the hint. */
+  error?: string | null
   onFiles: (files: FileList) => void
   multiple?: boolean
 }
@@ -15,7 +17,7 @@ interface DropzoneProps {
  *  compositing glitch on large `:active`-driven layers (the same family of
  *  bug App.tsx's screen-transition fix already worked around elsewhere). A
  *  small button doesn't trigger it. */
-export function Dropzone({ label, hint, onFiles, multiple = true }: DropzoneProps) {
+export function Dropzone({ label, hint, error, onFiles, multiple = true }: DropzoneProps) {
   const inputRef = useRef<HTMLInputElement>(null)
   const [isDragOver, setIsDragOver] = useState(false)
 
@@ -58,7 +60,11 @@ export function Dropzone({ label, hint, onFiles, multiple = true }: DropzoneProp
       </button>
       <div className="px-6">
         <p className="font-label text-base font-semibold text-white">{label}</p>
-        {hint && <p className="font-label mt-1 text-xs text-white/40">{hint}</p>}
+        {error ? (
+          <p className="font-label mt-1 text-xs text-red-300">{error}</p>
+        ) : (
+          hint && <p className="font-label mt-1 text-xs text-white/40">{hint}</p>
+        )}
       </div>
     </div>
   )

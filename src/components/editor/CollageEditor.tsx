@@ -7,7 +7,7 @@ import { useImageBitmap } from '../../hooks/useImageBitmap'
 import { useAnimatedNumber } from '../../hooks/useAnimatedNumber'
 import { COLLAGE_ASPECT_RATIOS } from '../../lib/aspectRatios'
 import { computeOutputPixelSize, getImageDrawRect } from '../../lib/cropMath'
-import { getTemplateById, transposeTemplate } from '../../lib/collageTemplates'
+import { MIN_COLLAGE_PHOTOS, getTemplateById, transposeTemplate } from '../../lib/collageTemplates'
 import { exportCollageFree, exportCollageGrid, resolveRatio } from '../../lib/exportImage'
 import { Toolbar, type ToolbarHandle } from './Toolbar'
 import { AspectRatioPicker } from './AspectRatioPicker'
@@ -138,7 +138,14 @@ export function CollageEditor() {
   const [selectedFreeId, setSelectedFreeId] = useState<string | null>(null)
   const [activeTool, setActiveTool] = useState<string | null>(null)
   const [gutterLinked, setGutterLinked] = useState(false)
+  const [uploadError, setUploadError] = useState<string | null>(null)
   const toolbarRef = useRef<ToolbarHandle>(null)
+
+  useEffect(() => {
+    if (!uploadError) return
+    const t = setTimeout(() => setUploadError(null), 3000)
+    return () => clearTimeout(t)
+  }, [uploadError])
 
   const ratio = useMemo(
     () => resolveRatio(collage.aspectRatioId, 1, collage.ratioOrientation),
@@ -178,7 +185,10 @@ export function CollageEditor() {
       setPendingCellId(null)
       return
     }
-    store.addCollagePhotos(loaded)
+    const added = store.addCollagePhotos(loaded)
+    if (!added) {
+      setUploadError(`Selecciona al menos ${MIN_COLLAGE_PHOTOS} fotos para armar un collage`)
+    }
   }
 
   const handleExport = async (quality: ExportQuality) => {
@@ -279,7 +289,12 @@ export function CollageEditor() {
               )}
           </CanvasStage>
         ) : (
-          <Dropzone label="Toca para subir tus fotos" hint="o arrástralas aquí (varias a la vez)" onFiles={handleUpload} />
+          <Dropzone
+            label="Toca para subir tus fotos"
+            hint="o arrástralas aquí (varias a la vez)"
+            error={uploadError}
+            onFiles={handleUpload}
+          />
         )}
       </div>
 
