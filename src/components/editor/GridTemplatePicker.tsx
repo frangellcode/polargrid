@@ -39,7 +39,7 @@ export function GridTemplatePicker({ count, value, shape, orientation, onChange 
               {template.cells.map((cell, i) => (
                 <span
                   key={i}
-                  className={`absolute ${active ? 'bg-white' : 'bg-white/25'}`}
+                  className={`absolute transition-[border-radius,left,top,width,height] duration-200 ${active ? 'bg-white' : 'bg-white/25'}`}
                   style={{
                     // calc(), not a plain percentage + margin, so the 1px gap actually
                     // insets the box instead of just shifting an absolutely-positioned

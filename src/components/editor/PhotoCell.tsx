@@ -3,7 +3,7 @@ import { Group, Image as KonvaImage, Shape, Text } from 'react-konva'
 import type Konva from 'konva'
 import type { CellShape, LoadedPhoto, PhotoFit, PhotoTransform } from '../../types'
 import { clampTransform, getImageDrawRect, MAX_ZOOM } from '../../lib/cropMath'
-import { traceShapePath } from '../../lib/shapeClip'
+import { shapeRadiusRatio, traceRoundedRectPath } from '../../lib/shapeClip'
 import { useAnimatedNumber } from '../../hooks/useAnimatedNumber'
 
 interface PhotoCellProps {
@@ -19,10 +19,7 @@ interface PhotoCellProps {
    *  mode); a number 0..1 blends between them, for animating the toggle smoothly. */
   fit?: PhotoFit | number
   /** Tweens x/y/width/height whenever they jump, instead of snapping — for Collage's
-   *  grid mode, where switching templates changes every cell's rect outright. Off by
-   *  default: Border's single photo and Collage's free-mode items already feed in
-   *  either pre-smoothed (useAnimatedNumber upstream) or live-dragged values, where
-   *  another layer of easing here would just add lag on top. */
+   *  grid mode, where switching templates changes every cell's rect outright. */
   animateLayout?: boolean
   /** How the cell is clipped: plain rect (default) or rounded corners. */
   shape?: CellShape
@@ -55,6 +52,9 @@ export function PhotoCell({
   const y = animateLayout ? animatedY : yTarget
   const width = animateLayout ? animatedWidth : widthTarget
   const height = animateLayout ? animatedHeight : heightTarget
+  // Eases the corner radius itself between shapes (rect <-> rounded) instead
+  // of the clip snapping straight to the new corners.
+  const cornerRadius = useAnimatedNumber(shapeRadiusRatio(shape))
 
   if (width <= 0 || height <= 0) return null
 
@@ -69,7 +69,7 @@ export function PhotoCell({
           strokeWidth={2}
           dash={[8, 6]}
           sceneFunc={(ctx, node) => {
-            traceShapePath(ctx, shape, width, height)
+            traceRoundedRectPath(ctx, cornerRadius, width, height)
             ctx.fillStrokeShape(node)
           }}
         />
@@ -145,7 +145,7 @@ export function PhotoCell({
     <Group
       x={x}
       y={y}
-      clipFunc={(ctx) => traceShapePath(ctx, shape, width, height)}
+      clipFunc={(ctx) => traceRoundedRectPath(ctx, cornerRadius, width, height)}
       onWheel={handleWheel}
       onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}
