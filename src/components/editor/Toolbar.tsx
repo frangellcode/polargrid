@@ -88,7 +88,7 @@ export const Toolbar = forwardRef<ToolbarHandle, ToolbarProps>(function Toolbar(
   }
 
   return (
-    <div className="flex items-end justify-between gap-3 border-b border-white/10 bg-ink-900 px-4 pb-1.5 pt-[max(0.75rem,env(safe-area-inset-top))]">
+    <div className="flex items-end justify-between gap-3 border-b border-white/10 bg-ink-900 px-4 pb-1.5 pt-[max(1.5rem,calc(env(safe-area-inset-top)+0.75rem))]">
       <button
         type="button"
         onClick={onBack}
