@@ -83,8 +83,13 @@ export async function exportBorderPhoto(
   locked = true,
 ) {
   const sizeFn = locked ? computeNativeCanvasSize : computeNativeCanvasSizeContain
-  const native = sizeFn(photo.width, photo.height, ratio, borderThicknessPct, transform.zoom)
-  const { width, height } = capLongEdge(native.width, native.height, getMaxLongEdge(quality))
+  // Cap the PHOTO's own resolution to the quality tier first, then build the
+  // bordered canvas around that. Capping the final (photo + border) canvas
+  // instead — as this used to — meant a thicker border ate into the same
+  // pixel budget as the photo, so "Alta"/"Web" got visibly softer just from
+  // adding a border. This way the border only ever adds pixels on top.
+  const { width: effPhotoW, height: effPhotoH } = capLongEdge(photo.width, photo.height, getMaxLongEdge(quality))
+  const { width, height } = sizeFn(effPhotoW, effPhotoH, ratio, borderThicknessPct, transform.zoom)
   const canvas = document.createElement('canvas')
   canvas.width = width
   canvas.height = height

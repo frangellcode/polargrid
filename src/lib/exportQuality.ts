@@ -2,8 +2,8 @@ import type { ExportQuality } from '../types'
 
 export const EXPORT_QUALITY_PRESETS: { id: ExportQuality; label: string; hint: string; maxLongEdge?: number }[] = [
   { id: 'native', label: 'Máxima', hint: 'Resolución nativa de tus fotos', maxLongEdge: undefined },
-  { id: 'high', label: 'Alta', hint: 'Hasta 2048 px, archivo más liviano', maxLongEdge: 2048 },
-  { id: 'web', label: 'Web', hint: 'Hasta 1080 px, ideal para compartir', maxLongEdge: 1080 },
+  { id: 'high', label: 'Alta', hint: 'Fotos hasta 2048 px, archivo más liviano', maxLongEdge: 2048 },
+  { id: 'web', label: 'Web', hint: 'Fotos hasta 1080 px, ideal para compartir', maxLongEdge: 1080 },
 ]
 
 export const DEFAULT_EXPORT_QUALITY: ExportQuality = 'native'
