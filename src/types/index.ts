@@ -49,14 +49,10 @@ export interface CellAssignment {
   transform: PhotoTransform
 }
 
-export type CollageTemplateStyle = 'normal' | 'creative'
-
 export interface GridTemplate {
   id: string
   label: string
   count: number
-  /** 'normal' = clean uniform grid, 'creative' = asymmetric PS Express-style mix */
-  style: CollageTemplateStyle
   /** cells positioned in a normalized 0..1 unit square, in column/row-span grid units */
   cols: number
   rows: number

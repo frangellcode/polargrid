@@ -7,7 +7,7 @@ import { useImageBitmap } from '../../hooks/useImageBitmap'
 import { useAnimatedNumber } from '../../hooks/useAnimatedNumber'
 import { COLLAGE_ASPECT_RATIOS } from '../../lib/aspectRatios'
 import { computeOutputPixelSize, getImageDrawRect } from '../../lib/cropMath'
-import { MAX_COLLAGE_PHOTOS, getTemplate, transposeTemplate } from '../../lib/collageTemplates'
+import { getTemplateById, transposeTemplate } from '../../lib/collageTemplates'
 import { exportCollageFree, exportCollageGrid, resolveRatio } from '../../lib/exportImage'
 import { Toolbar, type ToolbarHandle } from './Toolbar'
 import { AspectRatioPicker } from './AspectRatioPicker'
@@ -152,9 +152,9 @@ export function CollageEditor() {
   const outputHeight = useAnimatedNumber(targetHeight)
 
   const template = useMemo(() => {
-    const base = getTemplate(collage.photoCount, collage.style)
+    const base = getTemplateById(collage.templateId, collage.photoCount)
     return collage.orientation === 'vertical' ? transposeTemplate(base) : base
-  }, [collage.photoCount, collage.style, collage.orientation])
+  }, [collage.templateId, collage.photoCount, collage.orientation])
 
   const shortSide = Math.min(outputWidth, outputHeight)
   const outerBorderPx = collage.outerBorderPct * shortSide
@@ -314,53 +314,34 @@ export function CollageEditor() {
 
           {activeToolId === 'plantilla' && (
             <>
-              <div className="flex flex-wrap justify-center gap-4">
-                <div>
-                  <p className="font-label mb-2 text-center text-xs font-semibold uppercase tracking-wider text-white/40">Estilo</p>
-                  <div className="flex justify-center gap-2">
-                    {(['normal', 'creative'] as const).map((s) => (
-                      <button
-                        key={s}
-                        type="button"
-                        onClick={() => store.setCollageStyle(s)}
-                        className={`font-label rounded-full px-4 py-1.5 text-xs font-semibold uppercase tracking-wide transition duration-200 active:scale-90 ${
-                          collage.style === s ? 'bg-white text-ink-900' : 'bg-white/10 text-white/70 hover:bg-white/15'
-                        }`}
-                      >
-                        {s === 'normal' ? 'Normal' : 'Creativo'}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-                <div>
-                  <p className="font-label mb-2 text-center text-xs font-semibold uppercase tracking-wider text-white/40">Orientación</p>
-                  <div className="flex justify-center gap-2">
-                    {(['vertical', 'horizontal'] as const).map((o) => (
-                      <button
-                        key={o}
-                        type="button"
-                        onClick={() => store.setCollageOrientation(o)}
-                        className={`font-label rounded-full px-4 py-1.5 text-xs font-semibold uppercase tracking-wide transition duration-200 active:scale-90 ${
-                          collage.orientation === o
-                            ? 'bg-white text-ink-900'
-                            : 'bg-white/10 text-white/70 hover:bg-white/15'
-                        }`}
-                      >
-                        {o === 'vertical' ? 'Vertical' : 'Horizontal'}
-                      </button>
-                    ))}
-                  </div>
+              <div>
+                <p className="font-label mb-2 text-center text-xs font-semibold uppercase tracking-wider text-white/40">Orientación</p>
+                <div className="flex justify-center gap-2">
+                  {(['vertical', 'horizontal'] as const).map((o) => (
+                    <button
+                      key={o}
+                      type="button"
+                      onClick={() => store.setCollageOrientation(o)}
+                      className={`font-label rounded-full px-4 py-1.5 text-xs font-semibold uppercase tracking-wide transition duration-200 active:scale-90 ${
+                        collage.orientation === o
+                          ? 'bg-white text-ink-900'
+                          : 'bg-white/10 text-white/70 hover:bg-white/15'
+                      }`}
+                    >
+                      {o === 'vertical' ? 'Vertical' : 'Horizontal'}
+                    </button>
+                  ))}
                 </div>
               </div>
               <div>
                 <p className="font-label mb-2 text-center text-xs font-semibold uppercase tracking-wider text-white/40">
-                  Cantidad de fotos (máx. {MAX_COLLAGE_PHOTOS})
+                  Diseño ({collage.photoCount} fotos)
                 </p>
                 <GridTemplatePicker
-                  value={collage.photoCount}
-                  style={collage.style}
+                  count={collage.photoCount}
+                  value={collage.templateId}
                   orientation={collage.orientation}
-                  onChange={store.setCollagePhotoCount}
+                  onChange={store.setCollageTemplateId}
                 />
               </div>
               <p className="font-label text-center text-xs text-white/40">Toca una celda vacía en el lienzo para subir una foto.</p>

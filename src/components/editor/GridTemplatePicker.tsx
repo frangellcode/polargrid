@@ -1,28 +1,26 @@
-import type { CollageOrientation, CollageTemplateStyle } from '../../types'
-import { MAX_COLLAGE_PHOTOS, getTemplate, transposeTemplate } from '../../lib/collageTemplates'
+import type { CollageOrientation } from '../../types'
+import { getTemplatesForCount, transposeTemplate } from '../../lib/collageTemplates'
 
 interface GridTemplatePickerProps {
-  value: number
-  style: CollageTemplateStyle
+  count: number
+  value: string
   orientation: CollageOrientation
-  onChange: (count: number) => void
+  onChange: (templateId: string) => void
 }
 
-const COUNTS = Array.from({ length: MAX_COLLAGE_PHOTOS - 1 }, (_, i) => i + 2)
-
-export function GridTemplatePicker({ value, style, orientation, onChange }: GridTemplatePickerProps) {
+export function GridTemplatePicker({ count, value, orientation, onChange }: GridTemplatePickerProps) {
+  const templates = getTemplatesForCount(count)
   return (
     <div className="flex flex-wrap justify-center gap-2">
-      {COUNTS.map((count) => {
-        const base = getTemplate(count, style)
+      {templates.map((base) => {
         const template = orientation === 'vertical' ? transposeTemplate(base) : base
-        const active = value === count
+        const active = value === base.id
         return (
           <button
-            key={count}
+            key={base.id}
             type="button"
-            onClick={() => onChange(count)}
-            title={`${count} fotos`}
+            onClick={() => onChange(base.id)}
+            title={base.label}
             className={`grid h-11 w-11 gap-0.5 rounded-lg border p-1 transition duration-200 active:scale-90 ${
               active ? 'border-white bg-white/10' : 'border-white/15 bg-white/5 hover:border-white/30'
             }`}

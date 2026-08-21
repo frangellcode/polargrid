@@ -4,7 +4,6 @@ import type {
   CellAssignment,
   CollageLayoutMode,
   CollageOrientation,
-  CollageTemplateStyle,
   ExportQuality,
   FreeItem,
   LoadedPhoto,
@@ -13,7 +12,7 @@ import type {
 } from '../types'
 import { DEFAULT_ASPECT_RATIO_ID } from '../lib/aspectRatios'
 import { DEFAULT_TRANSFORM, clampTransform } from '../lib/cropMath'
-import { MAX_COLLAGE_PHOTOS } from '../lib/collageTemplates'
+import { GRID_TEMPLATES, MAX_COLLAGE_PHOTOS, getTemplatesForCount } from '../lib/collageTemplates'
 import { DEFAULT_EXPORT_QUALITY } from '../lib/exportQuality'
 import { DEFAULT_WORKSPACE_BACKGROUND } from '../lib/workspaceBackgrounds'
 
@@ -48,7 +47,7 @@ interface BorderState {
 interface CollageState {
   layoutMode: CollageLayoutMode
   photoCount: number
-  style: CollageTemplateStyle
+  templateId: string
   orientation: CollageOrientation
   assignments: CellAssignment[]
   outerBorderPct: number
@@ -82,8 +81,7 @@ interface EditorStoreState {
   setBorderExportQuality: (quality: ExportQuality) => void
 
   setCollageLayoutMode: (mode: CollageLayoutMode) => void
-  setCollagePhotoCount: (count: number) => void
-  setCollageStyle: (style: CollageTemplateStyle) => void
+  setCollageTemplateId: (templateId: string) => void
   setCollageOrientation: (orientation: CollageOrientation) => void
   addCollagePhotos: (photos: LoadedPhoto[]) => void
   removeCollagePhoto: (photoId: string) => void
@@ -122,7 +120,7 @@ function createInitialCollageState(): CollageState {
   return {
     layoutMode: 'grid',
     photoCount: 4,
-    style: 'normal',
+    templateId: 'grid-4-normal',
     orientation: 'vertical',
     assignments: buildAssignmentsForCount(4),
     outerBorderPct: DEFAULT_BORDER_PCT,
@@ -200,22 +198,28 @@ export const useEditorStore = create<EditorStoreState>((set, get) => ({
   setCollageLayoutMode: (layoutMode) =>
     set((state) => ({ collage: { ...state.collage, layoutMode } })),
 
-  setCollageStyle: (style) => set((state) => ({ collage: { ...state.collage, style } })),
-
-  setCollageOrientation: (orientation) =>
-    set((state) => ({ collage: { ...state.collage, orientation } })),
-
-  setCollagePhotoCount: (count) =>
+  // Selecting a template only ever happens among templates matching the
+  // current photo count (the picker filters by it), so this normally just
+  // swaps the layout. Resizing assignments here too keeps it safe if that
+  // ever isn't the case.
+  setCollageTemplateId: (templateId) =>
     set((state) => {
+      const count = GRID_TEMPLATES.find((t) => t.id === templateId)?.count ?? state.collage.photoCount
+      if (count === state.collage.photoCount) {
+        return { collage: { ...state.collage, templateId } }
+      }
       const nextAssignments = buildAssignmentsForCount(count)
       const existingPhotoIds = state.collage.assignments.filter((a) => a.photoId).map((a) => a.photoId)
       nextAssignments.forEach((cell, i) => {
         if (existingPhotoIds[i]) cell.photoId = existingPhotoIds[i]
       })
       return {
-        collage: { ...state.collage, photoCount: count, assignments: nextAssignments },
+        collage: { ...state.collage, templateId, photoCount: count, assignments: nextAssignments },
       }
     }),
+
+  setCollageOrientation: (orientation) =>
+    set((state) => ({ collage: { ...state.collage, orientation } })),
 
   addCollagePhotos: (allNewPhotos) => {
     const state = get()
@@ -247,6 +251,7 @@ export const useEditorStore = create<EditorStoreState>((set, get) => ({
     // grid mode: fill empty cells in order, growing the template if needed
     let assignments = state.collage.assignments
     let photoCount = state.collage.photoCount
+    let templateId = state.collage.templateId
     const filled = assignments.filter((a) => a.photoId).length
     const needed = filled + newPhotos.length
     // Starting a fresh collage: match the template to exactly how many photos
@@ -256,6 +261,7 @@ export const useEditorStore = create<EditorStoreState>((set, get) => ({
     const shouldResize = filled === 0 ? needed !== photoCount : needed > photoCount
     if (shouldResize) {
       photoCount = filled === 0 ? Math.min(12, Math.max(2, needed)) : Math.min(12, needed)
+      templateId = getTemplatesForCount(photoCount)[0].id
       const nextAssignments = buildAssignmentsForCount(photoCount)
       // preserve existing photoId order into new template's cells
       const existingPhotoIds = assignments.filter((a) => a.photoId).map((a) => a.photoId)
@@ -275,7 +281,7 @@ export const useEditorStore = create<EditorStoreState>((set, get) => ({
     })
     set((s) => ({
       photos: { ...s.photos, ...photoRecord },
-      collage: { ...s.collage, assignments, photoCount },
+      collage: { ...s.collage, assignments, photoCount, templateId },
     }))
   },
 
