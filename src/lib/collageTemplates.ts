@@ -2,8 +2,7 @@ import type { CellShape, GridTemplate } from '../types'
 
 type CellSpec = { col: number; row: number; colSpan: number; rowSpan: number }
 
-/** A raw grid layout, before it's expanded into rect/rounded/circle template variants. */
-interface Geometry {
+interface GeometryDef {
   key: string
   label: string
   count: number
@@ -13,18 +12,21 @@ interface Geometry {
 }
 
 /**
- * Hand-picked grid geometries. Most tile their cols x rows unit grid exactly
- * (no gaps) — sum of colSpan*rowSpan per row == cols. A few deliberately
- * don't: the single-photo geometries inset their one cell so the workspace
- * background shows through as a mat/frame, and a couple of small-count
- * geometries (grid-2-diagonal, grid-3-corner) leave part of the grid empty on
- * purpose, as a designed accent rather than a full tiling.
+ * Hand-picked grid layouts (geometries). Most tile their cols x rows unit
+ * grid exactly (no gaps) — sum of colSpan*rowSpan per row == cols. A few
+ * deliberately don't: the single-photo layouts inset their one cell so the
+ * workspace background shows through as a mat/frame, and a couple of
+ * small-count layouts (grid-2-diagonal, grid-3-corner) leave part of the
+ * grid empty on purpose, as a designed accent rather than a full tiling.
  *
- * Every photo count (1-9) gets 4 geometries, and expandShapeVariants below
- * turns each into rect / rounded and — only when its cells are close enough
- * to square to actually look right circle-cropped — a circle variant too.
+ * Every photo count (1-9) gets 4 layouts. The cell "shape" (rect / rounded /
+ * circle) is a separate, orthogonal choice made in the UI — not baked into
+ * separate near-duplicate template entries — so each layout appears exactly
+ * once here. `circleEligible` (computed below) says whether that layout's
+ * cells are close enough to square for a circle crop to look intentional
+ * rather than leaving stray dead space.
  */
-const GEOMETRIES: Geometry[] = [
+const GEOMETRIES: GeometryDef[] = [
   // ---- 1 photo (inset within a 20x20 unit grid, so the mat shows around it) ----
   {
     key: 'grid-1-full',
@@ -553,17 +555,11 @@ const GEOMETRIES: Geometry[] = [
   },
 ]
 
-const SHAPES: { shape: CellShape; suffix: string }[] = [
-  { shape: 'rect', suffix: '' },
-  { shape: 'rounded', suffix: ' · redondeado' },
-  { shape: 'circle', suffix: ' · círculos' },
-]
-
 /** How far a cell's box may stray from square (as width/height) and still get
  *  a circle crop that looks intentional. Outside this range the inscribed
  *  circle leaves so much bare box on the long axis that it reads as a
- *  mistake rather than a design choice — so those cells just don't get a
- *  circle variant at all. */
+ *  mistake rather than a design choice — so a 'circle' shape pick falls back
+ *  to 'rect' for that layout (see resolveShape). */
 const CIRCLE_MIN_ASPECT = 0.6
 const CIRCLE_MAX_ASPECT = 1.67
 
@@ -571,30 +567,22 @@ function cellAspect(cell: CellSpec, cols: number, rows: number): number {
   return (cell.colSpan / cols) / (cell.rowSpan / rows)
 }
 
-function isCircleEligible(g: Geometry): boolean {
+function isCircleEligible(g: GeometryDef): boolean {
   return g.cells.every((c) => {
     const a = cellAspect(c, g.cols, g.rows)
     return a >= CIRCLE_MIN_ASPECT && a <= CIRCLE_MAX_ASPECT
   })
 }
 
-/** Expands one hand-authored geometry into its template variants: rect and
- *  rounded always, circle only when every cell is close enough to square
- *  (see isCircleEligible) — otherwise the crop leaves ugly, uneven gaps. */
-function expandShapeVariants(g: Geometry): GridTemplate[] {
-  const shapes = isCircleEligible(g) ? SHAPES : SHAPES.filter((s) => s.shape !== 'circle')
-  return shapes.map(({ shape, suffix }) => ({
-    id: `${g.key}-${shape}`,
-    label: `${g.label}${suffix}`,
-    count: g.count,
-    shape,
-    cols: g.cols,
-    rows: g.rows,
-    cells: g.cells,
-  }))
-}
-
-export const GRID_TEMPLATES: GridTemplate[] = GEOMETRIES.flatMap(expandShapeVariants)
+export const GRID_TEMPLATES: GridTemplate[] = GEOMETRIES.map((g) => ({
+  id: g.key,
+  label: g.label,
+  count: g.count,
+  cols: g.cols,
+  rows: g.rows,
+  cells: g.cells,
+  circleEligible: isCircleEligible(g),
+}))
 
 export const MIN_COLLAGE_PHOTOS = 1
 export const MAX_COLLAGE_PHOTOS = 9
@@ -608,6 +596,13 @@ export function getTemplatesForCount(count: number): GridTemplate[] {
 /** Looks up a template by id, falling back to the first template for that photo count. */
 export function getTemplateById(id: string, fallbackCount: number): GridTemplate {
   return GRID_TEMPLATES.find((t) => t.id === id) ?? getTemplatesForCount(fallbackCount)[0]
+}
+
+/** The shape actually usable for a layout: 'circle' falls back to 'rect' when
+ *  the layout's cells aren't square-ish enough (see circleEligible). */
+export function resolveShape(templateId: string, shape: CellShape, fallbackCount: number): CellShape {
+  const template = getTemplateById(templateId, fallbackCount)
+  return shape === 'circle' && !template.circleEligible ? 'rect' : shape
 }
 
 /**

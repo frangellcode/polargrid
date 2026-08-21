@@ -56,7 +56,9 @@ export interface GridTemplate {
   id: string
   label: string
   count: number
-  shape: CellShape
+  /** Whether this layout's cells are square-ish enough for a 'circle' shape
+   *  pick to actually look intentional (see resolveShape in collageTemplates). */
+  circleEligible: boolean
   /** cells positioned in a normalized 0..1 unit square, in column/row-span grid units */
   cols: number
   rows: number

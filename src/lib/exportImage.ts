@@ -125,6 +125,7 @@ export async function exportCollageGrid(
   outerBorderPct: number,
   gutterPct: number,
   quality: ExportQuality = 'native',
+  shape: CellShape = 'rect',
 ) {
   const refSize = computeOutputPixelSize(ratio, REF_LONG_EDGE)
   const refShortSide = Math.min(refSize.width, refSize.height)
@@ -181,7 +182,7 @@ export async function exportCollageGrid(
     const y = contentY + cell.row * (cellH + gutterPx)
     const w = cellW * cell.colSpan + gutterPx * (cell.colSpan - 1)
     const h = cellH * cell.rowSpan + gutterPx * (cell.rowSpan - 1)
-    drawPhotoInRect(ctx, photo, x, y, w, h, assignment.transform, 0, 'cover', template.shape)
+    drawPhotoInRect(ctx, photo, x, y, w, h, assignment.transform, 0, 'cover', shape)
   })
 
   return downloadCanvas(canvas, `polargrid-collage-${Date.now()}.jpg`)

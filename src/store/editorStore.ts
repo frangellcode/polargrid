@@ -2,6 +2,7 @@ import { create } from 'zustand'
 import type {
   AppMode,
   CellAssignment,
+  CellShape,
   CollageLayoutMode,
   CollageOrientation,
   ExportQuality,
@@ -12,7 +13,13 @@ import type {
 } from '../types'
 import { DEFAULT_ASPECT_RATIO_ID } from '../lib/aspectRatios'
 import { DEFAULT_TRANSFORM, clampTransform } from '../lib/cropMath'
-import { GRID_TEMPLATES, MAX_COLLAGE_PHOTOS, MIN_COLLAGE_PHOTOS, getTemplatesForCount } from '../lib/collageTemplates'
+import {
+  GRID_TEMPLATES,
+  MAX_COLLAGE_PHOTOS,
+  MIN_COLLAGE_PHOTOS,
+  getTemplatesForCount,
+  resolveShape,
+} from '../lib/collageTemplates'
 import { DEFAULT_EXPORT_QUALITY } from '../lib/exportQuality'
 import { DEFAULT_WORKSPACE_BACKGROUND } from '../lib/workspaceBackgrounds'
 
@@ -48,6 +55,8 @@ interface CollageState {
   layoutMode: CollageLayoutMode
   photoCount: number
   templateId: string
+  /** Cell clip shape, chosen independently of the layout — see resolveShape. */
+  shape: CellShape
   orientation: CollageOrientation
   assignments: CellAssignment[]
   outerBorderPct: number
@@ -82,6 +91,7 @@ interface EditorStoreState {
 
   setCollageLayoutMode: (mode: CollageLayoutMode) => void
   setCollageTemplateId: (templateId: string) => void
+  setCollageShape: (shape: CellShape) => void
   setCollageOrientation: (orientation: CollageOrientation) => void
   addCollagePhotos: (photos: LoadedPhoto[]) => void
   removeCollagePhoto: (photoId: string) => void
@@ -120,7 +130,8 @@ function createInitialCollageState(): CollageState {
   return {
     layoutMode: 'grid',
     photoCount: 4,
-    templateId: 'grid-4-normal-rect',
+    templateId: 'grid-4-normal',
+    shape: 'rect',
     orientation: 'vertical',
     assignments: buildAssignmentsForCount(4),
     outerBorderPct: DEFAULT_BORDER_PCT,
@@ -201,12 +212,15 @@ export const useEditorStore = create<EditorStoreState>((set, get) => ({
   // Selecting a template only ever happens among templates matching the
   // current photo count (the picker filters by it), so this normally just
   // swaps the layout. Resizing assignments here too keeps it safe if that
-  // ever isn't the case.
+  // ever isn't the case. If the new layout doesn't support a circle crop and
+  // 'circle' was picked, fall back to 'rect' rather than keep a shape that
+  // no longer applies.
   setCollageTemplateId: (templateId) =>
     set((state) => {
       const count = GRID_TEMPLATES.find((t) => t.id === templateId)?.count ?? state.collage.photoCount
+      const shape = resolveShape(templateId, state.collage.shape, count)
       if (count === state.collage.photoCount) {
-        return { collage: { ...state.collage, templateId } }
+        return { collage: { ...state.collage, templateId, shape } }
       }
       const nextAssignments = buildAssignmentsForCount(count)
       const existingPhotoIds = state.collage.assignments.filter((a) => a.photoId).map((a) => a.photoId)
@@ -214,9 +228,14 @@ export const useEditorStore = create<EditorStoreState>((set, get) => ({
         if (existingPhotoIds[i]) cell.photoId = existingPhotoIds[i]
       })
       return {
-        collage: { ...state.collage, templateId, photoCount: count, assignments: nextAssignments },
+        collage: { ...state.collage, templateId, shape, photoCount: count, assignments: nextAssignments },
       }
     }),
+
+  setCollageShape: (shape) =>
+    set((state) => ({
+      collage: { ...state.collage, shape: resolveShape(state.collage.templateId, shape, state.collage.photoCount) },
+    })),
 
   setCollageOrientation: (orientation) =>
     set((state) => ({ collage: { ...state.collage, orientation } })),
@@ -282,9 +301,10 @@ export const useEditorStore = create<EditorStoreState>((set, get) => ({
       }
       return cell
     })
+    const shape = resolveShape(templateId, state.collage.shape, photoCount)
     set((s) => ({
       photos: { ...s.photos, ...photoRecord },
-      collage: { ...s.collage, assignments, photoCount, templateId },
+      collage: { ...s.collage, assignments, photoCount, templateId, shape },
     }))
   },
 
