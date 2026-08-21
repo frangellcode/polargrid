@@ -40,7 +40,7 @@ export function Dropzone({ label, hint, onFiles, multiple = true }: DropzoneProp
       }}
       onDragLeave={() => setIsDragOver(false)}
       onDrop={handleDrop}
-      className={`flex h-full w-full flex-col items-center justify-center gap-4 rounded-2xl border-2 border-dashed text-center transition-colors duration-200 ${
+      className={`fade-in-slow flex h-full w-full flex-col items-center justify-center gap-4 rounded-2xl border-2 border-dashed text-center transition-colors duration-200 ${
         isDragOver ? 'border-white bg-white/10' : 'border-white/20 bg-white/5'
       }`}
     >

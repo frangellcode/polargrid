@@ -12,7 +12,7 @@ import { CanvasStage } from './CanvasStage'
 import { PhotoCell } from './PhotoCell'
 import { Dropzone } from './Dropzone'
 import { EditorBottomBar, type BottomBarTool } from './EditorBottomBar'
-import { ExportSuccessToast } from './ExportSuccessToast'
+import { CLOSE_MS, ExportSuccessToast } from './ExportSuccessToast'
 import { WorkspaceBackgroundPicker } from './WorkspaceBackgroundPicker'
 import { IconCrop, IconDrop, IconFrame } from './icons'
 
@@ -37,12 +37,17 @@ export function BorderEditor() {
     setBorderThickness,
     setBorderTransform,
     setBorderExportQuality,
+    resetBorder,
     workspaceBackground,
     setWorkspaceBackground,
   } = useEditorStore()
   const { loadFiles } = useImageBitmap()
   const [exporting, setExporting] = useState(false)
   const [showSuccessToast, setShowSuccessToast] = useState(false)
+  // True for the CLOSE_MS window between tapping "Hacer otro" and the photo
+  // actually being cleared — fades the current photo/bottom bar out instead
+  // of them just vanishing the instant resetBorder() fires.
+  const [resetting, setResetting] = useState(false)
   // Starts on 'recorte' so the panel opens with Recorte already selected the
   // moment a photo lands — the bottom bar itself is gated on `photo` below,
   // so this has no effect until then.
@@ -100,7 +105,9 @@ export function BorderEditor() {
         uploadLabel={photo ? 'Cambiar foto' : 'Subir foto'}
       />
 
-      <div className="min-h-0 flex-1 p-4">
+      <div
+        className={`min-h-0 flex-1 p-4 transition-opacity duration-300 ${resetting ? 'opacity-0' : 'opacity-100'}`}
+      >
         {photo ? (
           <CanvasStage outputWidth={outputWidth} outputHeight={outputHeight}>
             <PhotoCell
@@ -125,6 +132,7 @@ export function BorderEditor() {
       </div>
 
       {photo && (
+        <div className={`transition-opacity duration-300 ${resetting ? 'opacity-0' : 'opacity-100'}`}>
         <EditorBottomBar tools={TOOLS} activeId={activeTool} onSelect={setActiveTool}>
           {activeTool === 'recorte' && (
             <div>
@@ -173,12 +181,21 @@ export function BorderEditor() {
             <WorkspaceBackgroundPicker value={workspaceBackground} onChange={setWorkspaceBackground} />
           )}
         </EditorBottomBar>
+        </div>
       )}
 
       <ExportSuccessToast
         open={showSuccessToast}
         onClose={() => setShowSuccessToast(false)}
         onCreateAnother={() => {
+          setShowSuccessToast(false)
+          setResetting(true)
+          setTimeout(() => {
+            resetBorder()
+            setResetting(false)
+          }, CLOSE_MS)
+        }}
+        onGoHome={() => {
           setShowSuccessToast(false)
           setMode('home')
         }}

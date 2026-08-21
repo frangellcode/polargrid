@@ -17,7 +17,7 @@ import { CanvasStage } from './CanvasStage'
 import { PhotoCell } from './PhotoCell'
 import { Dropzone } from './Dropzone'
 import { EditorBottomBar, type BottomBarTool } from './EditorBottomBar'
-import { ExportSuccessToast } from './ExportSuccessToast'
+import { CLOSE_MS, ExportSuccessToast } from './ExportSuccessToast'
 import { WorkspaceBackgroundPicker } from './WorkspaceBackgroundPicker'
 import { IconCrop, IconDrop, IconFrame, IconGrid } from './icons'
 
@@ -130,6 +130,10 @@ export function CollageEditor() {
   const { loadFiles } = useImageBitmap()
   const [exporting, setExporting] = useState(false)
   const [showSuccessToast, setShowSuccessToast] = useState(false)
+  // True for the CLOSE_MS window between tapping "Hacer otro" and the
+  // collage actually being cleared — fades the current canvas/bottom bar
+  // out instead of them just vanishing the instant resetCollage() fires.
+  const [resetting, setResetting] = useState(false)
   const [pendingCellId, setPendingCellId] = useState<string | null>(null)
   const [selectedFreeId, setSelectedFreeId] = useState<string | null>(null)
   const [activeTool, setActiveTool] = useState<string | null>(null)
@@ -232,7 +236,9 @@ export function CollageEditor() {
         ))}
       </div>
 
-      <div className="min-h-0 flex-1 p-4">
+      <div
+        className={`min-h-0 flex-1 p-4 transition-opacity duration-300 ${resetting ? 'opacity-0' : 'opacity-100'}`}
+      >
         {hasContent ? (
           <CanvasStage outputWidth={outputWidth} outputHeight={outputHeight}>
             {collage.layoutMode === 'grid'
@@ -291,6 +297,7 @@ export function CollageEditor() {
       )}
 
       {hasContent && (
+        <div className={`transition-opacity duration-300 ${resetting ? 'opacity-0' : 'opacity-100'}`}>
         <EditorBottomBar tools={tools} activeId={activeToolId} onSelect={setActiveTool}>
           {activeToolId === 'formato' && (
             <div>
@@ -407,12 +414,21 @@ export function CollageEditor() {
             <WorkspaceBackgroundPicker value={store.workspaceBackground} onChange={store.setWorkspaceBackground} />
           )}
         </EditorBottomBar>
+        </div>
       )}
 
       <ExportSuccessToast
         open={showSuccessToast}
         onClose={() => setShowSuccessToast(false)}
         onCreateAnother={() => {
+          setShowSuccessToast(false)
+          setResetting(true)
+          setTimeout(() => {
+            store.resetCollage()
+            setResetting(false)
+          }, CLOSE_MS)
+        }}
+        onGoHome={() => {
           setShowSuccessToast(false)
           store.setMode('home')
         }}

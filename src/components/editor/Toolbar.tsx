@@ -1,7 +1,7 @@
-import { forwardRef, useImperativeHandle, useRef, useState } from 'react'
+import { forwardRef, useEffect, useImperativeHandle, useLayoutEffect, useRef, useState } from 'react'
 import type { ChangeEvent } from 'react'
 import type { ExportQuality } from '../../types'
-import { ExportQualitySheet } from './ExportQualitySheet'
+import { CLOSE_MS, ExportQualitySheet } from './ExportQualitySheet'
 
 interface ToolbarProps {
   title: string
@@ -36,6 +36,41 @@ export const Toolbar = forwardRef<ToolbarHandle, ToolbarProps>(function Toolbar(
   const inputRef = useRef<HTMLInputElement>(null)
   const [sheetOpen, setSheetOpen] = useState(false)
 
+  // Crossfades the upload label instead of letting it swap instantly, AND
+  // animates the button's width to match. The two are staggered rather than
+  // run together: while the old text is still fading out, the wrapper keeps
+  // the OLD width, because starting the resize at the same instant made the
+  // still-visible old text get visually clipped by its own shrinking box —
+  // that's what read as "raro". Only once the old text is fully invisible
+  // do we swap in the new text, resize to its measured width, and fade it
+  // in — so nothing ever gets clipped mid-fade. A hidden mirror span (same
+  // inherited font styles, absolutely positioned out of flow) measures the
+  // incoming label's natural width ahead of that swap.
+  const WIDTH_MS = 260
+  const LABEL_FADE_MS = 130
+  const [displayLabel, setDisplayLabel] = useState(uploadLabel)
+  const [labelFading, setLabelFading] = useState(false)
+  const [labelWidth, setLabelWidth] = useState<number | undefined>(undefined)
+  const measureRef = useRef<HTMLSpanElement>(null)
+  const measuredWidthRef = useRef<number | undefined>(undefined)
+
+  useLayoutEffect(() => {
+    measuredWidthRef.current = measureRef.current?.offsetWidth
+    // First mount: adopt the initial width immediately, no transition needed.
+    setLabelWidth((current) => (current === undefined ? measuredWidthRef.current : current))
+  }, [uploadLabel])
+
+  useEffect(() => {
+    if (uploadLabel === displayLabel) return
+    setLabelFading(true)
+    const t = setTimeout(() => {
+      setDisplayLabel(uploadLabel)
+      setLabelWidth(measuredWidthRef.current)
+      setLabelFading(false)
+    }, LABEL_FADE_MS)
+    return () => clearTimeout(t)
+  }, [uploadLabel, displayLabel])
+
   useImperativeHandle(ref, () => ({
     openFilePicker: () => inputRef.current?.click(),
   }))
@@ -47,21 +82,23 @@ export const Toolbar = forwardRef<ToolbarHandle, ToolbarProps>(function Toolbar(
 
   const handleConfirmExport = (quality: ExportQuality) => {
     setSheetOpen(false)
-    onExport(quality)
+    // Let the sheet's own close transition actually play before the export
+    // (a synchronous canvas render that blocks the main thread) kicks off.
+    setTimeout(() => onExport(quality), CLOSE_MS)
   }
 
   return (
-    <div className="flex items-center justify-between gap-3 border-b border-white/10 bg-ink-900 px-4 pb-3 pt-[max(0.75rem,env(safe-area-inset-top))]">
+    <div className="flex items-end justify-between gap-3 border-b border-white/10 bg-ink-900 px-4 pb-1.5 pt-[max(0.75rem,env(safe-area-inset-top))]">
       <button
         type="button"
         onClick={onBack}
-        className="-ml-2 flex items-center gap-1.5 rounded-full py-2 pl-2 pr-3 text-white transition duration-200 hover:bg-white/10 active:scale-95 active:bg-white/15"
+        className="-ml-2 flex h-9 items-center gap-1.5 rounded-full pl-2 pr-3 text-white transition duration-200 hover:bg-white/10 active:scale-95 active:bg-white/15"
         aria-label={`Volver, ${title}`}
       >
         <span className="text-2xl leading-none">←</span>
         <span className="font-label text-sm font-semibold uppercase tracking-wide">Atrás</span>
       </button>
-      <div className="flex items-center gap-2">
+      <div className="flex h-9 items-center gap-2">
         <input
           ref={inputRef}
           type="file"
@@ -73,15 +110,32 @@ export const Toolbar = forwardRef<ToolbarHandle, ToolbarProps>(function Toolbar(
         <button
           type="button"
           onClick={() => inputRef.current?.click()}
-          className="font-label rounded-full bg-white/10 px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-white transition duration-200 hover:bg-white/15 active:scale-95"
+          className="font-label relative inline-flex h-9 items-center rounded-full bg-white/10 px-3 text-xs font-semibold uppercase tracking-wide text-white transition duration-200 hover:bg-white/15 active:scale-95"
         >
-          {uploadLabel}
+          <span
+            aria-hidden="true"
+            ref={measureRef}
+            className="pointer-events-none invisible absolute left-0 top-0 whitespace-nowrap"
+          >
+            {uploadLabel}
+          </span>
+          <span
+            className="inline-block overflow-hidden whitespace-nowrap"
+            style={{ width: labelWidth, transition: `width ${WIDTH_MS}ms cubic-bezier(0.22,1,0.36,1)` }}
+          >
+            <span
+              className="inline-block"
+              style={{ opacity: labelFading ? 0 : 1, transition: `opacity ${LABEL_FADE_MS}ms ease` }}
+            >
+              {displayLabel}
+            </span>
+          </span>
         </button>
         <button
           type="button"
           onClick={() => setSheetOpen(true)}
           disabled={exporting || !canExport}
-          className="font-label rounded-full bg-white px-4 py-1.5 text-xs font-semibold uppercase tracking-wide text-ink-900 transition duration-200 hover:bg-white/90 active:scale-95 disabled:cursor-not-allowed disabled:opacity-40 disabled:active:scale-100"
+          className="font-label inline-flex h-9 items-center rounded-full bg-white px-4 text-xs font-semibold uppercase tracking-wide text-ink-900 transition duration-200 hover:bg-white/90 active:scale-95 disabled:cursor-not-allowed disabled:opacity-40 disabled:active:scale-100"
         >
           {exporting ? 'Exportando…' : 'Exportar'}
         </button>

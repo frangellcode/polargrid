@@ -128,6 +128,18 @@ textarea {
   animation: fade-in-up 220ms cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
+/* Same motion as .fade-in but slower — for a bigger content swap (e.g. the
+   whole canvas being replaced by the upload dropzone) where the quick
+   220ms pop reads as an abrupt snap instead of a smooth entrance. The
+   swap itself is delayed at the call site (see ExportSuccessToast's
+   CLOSE_MS) so this animation only starts once the closing modal is fully
+   gone — adding the delay here instead would hold the dropzone at
+   opacity 0 while still mounted, exposing the bare empty canvas behind
+   the closing modal. */
+.fade-in-slow {
+  animation: fade-in-up 450ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .view-enter,
   .view-exit {

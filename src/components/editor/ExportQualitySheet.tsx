@@ -10,7 +10,12 @@ interface ExportQualitySheetProps {
 }
 
 const EASE = 'ease-[cubic-bezier(0.22,1,0.36,1)]'
-const CLOSE_MS = 300
+// Exported so Toolbar can delay kicking off the (synchronous, main-thread-
+// blocking) canvas export until this sheet has actually finished closing —
+// otherwise that work starts the instant "Exportar" is tapped and hogs the
+// thread right through this close transition, so the sheet never gets to
+// paint its slide-down frames and just snaps away instead.
+export const CLOSE_MS = 300
 
 /** Bottom sheet shown when tapping Export: pick a quality, then confirm. */
 export function ExportQualitySheet({ open, defaultQuality, onClose, onExport }: ExportQualitySheetProps) {
