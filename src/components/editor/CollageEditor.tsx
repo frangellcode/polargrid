@@ -257,6 +257,7 @@ export function CollageEditor() {
                       width={w}
                       height={h}
                       animateLayout
+                      shape={template.shape}
                       photo={photo}
                       transform={assignment.transform}
                       onTransformChange={(t) => store.setCellTransform(assignment.cellId, t)}
@@ -335,7 +336,7 @@ export function CollageEditor() {
               </div>
               <div>
                 <p className="font-label mb-2 text-center text-xs font-semibold uppercase tracking-wider text-white/40">
-                  Diseño ({collage.photoCount} fotos)
+                  Diseño ({collage.photoCount} {collage.photoCount === 1 ? 'foto' : 'fotos'})
                 </p>
                 <GridTemplatePicker
                   count={collage.photoCount}

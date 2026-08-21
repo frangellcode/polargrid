@@ -8,6 +8,15 @@ interface GridTemplatePickerProps {
   onChange: (templateId: string) => void
 }
 
+/** Corner radius for a thumbnail cell, matching the template's shape. Percentage-based
+ *  (not a fixed px grid) so it stays correct at thumbnail scale for both coarse
+ *  tilings and the fine inset grids used by single-photo templates. */
+function cellRadius(shape: 'rect' | 'rounded' | 'circle') {
+  if (shape === 'circle') return '9999px'
+  if (shape === 'rounded') return '28%'
+  return '2px'
+}
+
 export function GridTemplatePicker({ count, value, orientation, onChange }: GridTemplatePickerProps) {
   const templates = getTemplatesForCount(count)
   return (
@@ -21,25 +30,28 @@ export function GridTemplatePicker({ count, value, orientation, onChange }: Grid
             type="button"
             onClick={() => onChange(base.id)}
             title={base.label}
-            className={`grid h-11 w-11 gap-0.5 rounded-lg border p-1 transition duration-200 active:scale-90 ${
+            className={`h-11 w-11 rounded-lg border p-1 transition duration-200 active:scale-90 ${
               active ? 'border-white bg-white/10' : 'border-white/15 bg-white/5 hover:border-white/30'
             }`}
-            style={{
-              gridTemplateColumns: `repeat(${template.cols}, 1fr)`,
-              gridTemplateRows: `repeat(${template.rows}, 1fr)`,
-            }}
           >
-            {template.cells.map((cell, i) => (
-              <span
-                key={i}
-                className={active ? 'bg-white' : 'bg-white/25'}
-                style={{
-                  gridColumn: `${cell.col + 1} / span ${cell.colSpan}`,
-                  gridRow: `${cell.row + 1} / span ${cell.rowSpan}`,
-                  borderRadius: 2,
-                }}
-              />
-            ))}
+            <div className="relative h-full w-full">
+              {template.cells.map((cell, i) => (
+                <span
+                  key={i}
+                  className={`absolute ${active ? 'bg-white' : 'bg-white/25'}`}
+                  style={{
+                    // calc(), not a plain percentage + margin, so the 1px gap actually
+                    // insets the box instead of just shifting an absolutely-positioned
+                    // element (margin doesn't shrink width/height there).
+                    left: `calc(${(cell.col / template.cols) * 100}% + 1px)`,
+                    top: `calc(${(cell.row / template.rows) * 100}% + 1px)`,
+                    width: `calc(${(cell.colSpan / template.cols) * 100}% - 2px)`,
+                    height: `calc(${(cell.rowSpan / template.rows) * 100}% - 2px)`,
+                    borderRadius: cellRadius(template.shape),
+                  }}
+                />
+              ))}
+            </div>
           </button>
         )
       })}

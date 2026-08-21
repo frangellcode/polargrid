@@ -1,8 +1,9 @@
 import { useRef } from 'react'
-import { Group, Image as KonvaImage, Rect, Text } from 'react-konva'
+import { Group, Image as KonvaImage, Shape, Text } from 'react-konva'
 import type Konva from 'konva'
-import type { LoadedPhoto, PhotoFit, PhotoTransform } from '../../types'
+import type { CellShape, LoadedPhoto, PhotoFit, PhotoTransform } from '../../types'
 import { clampTransform, getImageDrawRect, MAX_ZOOM } from '../../lib/cropMath'
+import { traceShapePath } from '../../lib/shapeClip'
 import { useAnimatedNumber } from '../../hooks/useAnimatedNumber'
 
 interface PhotoCellProps {
@@ -23,6 +24,8 @@ interface PhotoCellProps {
    *  either pre-smoothed (useAnimatedNumber upstream) or live-dragged values, where
    *  another layer of easing here would just add lag on top. */
   animateLayout?: boolean
+  /** How the cell is clipped: plain rect (default), rounded corners, or an inscribed circle. */
+  shape?: CellShape
 }
 
 /** One photo inside a clipped rect: cover- or contain-fit, draggable to pan, wheel/pinch to zoom. */
@@ -37,6 +40,7 @@ export function PhotoCell({
   onEmptyClick,
   fit = 'cover',
   animateLayout = false,
+  shape = 'rect',
 }: PhotoCellProps) {
   const pinchDist = useRef<number | null>(null)
   const imageRef = useRef<Konva.Image>(null)
@@ -57,7 +61,18 @@ export function PhotoCell({
   if (!photo) {
     return (
       <Group x={x} y={y} onClick={onEmptyClick} onTap={onEmptyClick}>
-        <Rect width={width} height={height} fill="#f0f9ff" stroke="#bae6fd" strokeWidth={2} dash={[8, 6]} />
+        <Shape
+          width={width}
+          height={height}
+          fill="#f0f9ff"
+          stroke="#bae6fd"
+          strokeWidth={2}
+          dash={[8, 6]}
+          sceneFunc={(ctx, node) => {
+            traceShapePath(ctx, shape, width, height)
+            ctx.fillStrokeShape(node)
+          }}
+        />
         <Text
           text="+"
           width={width}
@@ -130,10 +145,7 @@ export function PhotoCell({
     <Group
       x={x}
       y={y}
-      clipX={0}
-      clipY={0}
-      clipWidth={width}
-      clipHeight={height}
+      clipFunc={(ctx) => traceShapePath(ctx, shape, width, height)}
       onWheel={handleWheel}
       onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}

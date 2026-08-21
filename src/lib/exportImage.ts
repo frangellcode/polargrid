@@ -1,8 +1,9 @@
 // prueba: verificando sincronización con GitHub Desktop
-import type { CellAssignment, ExportQuality, FreeItem, GridTemplate, LoadedPhoto, Orientation, PhotoFit, PhotoTransform } from '../types'
+import type { CellAssignment, CellShape, ExportQuality, FreeItem, GridTemplate, LoadedPhoto, Orientation, PhotoFit, PhotoTransform } from '../types'
 import { computeNativeCanvasSize, computeNativeCanvasSizeContain, computeOutputPixelSize, getImageDrawRect } from './cropMath'
 import { ASPECT_RATIOS } from './aspectRatios'
 import { capLongEdge, getMaxLongEdge } from './exportQuality'
+import { traceShapePath } from './shapeClip'
 
 const JPEG_QUALITY = 1.0
 
@@ -23,14 +24,14 @@ function drawPhotoInRect(
   transform: PhotoTransform,
   rotationDeg = 0,
   fit: PhotoFit = 'cover',
+  shape: CellShape = 'rect',
 ) {
   if (rectW <= 0 || rectH <= 0) return
   ctx.save()
   ctx.translate(rectX + rectW / 2, rectY + rectH / 2)
   if (rotationDeg) ctx.rotate((rotationDeg * Math.PI) / 180)
   ctx.translate(-rectW / 2, -rectH / 2)
-  ctx.beginPath()
-  ctx.rect(0, 0, rectW, rectH)
+  traceShapePath(ctx, shape, rectW, rectH)
   ctx.clip()
   const draw = getImageDrawRect(rectW, rectH, photo.width, photo.height, transform, fit)
   ctx.drawImage(photo.bitmap, draw.x, draw.y, draw.width, draw.height)
@@ -180,7 +181,7 @@ export async function exportCollageGrid(
     const y = contentY + cell.row * (cellH + gutterPx)
     const w = cellW * cell.colSpan + gutterPx * (cell.colSpan - 1)
     const h = cellH * cell.rowSpan + gutterPx * (cell.rowSpan - 1)
-    drawPhotoInRect(ctx, photo, x, y, w, h, assignment.transform)
+    drawPhotoInRect(ctx, photo, x, y, w, h, assignment.transform, 0, 'cover', template.shape)
   })
 
   return downloadCanvas(canvas, `polargrid-collage-${Date.now()}.jpg`)

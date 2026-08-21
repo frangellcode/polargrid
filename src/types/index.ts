@@ -49,10 +49,14 @@ export interface CellAssignment {
   transform: PhotoTransform
 }
 
+/** How a cell's photo gets clipped: plain rectangle, softly rounded corners, or an inscribed circle. */
+export type CellShape = 'rect' | 'rounded' | 'circle'
+
 export interface GridTemplate {
   id: string
   label: string
   count: number
+  shape: CellShape
   /** cells positioned in a normalized 0..1 unit square, in column/row-span grid units */
   cols: number
   rows: number

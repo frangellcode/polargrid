@@ -12,7 +12,7 @@ import type {
 } from '../types'
 import { DEFAULT_ASPECT_RATIO_ID } from '../lib/aspectRatios'
 import { DEFAULT_TRANSFORM, clampTransform } from '../lib/cropMath'
-import { GRID_TEMPLATES, MAX_COLLAGE_PHOTOS, getTemplatesForCount } from '../lib/collageTemplates'
+import { GRID_TEMPLATES, MAX_COLLAGE_PHOTOS, MIN_COLLAGE_PHOTOS, getTemplatesForCount } from '../lib/collageTemplates'
 import { DEFAULT_EXPORT_QUALITY } from '../lib/exportQuality'
 import { DEFAULT_WORKSPACE_BACKGROUND } from '../lib/workspaceBackgrounds'
 
@@ -120,7 +120,7 @@ function createInitialCollageState(): CollageState {
   return {
     layoutMode: 'grid',
     photoCount: 4,
-    templateId: 'grid-4-normal',
+    templateId: 'grid-4-normal-rect',
     orientation: 'vertical',
     assignments: buildAssignmentsForCount(4),
     outerBorderPct: DEFAULT_BORDER_PCT,
@@ -260,7 +260,10 @@ export const useEditorStore = create<EditorStoreState>((set, get) => ({
     // the user actually added).
     const shouldResize = filled === 0 ? needed !== photoCount : needed > photoCount
     if (shouldResize) {
-      photoCount = filled === 0 ? Math.min(12, Math.max(2, needed)) : Math.min(12, needed)
+      photoCount =
+        filled === 0
+          ? Math.min(MAX_COLLAGE_PHOTOS, Math.max(MIN_COLLAGE_PHOTOS, needed))
+          : Math.min(MAX_COLLAGE_PHOTOS, needed)
       templateId = getTemplatesForCount(photoCount)[0].id
       const nextAssignments = buildAssignmentsForCount(photoCount)
       // preserve existing photoId order into new template's cells
