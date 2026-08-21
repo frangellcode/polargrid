@@ -358,7 +358,7 @@ export function CollageEditor() {
                   if (gutterLinked) store.setGutterPct(pct)
                 }}
               />
-              <div className="space-y-1.5">
+              <div className="space-y-3">
                 <BorderThicknessSlider
                   label="Espacio entre fotos"
                   value={collage.gutterPct}
