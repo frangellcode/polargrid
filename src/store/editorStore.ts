@@ -249,8 +249,13 @@ export const useEditorStore = create<EditorStoreState>((set, get) => ({
     let photoCount = state.collage.photoCount
     const filled = assignments.filter((a) => a.photoId).length
     const needed = filled + newPhotos.length
-    if (needed > photoCount) {
-      photoCount = Math.min(12, needed)
+    // Starting a fresh collage: match the template to exactly how many photos
+    // are being placed, instead of keeping the arbitrary default cell count
+    // (which left empty cells and offered a grid style for more photos than
+    // the user actually added).
+    const shouldResize = filled === 0 ? needed !== photoCount : needed > photoCount
+    if (shouldResize) {
+      photoCount = filled === 0 ? Math.min(12, Math.max(2, needed)) : Math.min(12, needed)
       const nextAssignments = buildAssignmentsForCount(photoCount)
       // preserve existing photoId order into new template's cells
       const existingPhotoIds = assignments.filter((a) => a.photoId).map((a) => a.photoId)
