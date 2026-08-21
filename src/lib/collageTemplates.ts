@@ -13,15 +13,16 @@ interface Geometry {
 }
 
 /**
- * Hand-picked grid geometries: each tiles a cols x rows unit grid perfectly (no
- * gaps) — sum of colSpan*rowSpan per row == cols. The single-photo geometries
- * are the one exception: they're intentionally inset within their unit grid so
- * the workspace background shows through as a mat/frame around the photo.
+ * Hand-picked grid geometries. Most tile their cols x rows unit grid exactly
+ * (no gaps) — sum of colSpan*rowSpan per row == cols. A few deliberately
+ * don't: the single-photo geometries inset their one cell so the workspace
+ * background shows through as a mat/frame, and a couple of small-count
+ * geometries (grid-2-diagonal, grid-3-corner) leave part of the grid empty on
+ * purpose, as a designed accent rather than a full tiling.
  *
- * Every photo count (1-9) gets exactly 4 geometries, and expandShapeVariants
- * below turns each into 3 selectable templates (rect / rounded / circle-clipped
- * cells) — 12 real, distinct options per count in the "Plantilla" picker, same
- * as multi-template collage apps offer.
+ * Every photo count (1-9) gets 4 geometries, and expandShapeVariants below
+ * turns each into rect / rounded and — only when its cells are close enough
+ * to square to actually look right circle-cropped — a circle variant too.
  */
 const GEOMETRIES: Geometry[] = [
   // ---- 1 photo (inset within a 20x20 unit grid, so the mat shows around it) ----
@@ -71,36 +72,42 @@ const GEOMETRIES: Geometry[] = [
     ],
   },
   {
+    // 8:5 ~= golden ratio (0.615/0.385) — a subtler, less "cut in a blender"
+    // asymmetry than the old plain 3:2 (0.6/0.4) split.
     key: 'grid-2-big-left',
     label: '2 fotos · grande y chica',
     count: 2,
-    cols: 5,
+    cols: 13,
     rows: 1,
     cells: [
-      { col: 0, row: 0, colSpan: 3, rowSpan: 1 },
-      { col: 3, row: 0, colSpan: 2, rowSpan: 1 },
+      { col: 0, row: 0, colSpan: 8, rowSpan: 1 },
+      { col: 8, row: 0, colSpan: 5, rowSpan: 1 },
     ],
   },
   {
     key: 'grid-2-big-right',
     label: '2 fotos · chica y grande',
     count: 2,
-    cols: 5,
-    rows: 1,
-    cells: [
-      { col: 0, row: 0, colSpan: 2, rowSpan: 1 },
-      { col: 2, row: 0, colSpan: 3, rowSpan: 1 },
-    ],
-  },
-  {
-    key: 'grid-2-slight',
-    label: '2 fotos · casi igual',
-    count: 2,
-    cols: 9,
+    cols: 13,
     rows: 1,
     cells: [
       { col: 0, row: 0, colSpan: 5, rowSpan: 1 },
-      { col: 5, row: 0, colSpan: 4, rowSpan: 1 },
+      { col: 5, row: 0, colSpan: 8, rowSpan: 1 },
+    ],
+  },
+  {
+    // Two square cells on the diagonal of a 2x2 grid, the other two units left
+    // as deliberate negative space — reads as a designed accent rather than a
+    // leftover gap, and (being genuinely square) is the one 2-photo layout
+    // that also looks right with the circle-crop shape.
+    key: 'grid-2-diagonal',
+    label: '2 fotos · acento diagonal',
+    count: 2,
+    cols: 2,
+    rows: 2,
+    cells: [
+      { col: 0, row: 0, colSpan: 1, rowSpan: 1 },
+      { col: 1, row: 1, colSpan: 1, rowSpan: 1 },
     ],
   },
 
@@ -118,15 +125,16 @@ const GEOMETRIES: Geometry[] = [
     ],
   },
   {
+    // 5:3 rows (62.5/37.5) instead of a flat 50/50 split.
     key: 'grid-3-big-top',
     label: '3 fotos · grande + 2',
     count: 3,
     cols: 2,
-    rows: 2,
+    rows: 8,
     cells: [
-      { col: 0, row: 0, colSpan: 2, rowSpan: 1 },
-      { col: 0, row: 1, colSpan: 1, rowSpan: 1 },
-      { col: 1, row: 1, colSpan: 1, rowSpan: 1 },
+      { col: 0, row: 0, colSpan: 2, rowSpan: 5 },
+      { col: 0, row: 5, colSpan: 1, rowSpan: 3 },
+      { col: 1, row: 5, colSpan: 1, rowSpan: 3 },
     ],
   },
   {
@@ -134,23 +142,26 @@ const GEOMETRIES: Geometry[] = [
     label: '3 fotos · 2 + grande',
     count: 3,
     cols: 2,
+    rows: 8,
+    cells: [
+      { col: 0, row: 0, colSpan: 1, rowSpan: 3 },
+      { col: 1, row: 0, colSpan: 1, rowSpan: 3 },
+      { col: 0, row: 3, colSpan: 2, rowSpan: 5 },
+    ],
+  },
+  {
+    // Three square cells filling an L in a 2x2 block, one corner left open —
+    // a compact, deliberate accent (not a leftover gap) and, being square
+    // cells, the one 3-photo layout that also works with circle crops.
+    key: 'grid-3-corner',
+    label: '3 fotos · esquina',
+    count: 3,
+    cols: 2,
     rows: 2,
     cells: [
       { col: 0, row: 0, colSpan: 1, rowSpan: 1 },
       { col: 1, row: 0, colSpan: 1, rowSpan: 1 },
-      { col: 0, row: 1, colSpan: 2, rowSpan: 1 },
-    ],
-  },
-  {
-    key: 'grid-3-big-side',
-    label: '3 fotos · grande al lado',
-    count: 3,
-    cols: 4,
-    rows: 1,
-    cells: [
-      { col: 0, row: 0, colSpan: 2, rowSpan: 1 },
-      { col: 2, row: 0, colSpan: 1, rowSpan: 1 },
-      { col: 3, row: 0, colSpan: 1, rowSpan: 1 },
+      { col: 0, row: 1, colSpan: 1, rowSpan: 1 },
     ],
   },
 
@@ -173,12 +184,12 @@ const GEOMETRIES: Geometry[] = [
     label: '4 fotos · grande + 3',
     count: 4,
     cols: 3,
-    rows: 2,
+    rows: 8,
     cells: [
-      { col: 0, row: 0, colSpan: 3, rowSpan: 1 },
-      { col: 0, row: 1, colSpan: 1, rowSpan: 1 },
-      { col: 1, row: 1, colSpan: 1, rowSpan: 1 },
-      { col: 2, row: 1, colSpan: 1, rowSpan: 1 },
+      { col: 0, row: 0, colSpan: 3, rowSpan: 5 },
+      { col: 0, row: 5, colSpan: 1, rowSpan: 3 },
+      { col: 1, row: 5, colSpan: 1, rowSpan: 3 },
+      { col: 2, row: 5, colSpan: 1, rowSpan: 3 },
     ],
   },
   {
@@ -186,12 +197,12 @@ const GEOMETRIES: Geometry[] = [
     label: '4 fotos · 3 + grande',
     count: 4,
     cols: 3,
-    rows: 2,
+    rows: 8,
     cells: [
-      { col: 0, row: 0, colSpan: 1, rowSpan: 1 },
-      { col: 1, row: 0, colSpan: 1, rowSpan: 1 },
-      { col: 2, row: 0, colSpan: 1, rowSpan: 1 },
-      { col: 0, row: 1, colSpan: 3, rowSpan: 1 },
+      { col: 0, row: 0, colSpan: 1, rowSpan: 3 },
+      { col: 1, row: 0, colSpan: 1, rowSpan: 3 },
+      { col: 2, row: 0, colSpan: 1, rowSpan: 3 },
+      { col: 0, row: 3, colSpan: 3, rowSpan: 5 },
     ],
   },
   {
@@ -378,19 +389,22 @@ const GEOMETRIES: Geometry[] = [
     ],
   },
   {
-    key: 'grid-7-row',
-    label: '7 fotos · en fila',
+    // A 3x3 grid with the center and top-middle left open — a "U" of 7 square
+    // cells. All-square, so (unlike a plain 7-in-a-row strip) it also works
+    // as a circle-crop layout.
+    key: 'grid-7-horseshoe',
+    label: '7 fotos · herradura',
     count: 7,
-    cols: 7,
-    rows: 1,
+    cols: 3,
+    rows: 3,
     cells: [
       { col: 0, row: 0, colSpan: 1, rowSpan: 1 },
-      { col: 1, row: 0, colSpan: 1, rowSpan: 1 },
       { col: 2, row: 0, colSpan: 1, rowSpan: 1 },
-      { col: 3, row: 0, colSpan: 1, rowSpan: 1 },
-      { col: 4, row: 0, colSpan: 1, rowSpan: 1 },
-      { col: 5, row: 0, colSpan: 1, rowSpan: 1 },
-      { col: 6, row: 0, colSpan: 1, rowSpan: 1 },
+      { col: 0, row: 1, colSpan: 1, rowSpan: 1 },
+      { col: 2, row: 1, colSpan: 1, rowSpan: 1 },
+      { col: 0, row: 2, colSpan: 1, rowSpan: 1 },
+      { col: 1, row: 2, colSpan: 1, rowSpan: 1 },
+      { col: 2, row: 2, colSpan: 1, rowSpan: 1 },
     ],
   },
 
@@ -545,9 +559,31 @@ const SHAPES: { shape: CellShape; suffix: string }[] = [
   { shape: 'circle', suffix: ' · círculos' },
 ]
 
-/** Expands one hand-authored geometry into its rect/rounded/circle template variants. */
+/** How far a cell's box may stray from square (as width/height) and still get
+ *  a circle crop that looks intentional. Outside this range the inscribed
+ *  circle leaves so much bare box on the long axis that it reads as a
+ *  mistake rather than a design choice — so those cells just don't get a
+ *  circle variant at all. */
+const CIRCLE_MIN_ASPECT = 0.6
+const CIRCLE_MAX_ASPECT = 1.67
+
+function cellAspect(cell: CellSpec, cols: number, rows: number): number {
+  return (cell.colSpan / cols) / (cell.rowSpan / rows)
+}
+
+function isCircleEligible(g: Geometry): boolean {
+  return g.cells.every((c) => {
+    const a = cellAspect(c, g.cols, g.rows)
+    return a >= CIRCLE_MIN_ASPECT && a <= CIRCLE_MAX_ASPECT
+  })
+}
+
+/** Expands one hand-authored geometry into its template variants: rect and
+ *  rounded always, circle only when every cell is close enough to square
+ *  (see isCircleEligible) — otherwise the crop leaves ugly, uneven gaps. */
 function expandShapeVariants(g: Geometry): GridTemplate[] {
-  return SHAPES.map(({ shape, suffix }) => ({
+  const shapes = isCircleEligible(g) ? SHAPES : SHAPES.filter((s) => s.shape !== 'circle')
+  return shapes.map(({ shape, suffix }) => ({
     id: `${g.key}-${shape}`,
     label: `${g.label}${suffix}`,
     count: g.count,
