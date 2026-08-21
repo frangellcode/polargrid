@@ -4,7 +4,7 @@ import type Konva from 'konva'
 import type { ExportQuality } from '../../types'
 import { useEditorStore } from '../../store/editorStore'
 import { useImageBitmap } from '../../hooks/useImageBitmap'
-import { useAnimatedNumber } from '../../hooks/useAnimatedNumber'
+import { useAnimatedNumber, useReflowFade } from '../../hooks/useAnimatedNumber'
 import { COLLAGE_ASPECT_RATIOS } from '../../lib/aspectRatios'
 import { computeOutputPixelSize, getImageDrawRect } from '../../lib/cropMath'
 import { MIN_COLLAGE_PHOTOS, getTemplateById, transposeTemplate } from '../../lib/collageTemplates'
@@ -163,6 +163,13 @@ export function CollageEditor() {
     return collage.orientation === 'vertical' ? transposeTemplate(base) : base
   }, [collage.templateId, collage.photoCount, collage.orientation])
 
+  // Switching to a different layout (or flipping orientation) re-tiles every
+  // cell at once, and since each one eases to its new rect independently,
+  // two cells can visibly cross paths mid-move — a stray flicker as one
+  // photo passes over another. Dipping the whole grid's opacity during that
+  // reflow hides the crossover instead.
+  const reflowFade = useReflowFade(`${collage.templateId}|${collage.orientation}`)
+
   const shortSide = Math.min(outputWidth, outputHeight)
   const outerBorderPx = collage.outerBorderPct * shortSide
   const gutterPx = collage.gutterPct * shortSide
@@ -253,32 +260,36 @@ export function CollageEditor() {
         {hasContent ? (
           <CanvasStage outputWidth={outputWidth} outputHeight={outputHeight}>
             {collage.layoutMode === 'grid'
-              ? template.cells.map((cell, i) => {
-                  const assignment = collage.assignments[i]
-                  const photo = assignment?.photoId ? photos[assignment.photoId] : null
-                  const x = contentX + cell.col * (cellW + gutterPx)
-                  const y = contentY + cell.row * (cellH + gutterPx)
-                  const w = cellW * cell.colSpan + gutterPx * (cell.colSpan - 1)
-                  const h = cellH * cell.rowSpan + gutterPx * (cell.rowSpan - 1)
-                  return (
-                    <PhotoCell
-                      key={assignment.cellId}
-                      x={x}
-                      y={y}
-                      width={w}
-                      height={h}
-                      animateLayout
-                      shape={collage.shape}
-                      photo={photo}
-                      transform={assignment.transform}
-                      onTransformChange={(t) => store.setCellTransform(assignment.cellId, t)}
-                      onEmptyClick={() => {
-                        setPendingCellId(assignment.cellId)
-                        toolbarRef.current?.openFilePicker()
-                      }}
-                    />
-                  )
-                })
+              ? (
+                <Group opacity={reflowFade}>
+                  {template.cells.map((cell, i) => {
+                    const assignment = collage.assignments[i]
+                    const photo = assignment?.photoId ? photos[assignment.photoId] : null
+                    const x = contentX + cell.col * (cellW + gutterPx)
+                    const y = contentY + cell.row * (cellH + gutterPx)
+                    const w = cellW * cell.colSpan + gutterPx * (cell.colSpan - 1)
+                    const h = cellH * cell.rowSpan + gutterPx * (cell.rowSpan - 1)
+                    return (
+                      <PhotoCell
+                        key={assignment.cellId}
+                        x={x}
+                        y={y}
+                        width={w}
+                        height={h}
+                        animateLayout
+                        shape={collage.shape}
+                        photo={photo}
+                        transform={assignment.transform}
+                        onTransformChange={(t) => store.setCellTransform(assignment.cellId, t)}
+                        onEmptyClick={() => {
+                          setPendingCellId(assignment.cellId)
+                          toolbarRef.current?.openFilePicker()
+                        }}
+                      />
+                    )
+                  })}
+                </Group>
+              )
               : (
                 <FreeItemsLayer
                   outputWidth={outputWidth}
