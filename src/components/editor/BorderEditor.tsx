@@ -64,6 +64,15 @@ export function BorderEditor() {
     () => computeOutputPixelSize(ratio, PREVIEW_LONG_EDGE),
     [ratio],
   )
+  // Animated only for CanvasStage's own background/frame size below. The
+  // PhotoCell's x/y/width/height (via borderPx) deliberately use the raw
+  // targetWidth/targetHeight instead — PhotoCell already tweens those itself
+  // via animateLayout, and feeding it rects derived from an outer value
+  // that's ALSO mid-animation made it chase a constantly-moving target every
+  // frame (the photo detaching from the frame on ratio changes — see git
+  // history). Using the raw target keeps animateLayout the only animation
+  // layer, so it also correctly smooths border-thickness slider drags
+  // (which don't touch outputWidth/outputHeight at all).
   const outputWidth = useAnimatedNumber(targetWidth)
   const outputHeight = useAnimatedNumber(targetHeight)
   // Animates the cover<->contain blend itself (not just a CSS transition on the
@@ -71,7 +80,7 @@ export function BorderEditor() {
   // Desbloqueada is switched.
   const fitMix = useAnimatedNumber(border.locked ? 0 : 1)
 
-  const borderPx = border.borderThicknessPct * Math.min(outputWidth, outputHeight)
+  const borderPx = border.borderThicknessPct * Math.min(targetWidth, targetHeight)
 
   const handleUpload = async (files: FileList) => {
     const loaded = await loadFiles(files)
@@ -113,8 +122,9 @@ export function BorderEditor() {
             <PhotoCell
               x={borderPx}
               y={borderPx}
-              width={outputWidth - borderPx * 2}
-              height={outputHeight - borderPx * 2}
+              width={targetWidth - borderPx * 2}
+              height={targetHeight - borderPx * 2}
+              animateLayout
               photo={photo}
               transform={border.transform}
               onTransformChange={setBorderTransform}
