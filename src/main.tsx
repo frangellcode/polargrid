@@ -8,7 +8,7 @@ import { initServiceWorkerUpdates } from './lib/pwaUpdate'
 // the production minifier, so earlier "marker" commits never actually
 // changed the built bundle's bytes at all, which is why no update was ever
 // detected for them. This one has a runtime effect, so it can't disappear.
-console.log('[PolarGrid] build marker: deploy-test-4')
+console.log(`[PolarGrid] build marker: deploy-test-5, built ${new Date().toISOString()}`)
 
 initServiceWorkerUpdates()
 
