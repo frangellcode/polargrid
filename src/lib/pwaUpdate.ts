@@ -25,13 +25,21 @@ export function initServiceWorkerUpdates() {
 
       // Backstops for a session that never goes a full hour without leaving
       // the foreground: check right away whenever the person actually comes
-      // back to the app (switching back from another app/tab, not just the
-      // OS un-suspending it in the background), and whenever the device
-      // regains a network connection after being offline.
+      // back to the app, and whenever the device regains a network
+      // connection after being offline. Three different "we're back"
+      // signals, not just one — iOS Safari's standalone (home-screen) mode
+      // has a long-standing WebKit bug where visibilitychange doesn't
+      // reliably fire on resume, so pageshow/focus are here as fallbacks
+      // for exactly that case. None of this is guaranteed on iOS; a full
+      // close-and-reopen (a real cold load) is still the one path that
+      // reliably triggers a check.
+      const checkNow = () => registration.update()
       document.addEventListener('visibilitychange', () => {
-        if (document.visibilityState === 'visible') registration.update()
+        if (document.visibilityState === 'visible') checkNow()
       })
-      window.addEventListener('online', () => registration.update())
+      window.addEventListener('pageshow', checkNow)
+      window.addEventListener('focus', checkNow)
+      window.addEventListener('online', checkNow)
     },
     // Fired once a new worker has finished installing and is waiting —
     // lights up the "1" badge. This is the one reliable signal for
