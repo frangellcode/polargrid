@@ -155,17 +155,18 @@ export function CollageEditor() {
     () => computeOutputPixelSize(ratio, PREVIEW_LONG_EDGE),
     [ratio],
   )
-  // Animated only for CanvasStage's own background/frame size below — grid
-  // cell rects deliberately use the raw (unanimated) targetWidth/targetHeight
-  // instead (see contentW/contentH etc.), not this. Each PhotoCell already
-  // tweens its own x/y/width/height via animateLayout; feeding it rects
-  // derived from an outer value that's ALSO mid-animation made it chase a
-  // constantly-moving target every frame instead of tracking one real jump,
-  // so the photo visibly detached from the grid whenever the overall ratio
-  // changed (same bug fixed in BorderEditor — see git history). Using the
-  // raw target here keeps animateLayout the only animation layer for cells,
-  // while still correctly smoothing template/orientation switches (where
-  // targetWidth/targetHeight don't change at all, only the cell math does).
+  // The ONLY animated size here — CanvasStage's frame AND every grid cell's
+  // rect (via contentW/cellW/etc. below) derive from this single tween, so
+  // they can't desync. A tried-and-reverted alternative — animateLayout on
+  // each PhotoCell, fed from the raw (unanimated) targetWidth/targetHeight —
+  // fixed ratio changes in isolation but empirically still let cells drift
+  // out of sync during an orientation flip, and made the border/gutter
+  // sliders below feel laggy (every 'input' event during a drag restarts
+  // each cell's tween before the last one finishes, so it perpetually
+  // chases the live slider value; see BorderEditor's history for the full
+  // writeup — same bug, same fix). Template/orientation switches (where
+  // this value doesn't change at all) are smoothed by reflowFade's opacity
+  // dip below instead of a position tween.
   const outputWidth = useAnimatedNumber(targetWidth)
   const outputHeight = useAnimatedNumber(targetHeight)
 
@@ -181,13 +182,13 @@ export function CollageEditor() {
   // reflow hides the crossover instead.
   const reflowFade = useReflowFade(`${collage.templateId}|${collage.orientation}`)
 
-  const shortSide = Math.min(targetWidth, targetHeight)
+  const shortSide = Math.min(outputWidth, outputHeight)
   const outerBorderPx = collage.outerBorderPct * shortSide
   const gutterPx = collage.gutterPct * shortSide
   const contentX = outerBorderPx
   const contentY = outerBorderPx
-  const contentW = targetWidth - outerBorderPx * 2
-  const contentH = targetHeight - outerBorderPx * 2
+  const contentW = outputWidth - outerBorderPx * 2
+  const contentH = outputHeight - outerBorderPx * 2
   const cellW = (contentW - gutterPx * (template.cols - 1)) / template.cols
   const cellH = (contentH - gutterPx * (template.rows - 1)) / template.rows
 
@@ -287,7 +288,6 @@ export function CollageEditor() {
                         y={y}
                         width={w}
                         height={h}
-                        animateLayout
                         shape={collage.shape}
                         photo={photo}
                         transform={assignment.transform}
