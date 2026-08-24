@@ -236,6 +236,20 @@ export function CollageEditor() {
   const hasContent =
     collage.layoutMode === 'grid' ? collage.assignments.some((a) => a.photoId) : collage.freeItems.length > 0
 
+  // Lags one render behind hasContent on purpose. Starting a fresh collage
+  // resizes the template to match however many photos were just added,
+  // which reflowFade (above) sees as a genuine template swap and dips for —
+  // but these cells are appearing for the very first time (the Dropzone was
+  // showing until this exact render), so that dip briefly reveals the white
+  // canvas behind them before any photo has ever been drawn, reading as a
+  // flash. Reading this stale ref on the render where hasContent first
+  // flips true skips the dip for exactly that render; later template
+  // switches (once hadContentRef has caught up to true) still use it.
+  const hadContentRef = useRef(hasContent)
+  useEffect(() => {
+    hadContentRef.current = hasContent
+  }, [hasContent])
+
   return (
     <div className="flex h-full flex-col bg-ink-900">
       <Toolbar
@@ -273,7 +287,7 @@ export function CollageEditor() {
           <CanvasStage outputWidth={outputWidth} outputHeight={outputHeight}>
             {collage.layoutMode === 'grid'
               ? (
-                <Group opacity={reflowFade}>
+                <Group opacity={hadContentRef.current ? reflowFade : 1}>
                   {template.cells.map((cell, i) => {
                     const assignment = collage.assignments[i]
                     const photo = assignment?.photoId ? photos[assignment.photoId] : null
