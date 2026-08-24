@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Group, Image as KonvaImage, Rect, Transformer } from 'react-konva'
 import type Konva from 'konva'
-import type { ExportQuality } from '../../types'
+import type { CellAssignment, CellShape, ExportQuality, GridTemplate, LoadedPhoto, PhotoTransform } from '../../types'
 import { useEditorStore } from '../../store/editorStore'
 import { useImageBitmap } from '../../hooks/useImageBitmap'
 import { useAnimatedNumber, useReflowFade } from '../../hooks/useAnimatedNumber'
@@ -124,6 +124,85 @@ function FreeItemsLayer({ outputWidth, outputHeight, selectedId, onSelect }: Fre
   )
 }
 
+interface GridCellsLayerProps {
+  /** `${templateId}|${orientation}` — reflowFade below dips whenever this changes. */
+  reflowKey: string
+  template: GridTemplate
+  assignments: CellAssignment[]
+  photos: Record<string, LoadedPhoto>
+  contentX: number
+  contentY: number
+  cellW: number
+  cellH: number
+  gutterPx: number
+  shape: CellShape
+  onCellTransformChange: (cellId: string, transform: PhotoTransform) => void
+  onEmptyCellClick: (cellId: string) => void
+}
+
+/**
+ * Split out from CollageEditor so useReflowFade's own "no dip on mount" guard
+ * lines up with when cells actually first appear on screen. It used to live
+ * directly in CollageEditor, called unconditionally — but that component (and
+ * therefore the hook) is already mounted while the Dropzone is showing, before
+ * any photo exists. Starting a fresh collage resizes the template to match
+ * however many photos were just added, which the hook saw as a genuine
+ * template swap on the very same render the cells first appeared, dipping
+ * opacity and briefly revealing CanvasStage's white background behind cells
+ * that had never had a photo drawn in them yet — a white flash. This
+ * component only ever mounts once there's real content (see the call site in
+ * CollageEditor), so the hook's own mount detection now correctly covers that
+ * first-appearance case for free, without needing to special-case it.
+ */
+function GridCellsLayer({
+  reflowKey,
+  template,
+  assignments,
+  photos,
+  contentX,
+  contentY,
+  cellW,
+  cellH,
+  gutterPx,
+  shape,
+  onCellTransformChange,
+  onEmptyCellClick,
+}: GridCellsLayerProps) {
+  // Switching to a different layout (or flipping orientation) re-tiles every
+  // cell at once, and since each one eases to its new rect independently,
+  // two cells can visibly cross paths mid-move — a stray flicker as one
+  // photo passes over another. Dipping the whole grid's opacity during that
+  // reflow hides the crossover instead.
+  const reflowFade = useReflowFade(reflowKey)
+
+  return (
+    <Group opacity={reflowFade}>
+      {template.cells.map((cell, i) => {
+        const assignment = assignments[i]
+        const photo = assignment?.photoId ? photos[assignment.photoId] : null
+        const x = contentX + cell.col * (cellW + gutterPx)
+        const y = contentY + cell.row * (cellH + gutterPx)
+        const w = cellW * cell.colSpan + gutterPx * (cell.colSpan - 1)
+        const h = cellH * cell.rowSpan + gutterPx * (cell.rowSpan - 1)
+        return (
+          <PhotoCell
+            key={assignment.cellId}
+            x={x}
+            y={y}
+            width={w}
+            height={h}
+            shape={shape}
+            photo={photo}
+            transform={assignment.transform}
+            onTransformChange={(t) => onCellTransformChange(assignment.cellId, t)}
+            onEmptyClick={() => onEmptyCellClick(assignment.cellId)}
+          />
+        )
+      })}
+    </Group>
+  )
+}
+
 export function CollageEditor() {
   const store = useEditorStore()
   const { photos, collage } = store
@@ -174,13 +253,6 @@ export function CollageEditor() {
     const base = getTemplateById(collage.templateId, collage.photoCount)
     return collage.orientation === 'vertical' ? transposeTemplate(base) : base
   }, [collage.templateId, collage.photoCount, collage.orientation])
-
-  // Switching to a different layout (or flipping orientation) re-tiles every
-  // cell at once, and since each one eases to its new rect independently,
-  // two cells can visibly cross paths mid-move — a stray flicker as one
-  // photo passes over another. Dipping the whole grid's opacity during that
-  // reflow hides the crossover instead.
-  const reflowFade = useReflowFade(`${collage.templateId}|${collage.orientation}`)
 
   const shortSide = Math.min(outputWidth, outputHeight)
   const outerBorderPx = collage.outerBorderPct * shortSide
@@ -236,20 +308,6 @@ export function CollageEditor() {
   const hasContent =
     collage.layoutMode === 'grid' ? collage.assignments.some((a) => a.photoId) : collage.freeItems.length > 0
 
-  // Lags one render behind hasContent on purpose. Starting a fresh collage
-  // resizes the template to match however many photos were just added,
-  // which reflowFade (above) sees as a genuine template swap and dips for —
-  // but these cells are appearing for the very first time (the Dropzone was
-  // showing until this exact render), so that dip briefly reveals the white
-  // canvas behind them before any photo has ever been drawn, reading as a
-  // flash. Reading this stale ref on the render where hasContent first
-  // flips true skips the dip for exactly that render; later template
-  // switches (once hadContentRef has caught up to true) still use it.
-  const hadContentRef = useRef(hasContent)
-  useEffect(() => {
-    hadContentRef.current = hasContent
-  }, [hasContent])
-
   return (
     <div className="flex h-full flex-col bg-ink-900">
       <Toolbar
@@ -287,33 +345,23 @@ export function CollageEditor() {
           <CanvasStage outputWidth={outputWidth} outputHeight={outputHeight}>
             {collage.layoutMode === 'grid'
               ? (
-                <Group opacity={hadContentRef.current ? reflowFade : 1}>
-                  {template.cells.map((cell, i) => {
-                    const assignment = collage.assignments[i]
-                    const photo = assignment?.photoId ? photos[assignment.photoId] : null
-                    const x = contentX + cell.col * (cellW + gutterPx)
-                    const y = contentY + cell.row * (cellH + gutterPx)
-                    const w = cellW * cell.colSpan + gutterPx * (cell.colSpan - 1)
-                    const h = cellH * cell.rowSpan + gutterPx * (cell.rowSpan - 1)
-                    return (
-                      <PhotoCell
-                        key={assignment.cellId}
-                        x={x}
-                        y={y}
-                        width={w}
-                        height={h}
-                        shape={collage.shape}
-                        photo={photo}
-                        transform={assignment.transform}
-                        onTransformChange={(t) => store.setCellTransform(assignment.cellId, t)}
-                        onEmptyClick={() => {
-                          setPendingCellId(assignment.cellId)
-                          toolbarRef.current?.openFilePicker()
-                        }}
-                      />
-                    )
-                  })}
-                </Group>
+                <GridCellsLayer
+                  reflowKey={`${collage.templateId}|${collage.orientation}`}
+                  template={template}
+                  assignments={collage.assignments}
+                  photos={photos}
+                  contentX={contentX}
+                  contentY={contentY}
+                  cellW={cellW}
+                  cellH={cellH}
+                  gutterPx={gutterPx}
+                  shape={collage.shape}
+                  onCellTransformChange={(cellId, t) => store.setCellTransform(cellId, t)}
+                  onEmptyCellClick={(cellId) => {
+                    setPendingCellId(cellId)
+                    toolbarRef.current?.openFilePicker()
+                  }}
+                />
               )
               : (
                 <FreeItemsLayer
