@@ -5,7 +5,7 @@ import { HomeScreen } from './components/HomeScreen'
 import { BorderEditor } from './components/editor/BorderEditor'
 import { CollageEditor } from './components/editor/CollageEditor'
 import { Logo } from './components/Logo'
-import { clearAppCache } from './lib/pwaUpdate'
+import { useUpdateStore } from './store/updateStore'
 import type { AppMode } from './types'
 
 const EXIT_MS = 200
@@ -27,9 +27,9 @@ type BootStage = 'hold' | 'flying' | 'done'
 // logo back to the center (growing, text fading out — same motion as boot
 // but backwards), holds there while a progress bar fills 0->100, then flies
 // back out to the home slot as the text fades back in — reads as the app
-// "restarting". The real cache/service-worker purge (clearAppCache) runs
-// silently underneath once the bar fills; see pwaUpdate.ts for why it never
-// reloads the page itself.
+// "restarting". The real service-worker activation (applyUpdate) runs
+// silently underneath once the bar fills (see pwaUpdate.ts's onNeedReload
+// for why activating it never reloads the page itself).
 const UPDATE_FLIGHT_MS = 700
 const UPDATE_PROGRESS_MS = 5000
 const UPDATE_HOLD_MS = 300
@@ -131,9 +131,9 @@ function App() {
     }
   }, [updatePhase])
 
-  // Fills the progress bar 0->100 over UPDATE_PROGRESS_MS, purges the real
-  // cache once it's full, then either flies the logo back home or (no-motion
-  // path) jumps straight to idle.
+  // Fills the progress bar 0->100 over UPDATE_PROGRESS_MS, activates the
+  // real pending service worker once it's full, then either flies the logo
+  // back home or (no-motion path) jumps straight to idle.
   useEffect(() => {
     if (updatePhase !== 'progress') return
     setUpdateProgress(0)
@@ -148,7 +148,7 @@ function App() {
         frame = requestAnimationFrame(tick)
         return
       }
-      clearAppCache()
+      useUpdateStore.getState().applyUpdate()
       setBarExiting(true)
       setTimeout(() => {
         setUpdatePhase(updateFlightEnabled.current ? 'toHome' : 'idle')

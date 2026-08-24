@@ -13,7 +13,16 @@ export default defineConfig({
     react(),
     tailwindcss(),
     VitePWA({
-      registerType: 'autoUpdate',
+      // 'prompt' (not 'autoUpdate') is required for the "Actualizar app"
+      // badge/animation in App.tsx to ever be visible: autoUpdate makes the
+      // new service worker self-activate and workbox-window silently calls
+      // window.location.reload() the instant it does — the page reloads
+      // before React can paint the pending-update badge at all, and the
+      // fresh reload resets the store's updateAvailable flag to false, so
+      // the "1" never has a moment to show. 'prompt' leaves the new worker
+      // waiting until pwaUpdate.ts explicitly tells it to take over (see
+      // onNeedRefresh/onNeedReload there).
+      registerType: 'prompt',
       // Registered manually in main.tsx instead (with a periodic update
       // check) — the default injected script only ever checks for a new
       // service worker on a cold page load, which an installed PWA opened
