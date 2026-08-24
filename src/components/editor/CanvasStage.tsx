@@ -51,7 +51,7 @@ export function CanvasStage({
   return (
     <div
       ref={containerRef}
-      className={`flex h-full w-full items-center justify-center overflow-hidden rounded-xl p-[5px] ${
+      className={`flex h-full w-full items-center justify-center overflow-hidden rounded-xl p-[5px] transition-colors duration-300 ${
         workspaceBg.hex ? '' : 'bg-[repeating-conic-gradient(#e2e8f0_0%_25%,#eef2f6_0%_50%)] bg-[length:20px_20px]'
       }`}
       style={workspaceBg.hex ? { backgroundColor: workspaceBg.hex } : undefined}
