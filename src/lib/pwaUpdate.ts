@@ -9,10 +9,12 @@ import { useUpdateStore } from '../store/updateStore'
  * mid-flight. 'prompt' leaves a new worker waiting until `applyUpdate` below
  * is called.
  *
- * The periodic `registration.update()` check exists because the default
- * check only runs on a cold page load — an installed PWA opened from the
- * Home Screen almost never does one, so without polling it can stay stuck
- * on a stale cached build indefinitely.
+ * The periodic + visibilitychange/online `registration.update()` checks
+ * exist because the default check only runs on a cold page load — an
+ * installed PWA opened from the Home Screen can go a long time without one
+ * (people usually switch back to an already-open PWA instead of relaunching
+ * it), so without extra checks it can stay stuck on a stale cached build
+ * for hours.
  */
 export function initServiceWorkerUpdates() {
   const updateServiceWorker = registerSW({
@@ -20,6 +22,16 @@ export function initServiceWorkerUpdates() {
     onRegistered(registration) {
       if (!registration) return
       setInterval(() => registration.update(), 60 * 60 * 1000)
+
+      // Backstops for a session that never goes a full hour without leaving
+      // the foreground: check right away whenever the person actually comes
+      // back to the app (switching back from another app/tab, not just the
+      // OS un-suspending it in the background), and whenever the device
+      // regains a network connection after being offline.
+      document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'visible') registration.update()
+      })
+      window.addEventListener('online', () => registration.update())
     },
     // Fired once a new worker has finished installing and is waiting —
     // lights up the "1" badge. This is the one reliable signal for
