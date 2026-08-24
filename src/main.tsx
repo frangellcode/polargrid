@@ -4,7 +4,7 @@ import './index.css'
 import App from './App.tsx'
 import { initServiceWorkerUpdates } from './lib/pwaUpdate'
 
-// Deploy marker to test the pending-update badge — safe to remove anytime.
+// Deploy marker to test the full "Actualizar app" tap-through — safe to remove anytime.
 
 initServiceWorkerUpdates()
 
