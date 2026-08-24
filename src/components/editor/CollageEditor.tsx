@@ -4,7 +4,7 @@ import type Konva from 'konva'
 import type { CellAssignment, CellShape, ExportQuality, GridTemplate, LoadedPhoto, PhotoTransform } from '../../types'
 import { useEditorStore } from '../../store/editorStore'
 import { useImageBitmap } from '../../hooks/useImageBitmap'
-import { useAnimatedNumber, useReflowFade } from '../../hooks/useAnimatedNumber'
+import { useAnimatedNumber } from '../../hooks/useAnimatedNumber'
 import { COLLAGE_ASPECT_RATIOS } from '../../lib/aspectRatios'
 import { computeOutputPixelSize, getImageDrawRect } from '../../lib/cropMath'
 import { MIN_COLLAGE_PHOTOS, getTemplateById, transposeTemplate } from '../../lib/collageTemplates'
@@ -125,8 +125,6 @@ function FreeItemsLayer({ outputWidth, outputHeight, selectedId, onSelect }: Fre
 }
 
 interface GridCellsLayerProps {
-  /** `${templateId}|${orientation}` — reflowFade below dips whenever this changes. */
-  reflowKey: string
   template: GridTemplate
   assignments: CellAssignment[]
   photos: Record<string, LoadedPhoto>
@@ -140,22 +138,10 @@ interface GridCellsLayerProps {
   onEmptyCellClick: (cellId: string) => void
 }
 
-/**
- * Split out from CollageEditor so useReflowFade's own "no dip on mount" guard
- * lines up with when cells actually first appear on screen. It used to live
- * directly in CollageEditor, called unconditionally — but that component (and
- * therefore the hook) is already mounted while the Dropzone is showing, before
- * any photo exists. Starting a fresh collage resizes the template to match
- * however many photos were just added, which the hook saw as a genuine
- * template swap on the very same render the cells first appeared, dipping
- * opacity and briefly revealing CanvasStage's white background behind cells
- * that had never had a photo drawn in them yet — a white flash. This
- * component only ever mounts once there's real content (see the call site in
- * CollageEditor), so the hook's own mount detection now correctly covers that
- * first-appearance case for free, without needing to special-case it.
- */
+/** Renders one grid cell per photo. Split out of CollageEditor mainly to keep
+ *  that component's render body shorter — nothing here depends on it being a
+ *  separate component. */
 function GridCellsLayer({
-  reflowKey,
   template,
   assignments,
   photos,
@@ -169,14 +155,16 @@ function GridCellsLayer({
   onEmptyCellClick,
 }: GridCellsLayerProps) {
   // Switching to a different layout (or flipping orientation) re-tiles every
-  // cell at once, and since each one eases to its new rect independently,
-  // two cells can visibly cross paths mid-move — a stray flicker as one
-  // photo passes over another. Dipping the whole grid's opacity during that
-  // reflow hides the crossover instead.
-  const reflowFade = useReflowFade(reflowKey)
+  // cell at once; each one eases to its new rect independently via
+  // animateLayout (in PhotoCell), which is the actual motion the person
+  // wants to see. This used to also dip the whole grid's opacity during that
+  // reflow to hide the rare moment two cells cross paths — but even floored
+  // well above zero, a synchronized dim across every photo at once reads as
+  // "everything went white for a second," which is worse than the crossover
+  // it was hiding. Removed; per-cell movement is left to speak for itself.
 
   return (
-    <Group opacity={reflowFade}>
+    <Group>
       {template.cells.map((cell, i) => {
         const assignment = assignments[i]
         const photo = assignment?.photoId ? photos[assignment.photoId] : null
@@ -346,7 +334,6 @@ export function CollageEditor() {
             {collage.layoutMode === 'grid'
               ? (
                 <GridCellsLayer
-                  reflowKey={`${collage.templateId}|${collage.orientation}`}
                   template={template}
                   assignments={collage.assignments}
                   photos={photos}
