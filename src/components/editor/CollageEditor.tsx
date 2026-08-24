@@ -179,6 +179,7 @@ function GridCellsLayer({
             y={y}
             width={w}
             height={h}
+            animateLayout
             shape={shape}
             photo={photo}
             transform={assignment.transform}
@@ -242,13 +243,22 @@ export function CollageEditor() {
     return collage.orientation === 'vertical' ? transposeTemplate(base) : base
   }, [collage.templateId, collage.photoCount, collage.orientation])
 
-  const shortSide = Math.min(outputWidth, outputHeight)
+  // Raw (unanimated) targetWidth/targetHeight on purpose — outputWidth stays
+  // reserved for CanvasStage's own frame size. GridCellsLayer's PhotoCells
+  // animate themselves (animateLayout), so feeding them a rect derived from
+  // an outer value that's ALSO mid-animation would double-animate (see
+  // BorderEditor's git history for that bug). Using the raw target here is
+  // what actually lets animateLayout smoothly reorganize cells on a template
+  // switch — outputWidth doesn't change for that case at all (only the
+  // template does), so without this, cells had nothing to animate from and
+  // just snapped straight to their new spot.
+  const shortSide = Math.min(targetWidth, targetHeight)
   const outerBorderPx = collage.outerBorderPct * shortSide
   const gutterPx = collage.gutterPct * shortSide
   const contentX = outerBorderPx
   const contentY = outerBorderPx
-  const contentW = outputWidth - outerBorderPx * 2
-  const contentH = outputHeight - outerBorderPx * 2
+  const contentW = targetWidth - outerBorderPx * 2
+  const contentH = targetHeight - outerBorderPx * 2
   const cellW = (contentW - gutterPx * (template.cols - 1)) / template.cols
   const cellH = (contentH - gutterPx * (template.rows - 1)) / template.rows
 
