@@ -115,7 +115,6 @@ export function BorderEditor() {
               y={borderPx}
               width={outputWidth - borderPx * 2}
               height={outputHeight - borderPx * 2}
-              animateLayout
               photo={photo}
               transform={border.transform}
               onTransformChange={setBorderTransform}
