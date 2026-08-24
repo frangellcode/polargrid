@@ -40,8 +40,15 @@ export function useAnimatedNumber(target: number, duration = 320): number {
  * its own position/size independently and can visibly cross over another
  * cell mid-move. Dipping opacity during that window hides the crossover
  * instead of it reading as a stray flicker. No dip on mount.
+ *
+ * `minOpacity` floors how low the dip goes (default 0.55, not 0): this value
+ * is applied to a Konva Group sitting in front of a plain white canvas
+ * background, so a dip all the way to fully transparent reads as a stark
+ * white flash, not a subtle cross-fade — the whole point was to trade the
+ * crossover glitch for something LESS jarring, and a full-white pop isn't
+ * that. Never pass 1 (that's just "no dip at all", defeating the hook).
  */
-export function useReflowFade(trigger: string | number, duration = 320): number {
+export function useReflowFade(trigger: string | number, duration = 320, minOpacity = 0.55): number {
   const [opacity, setOpacity] = useState(1)
   const rafRef = useRef<number | undefined>(undefined)
   const prevTrigger = useRef(trigger)
@@ -62,7 +69,7 @@ export function useReflowFade(trigger: string | number, duration = 320): number 
       // Triangular envelope (1 -> 0 -> 1) run through the same ease as the
       // position tween, so the dip and the reflow finish in step.
       const wave = t < 0.5 ? 1 - easeInOutCubic(t * 2) : easeInOutCubic((t - 0.5) * 2)
-      setOpacity(wave)
+      setOpacity(minOpacity + (1 - minOpacity) * wave)
       if (t < 1) rafRef.current = requestAnimationFrame(step)
       else setOpacity(1)
     }
@@ -71,7 +78,7 @@ export function useReflowFade(trigger: string | number, duration = 320): number 
     return () => {
       if (rafRef.current) cancelAnimationFrame(rafRef.current)
     }
-  }, [trigger, duration])
+  }, [trigger, duration, minOpacity])
 
   return opacity
 }
