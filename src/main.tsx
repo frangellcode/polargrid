@@ -4,7 +4,11 @@ import './index.css'
 import App from './App.tsx'
 import { initServiceWorkerUpdates } from './lib/pwaUpdate'
 
-// Deploy marker v3 — waiting out the GH Pages sw.js cache window before checking this one.
+// Deploy marker: a real statement, not a comment — comments get stripped by
+// the production minifier, so earlier "marker" commits never actually
+// changed the built bundle's bytes at all, which is why no update was ever
+// detected for them. This one has a runtime effect, so it can't disappear.
+console.log('[PolarGrid] build marker: deploy-test-4')
 
 initServiceWorkerUpdates()
 
