@@ -5,6 +5,7 @@ import { HomeScreen } from './components/HomeScreen'
 import { BorderEditor } from './components/editor/BorderEditor'
 import { CollageEditor } from './components/editor/CollageEditor'
 import { Logo } from './components/Logo'
+import { clearAppCache } from './lib/pwaUpdate'
 import type { AppMode } from './types'
 
 const EXIT_MS = 200
@@ -21,10 +22,26 @@ const BOOT_FLIGHT_MS = 900
 
 type BootStage = 'hold' | 'flying' | 'done'
 
+// Fake "update" replay: reuses the exact same floating-logo trick as the boot
+// splash, just run in reverse first. Tapping "Actualizar app" sends the home
+// logo back to the center (growing, text fading out — same motion as boot
+// but backwards), holds there while a progress bar fills 0->100, then flies
+// back out to the home slot as the text fades back in — reads as the app
+// "restarting". The real cache/service-worker purge (clearAppCache) runs
+// silently underneath once the bar fills; see pwaUpdate.ts for why it never
+// reloads the page itself.
+const UPDATE_FLIGHT_MS = 700
+const UPDATE_PROGRESS_MS = 5000
+const UPDATE_HOLD_MS = 300
+
+type UpdatePhase = 'idle' | 'toCenter' | 'progress' | 'toHome'
+
 interface HomeRenderProps {
   logoHidden: boolean
   contentVisible: boolean
   logoRef: (node: HTMLDivElement | null) => void
+  updating: boolean
+  onUpdateStart: () => void
 }
 
 function renderView(mode: AppMode, homeProps: HomeRenderProps) {
@@ -50,6 +67,98 @@ function App() {
   const setHomeLogoRef = (node: HTMLDivElement | null) => {
     homeLogoNode.current = node
   }
+
+  // Update replay state (see UPDATE_* constants above).
+  const [updatePhase, setUpdatePhase] = useState<UpdatePhase>('idle')
+  const [updateFlightStyle, setUpdateFlightStyle] = useState<CSSProperties>({
+    transform: 'translate(-50%, -50%)',
+    transition: 'none',
+  })
+  const [updateProgress, setUpdateProgress] = useState(0)
+  const [barExiting, setBarExiting] = useState(false)
+  // Home rect captured once at the start of the replay, reused unchanged to
+  // fly the logo back out — re-measuring later would race the content fade.
+  const updateHomeRect = useRef({ dx: 0, dy: 0, scale: 1 })
+  // False when there's no logo to fly (or the user prefers reduced motion):
+  // the replay still runs (progress bar, cache purge) but skips straight to
+  // idle afterwards instead of queuing a `toHome` flight that would never fire.
+  const updateFlightEnabled = useRef(false)
+
+  const beginUpdate = () => {
+    const node = homeLogoNode.current
+    const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    updateFlightEnabled.current = Boolean(node) && !reduceMotion
+
+    if (!updateFlightEnabled.current) {
+      setUpdatePhase('progress')
+      return
+    }
+
+    const rect = node!.getBoundingClientRect()
+    updateHomeRect.current = {
+      dx: rect.left + rect.width / 2 - window.innerWidth / 2,
+      dy: rect.top + rect.height / 2 - window.innerHeight / 2,
+      scale: rect.width / BOOT_LOGO_SIZE,
+    }
+    const { dx, dy, scale } = updateHomeRect.current
+    // Pinned exactly over the real (about-to-hide) home logo, no transition —
+    // same invisible-swap trick the boot splash lands with, just starting here.
+    setUpdateFlightStyle({
+      transform: `translate(-50%, -50%) translate(${dx}px, ${dy}px) scale(${scale})`,
+      transition: 'none',
+    })
+    setUpdatePhase('toCenter')
+  }
+
+  // Kicks off the actual transform transitions a frame after the phase flips,
+  // so the "no transition" starting style above has time to paint first.
+  useLayoutEffect(() => {
+    if (updatePhase === 'toCenter') {
+      const raf = requestAnimationFrame(() => {
+        setUpdateFlightStyle({ transform: 'translate(-50%, -50%)', transition: `transform ${UPDATE_FLIGHT_MS}ms cubic-bezier(0.22, 1, 0.36, 1)` })
+      })
+      return () => cancelAnimationFrame(raf)
+    }
+    if (updatePhase === 'toHome') {
+      const { dx, dy, scale } = updateHomeRect.current
+      const raf = requestAnimationFrame(() => {
+        setUpdateFlightStyle({
+          transform: `translate(-50%, -50%) translate(${dx}px, ${dy}px) scale(${scale})`,
+          transition: `transform ${UPDATE_FLIGHT_MS}ms cubic-bezier(0.22, 1, 0.36, 1)`,
+        })
+      })
+      return () => cancelAnimationFrame(raf)
+    }
+  }, [updatePhase])
+
+  // Fills the progress bar 0->100 over UPDATE_PROGRESS_MS, purges the real
+  // cache once it's full, then either flies the logo back home or (no-motion
+  // path) jumps straight to idle.
+  useEffect(() => {
+    if (updatePhase !== 'progress') return
+    setUpdateProgress(0)
+    setBarExiting(false)
+    const start = performance.now()
+    let frame: number
+    const tick = (now: number) => {
+      const elapsed = now - start
+      const pct = Math.min(100, Math.round((elapsed / UPDATE_PROGRESS_MS) * 100))
+      setUpdateProgress(pct)
+      if (elapsed < UPDATE_PROGRESS_MS) {
+        frame = requestAnimationFrame(tick)
+        return
+      }
+      clearAppCache()
+      setBarExiting(true)
+      setTimeout(() => {
+        setUpdatePhase(updateFlightEnabled.current ? 'toHome' : 'idle')
+      }, UPDATE_HOLD_MS)
+    }
+    frame = requestAnimationFrame(tick)
+    return () => cancelAnimationFrame(frame)
+  }, [updatePhase])
+
+  const updating = updatePhase !== 'idle'
 
   // The boot flight *is* this screen's entrance — once it's done, `entered`
   // must already read true, otherwise the generic view-enter fade (which
@@ -138,12 +247,15 @@ function App() {
         onAnimationEnd={() => setEntered(true)}
       >
         {renderView(displayedMode, {
-          logoHidden: booting,
+          logoHidden: booting || updating,
           // Home's text starts fading in as soon as the logo takes off
           // (rather than waiting for it to land) so the two read as one
           // continuous motion instead of a flight, then a separate fade.
-          contentVisible: !booting || bootStage === 'flying',
+          // Hidden outright while the update replay owns the logo.
+          contentVisible: (!booting || bootStage === 'flying') && !updating,
           logoRef: setHomeLogoRef,
+          updating,
+          onUpdateStart: beginUpdate,
         })}
       </div>
 
@@ -154,6 +266,36 @@ function App() {
           onTransitionEnd={finishBoot}
         >
           <Logo size={BOOT_LOGO_SIZE} />
+        </div>
+      )}
+
+      {updating && (
+        <div
+          // Logo only, sized fixed (BOOT_LOGO_SIZE) — the progress bar below is a
+          // separate element on purpose. Nesting it here made this box's own
+          // height (and therefore where translate(-50%,-50%) lands) shift the
+          // instant the bar mounted/unmounted, snapping the logo mid-flight.
+          className="pointer-events-none fixed left-1/2 top-1/2 z-50"
+          style={updateFlightStyle}
+          onTransitionEnd={() => {
+            if (updatePhase === 'toCenter') setUpdatePhase('progress')
+            if (updatePhase === 'toHome') setUpdatePhase('idle')
+          }}
+        >
+          <Logo size={BOOT_LOGO_SIZE} />
+        </div>
+      )}
+
+      {updatePhase === 'progress' && (
+        <div
+          className={`pointer-events-none fixed left-1/2 top-[calc(50%+64px)] z-50 flex w-48 -translate-x-1/2 flex-col items-center gap-2 fade-in transition-opacity duration-300 ${barExiting ? 'opacity-0' : 'opacity-100'}`}
+        >
+          <div className="h-1 w-full overflow-hidden rounded-full bg-white/15">
+            <div className="h-full rounded-full bg-white" style={{ width: `${updateProgress}%` }} />
+          </div>
+          <span className="font-label text-[10px] font-light uppercase tracking-[0.14em] text-white/50">
+            Actualizando… {updateProgress}%
+          </span>
         </div>
       )}
     </div>

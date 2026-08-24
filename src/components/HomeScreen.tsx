@@ -1,34 +1,45 @@
-import { useState } from 'react'
 import type { Ref } from 'react'
 import { useEditorStore } from '../store/editorStore'
+import { useUpdateStore } from '../store/updateStore'
 import { Logo } from './Logo'
 import { IconRefresh } from './editor/icons'
-import { forceAppUpdate } from '../lib/pwaUpdate'
 
 interface HomeScreenProps {
   /** True while the boot splash's floating logo is still in flight toward this
-   *  screen's logo slot — keeps this screen's own logo invisible (but laid
-   *  out, so its position can be measured) so the two never show at once. */
+   *  screen's logo slot, or while the update replay (see App.tsx) has taken
+   *  it over — keeps this screen's own logo invisible (but laid out, so its
+   *  position can be measured) so the two never show at once. */
   logoHidden?: boolean
   /** Drives the fade/slide-in of everything but the logo, timed by App.tsx to
-   *  start as the splash logo lands. Defaults true: plain (non-boot) visits
-   *  to Home render fully visible immediately, animated only by the screen
-   *  transition that already wraps this component. */
+   *  start as the splash logo lands (or end as the update replay's floating
+   *  logo takes over). Defaults true: plain (non-boot) visits to Home render
+   *  fully visible immediately, animated only by the screen transition that
+   *  already wraps this component. */
   contentVisible?: boolean
   /** Attached to the logo's wrapper so App.tsx can measure where it sits and
-   *  fly the splash logo there. */
+   *  fly the splash/update logo there. */
   logoRef?: Ref<HTMLDivElement>
+  /** True while App.tsx is running the fake "updating" replay — disables the
+   *  button so it can't be tapped twice mid-animation. */
+  updating?: boolean
+  /** Starts the update replay in App.tsx (logo flies to center, progress bar
+   *  fills, logo flies back — see App.tsx's `beginUpdate`). */
+  onUpdateStart?: () => void
 }
 
-export function HomeScreen({ logoHidden = false, contentVisible = true, logoRef }: HomeScreenProps) {
+export function HomeScreen({
+  logoHidden = false,
+  contentVisible = true,
+  logoRef,
+  updating = false,
+  onUpdateStart,
+}: HomeScreenProps) {
   const setMode = useEditorStore((s) => s.setMode)
-  const [updating, setUpdating] = useState(false)
+  const updateAvailable = useUpdateStore((s) => s.updateAvailable)
 
   const handleUpdate = () => {
-    const ok = window.confirm('¿Actualizar a la última versión? Se borrará todo lo guardado en el dispositivo para esta app.')
-    if (!ok) return
-    setUpdating(true)
-    forceAppUpdate()
+    useUpdateStore.getState().setUpdateAvailable(false)
+    onUpdateStart?.()
   }
 
   // duration-700 (not the app's usual 200ms tap-feedback speed) so this also
@@ -84,14 +95,24 @@ export function HomeScreen({ logoHidden = false, contentVisible = true, logoRef 
         </button>
       </div>
 
+      {/* No disabled:opacity-* here — disabling always coincides with contentVisible
+          going false, and its opacity-0 must win outright instead of settling for
+          the disabled state's dimmed (but still visible) opacity. */}
       <button
         type="button"
         onClick={handleUpdate}
         disabled={updating}
-        className={`flex items-center gap-1.5 font-label text-[10px] font-light uppercase tracking-[0.14em] text-white/35 active:scale-95 disabled:opacity-60 disabled:active:scale-100 ${revealCls('delay-300')}`}
+        className={`flex items-center gap-1.5 font-label text-[10px] font-light uppercase tracking-[0.14em] text-white/35 active:scale-95 ${revealCls('delay-300')}`}
       >
-        <IconRefresh className={`h-3.5 w-3.5 ${updating ? 'animate-spin' : ''}`} />
-        {updating ? 'Actualizando…' : 'Actualizar app'}
+        <span className="relative flex">
+          <IconRefresh className="h-3.5 w-3.5" />
+          {updateAvailable && !updating && (
+            <span className="absolute -right-1.5 -top-1.5 flex h-3 w-3 items-center justify-center rounded-full bg-red-500 text-[7px] font-semibold leading-none text-white">
+              1
+            </span>
+          )}
+        </span>
+        Actualizar app
       </button>
     </div>
   )
