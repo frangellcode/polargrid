@@ -2,7 +2,9 @@ import type { Ref } from 'react'
 import { useEditorStore } from '../store/editorStore'
 import { useUpdateStore } from '../store/updateStore'
 import { Logo } from './Logo'
-import { IconRefresh } from './editor/icons'
+import { IconInstagram, IconRefresh } from './editor/icons'
+
+const INSTAGRAM_URL = 'https://instagram.com/frangellcode'
 
 interface HomeScreenProps {
   /** True while the boot splash's floating logo is still in flight toward this
@@ -52,7 +54,12 @@ export function HomeScreen({
     }`
 
   return (
-    <div className="flex h-full flex-col items-center justify-center gap-10 bg-ink-900 px-6 pb-[max(1.5rem,env(safe-area-inset-bottom))] pt-[max(1.5rem,env(safe-area-inset-top))] text-center">
+    <div className="flex h-full flex-col items-center bg-ink-900 px-6 pb-[max(1.5rem,env(safe-area-inset-bottom))] pt-[max(1.5rem,env(safe-area-inset-top))] text-center">
+      {/* flex-1 centers the main content within whatever space is left above
+          the Instagram footer below, instead of the footer joining this
+          group's own gap-10 rhythm — keeps it visually isolated at the very
+          bottom of the screen rather than reading as one more menu item. */}
+      <div className="flex w-full flex-1 flex-col items-center justify-center gap-10">
       <div className="flex flex-col items-center gap-4">
         {/* No transition here: the floating splash logo (App.tsx) already
             animates the arrival. This one just swaps in at the exact instant
@@ -114,6 +121,27 @@ export function HomeScreen({
         </span>
         Actualizar app
       </button>
+      </div>
+
+      {/* Isolated at the very bottom, outside the centered group above (see
+          the flex-1 wrapper). Shares delay-300 with the update button so it
+          still settles into place as part of the same boot wave — a later
+          delay (tried delay-500) let it land on its own after everything
+          else had already gone still, which read as a stray pop instead of
+          part of the flourish. Its own longer duration-1000 (vs everyone
+          else's 700) makes that shared arrival read softer, like it's still
+          gently dissolving in after the rest has landed. */}
+      <a
+        href={INSTAGRAM_URL}
+        target="_blank"
+        rel="noopener noreferrer"
+        className={`flex items-center gap-1.5 pb-12 font-label text-[11px] font-light text-white/40 transition-all duration-1000 ease-out delay-300 active:scale-95 ${
+          contentVisible ? 'translate-y-0 opacity-100' : 'pointer-events-none translate-y-2 opacity-0'
+        }`}
+      >
+        Hecho con cariño · @frangellcode
+        <IconInstagram className="h-3.5 w-3.5" />
+      </a>
     </div>
   )
 }

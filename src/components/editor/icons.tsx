@@ -54,3 +54,14 @@ export function IconRefresh({ className = 'h-4 w-4' }: IconProps) {
     </svg>
   )
 }
+
+/** Instagram glyph (rounded square + lens + flash dot) — used for the follow-us link. */
+export function IconInstagram({ className = 'h-4 w-4' }: IconProps) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" className={className}>
+      <rect x="3" y="3" width="18" height="18" rx="5" />
+      <circle cx="12" cy="12" r="4.2" />
+      <circle cx="17.2" cy="6.8" r="0.4" fill="currentColor" stroke="none" />
+    </svg>
+  )
+}
