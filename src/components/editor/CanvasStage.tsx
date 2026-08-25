@@ -58,7 +58,7 @@ export function CanvasStage({
     >
       {scale > 0 && (
         <div
-          className="rounded-sm ring-1 ring-slate-900/10"
+          className="fade-in-slow rounded-sm ring-1 ring-slate-900/10"
           style={{ boxShadow: '0 4px 16px -4px rgba(15, 23, 42, 0.25)' }}
         >
           <Stage width={outputWidth * scale} height={outputHeight * scale} scaleX={scale} scaleY={scale}>

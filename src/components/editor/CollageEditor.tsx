@@ -4,7 +4,7 @@ import type Konva from 'konva'
 import type { CellAssignment, CellShape, ExportQuality, GridTemplate, LoadedPhoto, PhotoTransform } from '../../types'
 import { useEditorStore } from '../../store/editorStore'
 import { useImageBitmap } from '../../hooks/useImageBitmap'
-import { useAnimatedNumber } from '../../hooks/useAnimatedNumber'
+import { useAnimatedNumber, useReflowFade } from '../../hooks/useAnimatedNumber'
 import { COLLAGE_ASPECT_RATIOS } from '../../lib/aspectRatios'
 import { computeOutputPixelSize, getImageDrawRect } from '../../lib/cropMath'
 import { MIN_COLLAGE_PHOTOS, getTemplateById, transposeTemplate } from '../../lib/collageTemplates'
@@ -125,6 +125,8 @@ function FreeItemsLayer({ outputWidth, outputHeight, selectedId, onSelect }: Fre
 }
 
 interface GridCellsLayerProps {
+  /** `${templateId}|${orientation}|${aspectRatioId}` — reflowFade below dips whenever this changes. */
+  reflowKey: string
   template: GridTemplate
   assignments: CellAssignment[]
   photos: Record<string, LoadedPhoto>
@@ -142,6 +144,7 @@ interface GridCellsLayerProps {
  *  that component's render body shorter — nothing here depends on it being a
  *  separate component. */
 function GridCellsLayer({
+  reflowKey,
   template,
   assignments,
   photos,
@@ -154,17 +157,19 @@ function GridCellsLayer({
   onCellTransformChange,
   onEmptyCellClick,
 }: GridCellsLayerProps) {
-  // Switching to a different layout (or flipping orientation) re-tiles every
-  // cell at once; each one eases to its new rect independently via
-  // animateLayout (in PhotoCell), which is the actual motion the person
-  // wants to see. This used to also dip the whole grid's opacity during that
-  // reflow to hide the rare moment two cells cross paths — but even floored
-  // well above zero, a synchronized dim across every photo at once reads as
-  // "everything went white for a second," which is worse than the crossover
-  // it was hiding. Removed; per-cell movement is left to speak for itself.
+  // Switching to a different layout, flipping orientation, or changing the
+  // canvas aspect ratio re-tiles/rescales every cell at once; each one eases
+  // to its new rect independently via animateLayout (in PhotoCell), which is
+  // the actual motion the person wants to see — but with no shared clock
+  // between cells, they can visibly cross paths or drift out of step with
+  // the border/gutter mid-move. A synchronized dip all the way toward
+  // transparent used to read as "everything went white for a second" (see
+  // git history) and was removed; this floors much higher (0.82) so it
+  // softens that crossover into a barely-there cross-fade instead of a flash.
+  const reflowFade = useReflowFade(reflowKey, 320, 0.82)
 
   return (
-    <Group>
+    <Group opacity={reflowFade}>
       {template.cells.map((cell, i) => {
         const assignment = assignments[i]
         const photo = assignment?.photoId ? photos[assignment.photoId] : null
@@ -223,18 +228,14 @@ export function CollageEditor() {
     () => computeOutputPixelSize(ratio, PREVIEW_LONG_EDGE),
     [ratio],
   )
-  // The ONLY animated size here — CanvasStage's frame AND every grid cell's
-  // rect (via contentW/cellW/etc. below) derive from this single tween, so
-  // they can't desync. A tried-and-reverted alternative — animateLayout on
-  // each PhotoCell, fed from the raw (unanimated) targetWidth/targetHeight —
-  // fixed ratio changes in isolation but empirically still let cells drift
-  // out of sync during an orientation flip, and made the border/gutter
-  // sliders below feel laggy (every 'input' event during a drag restarts
-  // each cell's tween before the last one finishes, so it perpetually
-  // chases the live slider value; see BorderEditor's history for the full
-  // writeup — same bug, same fix). Template/orientation switches (where
-  // this value doesn't change at all) are smoothed by reflowFade's opacity
-  // dip below instead of a position tween.
+  // Animated only for CanvasStage's own frame size below — grid cell rects
+  // deliberately use the raw (unanimated) targetWidth/targetHeight instead
+  // (see contentW/cellW/etc. further down), fed through animateLayout on
+  // each PhotoCell instead of this tween, so a slider drag isn't stuck
+  // chasing a value that's itself still moving (see BorderEditor's history
+  // for the full writeup — same bug, same fix). Since animateLayout has no
+  // shared clock across cells, ratio/orientation/template changes are also
+  // smoothed by reflowFade's opacity dip below, on top of the position tween.
   const outputWidth = useAnimatedNumber(targetWidth)
   const outputHeight = useAnimatedNumber(targetHeight)
 
@@ -344,6 +345,7 @@ export function CollageEditor() {
             {collage.layoutMode === 'grid'
               ? (
                 <GridCellsLayer
+                  reflowKey={`${collage.templateId}|${collage.orientation}|${collage.aspectRatioId}`}
                   template={template}
                   assignments={collage.assignments}
                   photos={photos}
