@@ -48,12 +48,14 @@ export function initServiceWorkerUpdates() {
       useUpdateStore.getState().setUpdateAvailable(true)
     },
     // Called once the newly-activated worker takes control, right after
-    // `applyUpdate` below sends it the skip-waiting message. Left a no-op
-    // on purpose — App.tsx's fake update animation is the only "restart"
-    // the person sees; a real reload here would cut it short. The fresh
-    // bundle takes over silently and is what's served the next time the
-    // app actually relaunches.
-    onNeedReload() {},
+    // `applyUpdate` below sends it the skip-waiting message. Reloads for
+    // real — a no-op here left the fake update animation running with
+    // nothing behind it: the tab kept executing the old bundle in memory,
+    // so tapping "Actualizar app" looked like it did nothing. The reload
+    // re-triggers the boot splash, which reads fine as the app restarting.
+    onNeedReload() {
+      window.location.reload()
+    },
   })
 
   useUpdateStore.getState().setApplyUpdate(() => {

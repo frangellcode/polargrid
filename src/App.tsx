@@ -22,14 +22,15 @@ const BOOT_FLIGHT_MS = 900
 
 type BootStage = 'hold' | 'flying' | 'done'
 
-// Fake "update" replay: reuses the exact same floating-logo trick as the boot
+// "Update" replay: reuses the exact same floating-logo trick as the boot
 // splash, just run in reverse first. Tapping "Actualizar app" sends the home
 // logo back to the center (growing, text fading out — same motion as boot
-// but backwards), holds there while a progress bar fills 0->100, then flies
-// back out to the home slot as the text fades back in — reads as the app
-// "restarting". The real service-worker activation (applyUpdate) runs
-// silently underneath once the bar fills (see pwaUpdate.ts's onNeedReload
-// for why activating it never reloads the page itself).
+// but backwards) and holds there while a progress bar fills 0->100. At 100%,
+// applyUpdate() activates the waiting service worker, which triggers a real
+// window.location.reload() (see pwaUpdate.ts's onNeedReload) — so the
+// "flies back out to home" tail below usually never gets to play; the
+// reload re-runs this whole boot sequence from scratch instead, which reads
+// just as well as the app "restarting" and actually serves the new build.
 const UPDATE_FLIGHT_MS = 700
 const UPDATE_PROGRESS_MS = 5000
 const UPDATE_HOLD_MS = 300

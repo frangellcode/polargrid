@@ -139,7 +139,7 @@ export function HomeScreen({
           contentVisible ? 'translate-y-0 opacity-100' : 'pointer-events-none translate-y-2 opacity-0'
         }`}
       >
-        Hecho con cariño · @frangellcode
+        Apóyanos siguiéndonos · @frangellcode
         <IconInstagram className="h-3.5 w-3.5" />
       </a>
     </div>
