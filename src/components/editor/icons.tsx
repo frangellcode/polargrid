@@ -55,6 +55,23 @@ export function IconRefresh({ className = 'h-4 w-4' }: IconProps) {
   )
 }
 
+/** Rounded square with scattered dots — used for the film-grain tool. */
+export function IconGrain({ className = 'h-5 w-5' }: IconProps) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" className={className}>
+      <rect x="3" y="3" width="18" height="18" rx="3" />
+      <circle cx="7.5" cy="7.5" r="0.9" fill="currentColor" stroke="none" />
+      <circle cx="13" cy="6.5" r="0.6" fill="currentColor" stroke="none" />
+      <circle cx="17" cy="9" r="0.9" fill="currentColor" stroke="none" />
+      <circle cx="9" cy="12" r="0.6" fill="currentColor" stroke="none" />
+      <circle cx="15" cy="13.5" r="0.9" fill="currentColor" stroke="none" />
+      <circle cx="7" cy="16.5" r="0.9" fill="currentColor" stroke="none" />
+      <circle cx="12.5" cy="17.5" r="0.6" fill="currentColor" stroke="none" />
+      <circle cx="17.5" cy="17" r="0.6" fill="currentColor" stroke="none" />
+    </svg>
+  )
+}
+
 /** Instagram glyph (rounded square + lens + flash dot) — used for the follow-us link. */
 export function IconInstagram({ className = 'h-4 w-4' }: IconProps) {
   return (

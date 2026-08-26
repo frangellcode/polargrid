@@ -5,6 +5,7 @@ import type { CellShape, LoadedPhoto, PhotoFit, PhotoTransform } from '../../typ
 import { clampTransform, getImageDrawRect, MAX_ZOOM } from '../../lib/cropMath'
 import { shapeRadiusRatio, traceRoundedRectPath } from '../../lib/shapeClip'
 import { useAnimatedNumber } from '../../hooks/useAnimatedNumber'
+import { GrainOverlay } from './GrainOverlay'
 
 interface PhotoCellProps {
   x: number
@@ -23,6 +24,8 @@ interface PhotoCellProps {
   animateLayout?: boolean
   /** How the cell is clipped: plain rect (default) or rounded corners. */
   shape?: CellShape
+  /** 0..1 film-grain amount over this photo, 0/undefined = no overlay drawn. */
+  grain?: number
 }
 
 /** One photo inside a clipped rect: cover- or contain-fit, draggable to pan, wheel/pinch to zoom. */
@@ -38,6 +41,7 @@ export function PhotoCell({
   fit = 'cover',
   animateLayout = false,
   shape = 'rect',
+  grain = 0,
 }: PhotoCellProps) {
   const pinchDist = useRef<number | null>(null)
   const imageRef = useRef<Konva.Image>(null)
@@ -161,6 +165,7 @@ export function PhotoCell({
         dragBoundFunc={dragBounds}
         onDragEnd={handleDragEnd}
       />
+      <GrainOverlay width={width} height={height} intensity={grain} referenceWidth={photo.width} referenceHeight={photo.height} />
     </Group>
   )
 }

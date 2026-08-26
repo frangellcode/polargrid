@@ -19,7 +19,8 @@ import { Dropzone } from './Dropzone'
 import { EditorBottomBar, type BottomBarTool } from './EditorBottomBar'
 import { CLOSE_MS, ExportSuccessToast } from './ExportSuccessToast'
 import { WorkspaceBackgroundPicker } from './WorkspaceBackgroundPicker'
-import { IconCrop, IconDrop, IconFrame, IconGrid } from './icons'
+import { IconCrop, IconDrop, IconFrame, IconGrain, IconGrid } from './icons'
+import { GrainOverlay } from './GrainOverlay'
 
 const PREVIEW_LONG_EDGE = 900
 
@@ -28,11 +29,13 @@ const GRID_TOOLS: BottomBarTool[] = [
   { id: 'formato', label: 'Formato', icon: <IconCrop /> },
   { id: 'plantilla', label: 'Plantilla', icon: <IconGrid /> },
   { id: 'bordes', label: 'Bordes', icon: <IconFrame /> },
+  { id: 'grain', label: 'Grain', icon: <IconGrain /> },
 ]
 
 const FREE_TOOLS: BottomBarTool[] = [
   { id: 'fondo', label: 'Fondo', icon: <IconDrop /> },
   { id: 'formato', label: 'Formato', icon: <IconCrop /> },
+  { id: 'grain', label: 'Grain', icon: <IconGrain /> },
 ]
 
 interface FreeItemsLayerProps {
@@ -40,9 +43,11 @@ interface FreeItemsLayerProps {
   outputHeight: number
   selectedId: string | null
   onSelect: (id: string | null) => void
+  /** 0..1 film-grain amount applied to every item at once, 0 = no overlay. */
+  grain: number
 }
 
-function FreeItemsLayer({ outputWidth, outputHeight, selectedId, onSelect }: FreeItemsLayerProps) {
+function FreeItemsLayer({ outputWidth, outputHeight, selectedId, onSelect, grain }: FreeItemsLayerProps) {
   const { collage, photos, updateFreeItem } = useEditorStore()
   const shapeRefs = useRef<Record<string, Konva.Group>>({})
   const trRef = useRef<Konva.Transformer>(null)
@@ -111,6 +116,7 @@ function FreeItemsLayer({ outputWidth, outputHeight, selectedId, onSelect }: Fre
               width={draw.width}
               height={draw.height}
             />
+            <GrainOverlay width={w} height={h} intensity={grain} referenceWidth={photo.width} referenceHeight={photo.height} />
           </Group>
         )
       })}
@@ -136,6 +142,8 @@ interface GridCellsLayerProps {
   cellH: number
   gutterPx: number
   shape: CellShape
+  /** 0..1 film-grain amount applied to every cell at once, 0 = no overlay. */
+  grain: number
   onCellTransformChange: (cellId: string, transform: PhotoTransform) => void
   onEmptyCellClick: (cellId: string) => void
 }
@@ -154,6 +162,7 @@ function GridCellsLayer({
   cellH,
   gutterPx,
   shape,
+  grain,
   onCellTransformChange,
   onEmptyCellClick,
 }: GridCellsLayerProps) {
@@ -186,6 +195,7 @@ function GridCellsLayer({
             height={h}
             animateLayout
             shape={shape}
+            grain={grain}
             photo={photo}
             transform={assignment.transform}
             onTransformChange={(t) => onCellTransformChange(assignment.cellId, t)}
@@ -296,8 +306,9 @@ export function CollageEditor() {
               collage.gutterPct,
               quality,
               collage.shape,
+              collage.grainIntensity,
             )
-          : await exportCollageFree(collage.freeItems, photos, ratio, quality)
+          : await exportCollageFree(collage.freeItems, photos, ratio, quality, collage.grainIntensity)
       if (saved) setShowSuccessToast(true)
     } finally {
       setExporting(false)
@@ -355,6 +366,7 @@ export function CollageEditor() {
                   cellH={cellH}
                   gutterPx={gutterPx}
                   shape={collage.shape}
+                  grain={collage.grainIntensity}
                   onCellTransformChange={(cellId, t) => store.setCellTransform(cellId, t)}
                   onEmptyCellClick={(cellId) => {
                     setPendingCellId(cellId)
@@ -368,6 +380,7 @@ export function CollageEditor() {
                   outputHeight={outputHeight}
                   selectedId={selectedFreeId}
                   onSelect={setSelectedFreeId}
+                  grain={collage.grainIntensity}
                 />
               )}
           </CanvasStage>
@@ -518,6 +531,16 @@ export function CollageEditor() {
 
           {activeToolId === 'fondo' && (
             <WorkspaceBackgroundPicker value={store.workspaceBackground} onChange={store.setWorkspaceBackground} />
+          )}
+
+          {activeToolId === 'grain' && (
+            <BorderThicknessSlider
+              label="Grano"
+              value={collage.grainIntensity}
+              onChange={store.setCollageGrain}
+              min={0}
+              max={1}
+            />
           )}
         </EditorBottomBar>
         </div>

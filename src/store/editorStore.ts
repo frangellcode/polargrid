@@ -43,6 +43,8 @@ interface BorderState {
   locked: boolean
   transform: PhotoTransform
   exportQuality: ExportQuality
+  /** 0..1 film-grain amount, 0 = off. */
+  grainIntensity: number
 }
 
 interface CollageState {
@@ -59,6 +61,8 @@ interface CollageState {
   ratioOrientation: Orientation
   freeItems: FreeItem[]
   exportQuality: ExportQuality
+  /** 0..1 film-grain amount applied to every photo at once, 0 = off. */
+  grainIntensity: number
 }
 
 interface EditorStoreState {
@@ -82,6 +86,7 @@ interface EditorStoreState {
   setBorderThickness: (pct: number) => void
   setBorderTransform: (transform: PhotoTransform) => void
   setBorderExportQuality: (quality: ExportQuality) => void
+  setBorderGrain: (intensity: number) => void
 
   setCollageLayoutMode: (mode: CollageLayoutMode) => void
   setCollageTemplateId: (templateId: string) => void
@@ -96,6 +101,7 @@ interface EditorStoreState {
   setOuterBorderPct: (pct: number) => void
   setGutterPct: (pct: number) => void
   setCollageExportQuality: (quality: ExportQuality) => void
+  setCollageGrain: (intensity: number) => void
   assignPhotoToCell: (cellId: string, photoId: string | null) => void
   setCellTransform: (cellId: string, transform: PhotoTransform) => void
   updateFreeItem: (id: string, patch: Partial<FreeItem>) => void
@@ -119,6 +125,7 @@ function createInitialBorderState(): BorderState {
     locked: true,
     transform: { ...DEFAULT_TRANSFORM },
     exportQuality: DEFAULT_EXPORT_QUALITY,
+    grainIntensity: 0,
   }
 }
 
@@ -136,6 +143,7 @@ function createInitialCollageState(): CollageState {
     ratioOrientation: 'vertical',
     freeItems: [],
     exportQuality: DEFAULT_EXPORT_QUALITY,
+    grainIntensity: 0,
   }
 }
 
@@ -201,6 +209,9 @@ export const useEditorStore = create<EditorStoreState>((set, get) => ({
 
   setBorderExportQuality: (quality) =>
     set((state) => ({ border: { ...state.border, exportQuality: quality } })),
+
+  setBorderGrain: (intensity) =>
+    set((state) => ({ border: { ...state.border, grainIntensity: intensity } })),
 
   setCollageLayoutMode: (layoutMode) =>
     set((state) => ({ collage: { ...state.collage, layoutMode } })),
@@ -328,6 +339,9 @@ export const useEditorStore = create<EditorStoreState>((set, get) => ({
 
   setCollageExportQuality: (quality) =>
     set((state) => ({ collage: { ...state.collage, exportQuality: quality } })),
+
+  setCollageGrain: (intensity) =>
+    set((state) => ({ collage: { ...state.collage, grainIntensity: intensity } })),
 
   assignPhotoToCell: (cellId, photoId) =>
     set((state) => ({

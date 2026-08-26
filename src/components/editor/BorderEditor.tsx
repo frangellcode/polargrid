@@ -14,7 +14,7 @@ import { Dropzone } from './Dropzone'
 import { EditorBottomBar, type BottomBarTool } from './EditorBottomBar'
 import { CLOSE_MS, ExportSuccessToast } from './ExportSuccessToast'
 import { WorkspaceBackgroundPicker } from './WorkspaceBackgroundPicker'
-import { IconCrop, IconDrop, IconFrame } from './icons'
+import { IconCrop, IconDrop, IconFrame, IconGrain } from './icons'
 
 const PREVIEW_LONG_EDGE = 900
 
@@ -22,6 +22,7 @@ const TOOLS: BottomBarTool[] = [
   { id: 'fondo', label: 'Fondo', icon: <IconDrop /> },
   { id: 'recorte', label: 'Recorte', icon: <IconCrop /> },
   { id: 'bordes', label: 'Bordes', icon: <IconFrame /> },
+  { id: 'grain', label: 'Grain', icon: <IconGrain /> },
 ]
 
 export function BorderEditor() {
@@ -37,6 +38,7 @@ export function BorderEditor() {
     setBorderThickness,
     setBorderTransform,
     setBorderExportQuality,
+    setBorderGrain,
     resetBorder,
     workspaceBackground,
     setWorkspaceBackground,
@@ -100,7 +102,15 @@ export function BorderEditor() {
     setBorderExportQuality(quality)
     setExporting(true)
     try {
-      const saved = await exportBorderPhoto(photo, ratio, border.borderThicknessPct, border.transform, quality, border.locked)
+      const saved = await exportBorderPhoto(
+        photo,
+        ratio,
+        border.borderThicknessPct,
+        border.transform,
+        quality,
+        border.locked,
+        border.grainIntensity,
+      )
       if (saved) setShowSuccessToast(true)
     } finally {
       setExporting(false)
@@ -134,6 +144,7 @@ export function BorderEditor() {
               transform={border.transform}
               onTransformChange={setBorderTransform}
               fit={fitMix}
+              grain={border.grainIntensity}
             />
           </CanvasStage>
         ) : (
@@ -194,6 +205,16 @@ export function BorderEditor() {
 
           {activeTool === 'fondo' && (
             <WorkspaceBackgroundPicker value={workspaceBackground} onChange={setWorkspaceBackground} />
+          )}
+
+          {activeTool === 'grain' && (
+            <BorderThicknessSlider
+              label="Grano"
+              value={border.grainIntensity}
+              onChange={setBorderGrain}
+              min={0}
+              max={1}
+            />
           )}
         </EditorBottomBar>
         </div>

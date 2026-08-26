@@ -4,6 +4,7 @@ import { computeNativeCanvasSize, computeNativeCanvasSizeContain, computeOutputP
 import { ASPECT_RATIOS } from './aspectRatios'
 import { capLongEdge, getMaxLongEdge } from './exportQuality'
 import { traceShapePath } from './shapeClip'
+import { drawGrainOverlay } from './grain'
 
 const JPEG_QUALITY = 1.0
 
@@ -25,6 +26,7 @@ function drawPhotoInRect(
   rotationDeg = 0,
   fit: PhotoFit = 'cover',
   shape: CellShape = 'rect',
+  grainIntensity = 0,
 ) {
   if (rectW <= 0 || rectH <= 0) return
   ctx.save()
@@ -35,6 +37,7 @@ function drawPhotoInRect(
   ctx.clip()
   const draw = getImageDrawRect(rectW, rectH, photo.width, photo.height, transform, fit)
   ctx.drawImage(photo.bitmap, draw.x, draw.y, draw.width, draw.height)
+  drawGrainOverlay(ctx, rectW, rectH, grainIntensity)
   ctx.restore()
 }
 
@@ -81,6 +84,7 @@ export async function exportBorderPhoto(
   transform: PhotoTransform,
   quality: ExportQuality = 'native',
   locked = true,
+  grainIntensity = 0,
 ) {
   const sizeFn = locked ? computeNativeCanvasSize : computeNativeCanvasSizeContain
   // Cap the PHOTO's own resolution to the quality tier first, then build the
@@ -111,6 +115,8 @@ export async function exportBorderPhoto(
     transform,
     0,
     locked ? 'cover' : 'contain',
+    'rect',
+    grainIntensity,
   )
 
   return downloadCanvas(canvas, `polargrid-borde-${Date.now()}.jpg`)
@@ -131,6 +137,7 @@ export async function exportCollageGrid(
   gutterPct: number,
   quality: ExportQuality = 'native',
   shape: CellShape = 'rect',
+  grainIntensity = 0,
 ) {
   const refSize = computeOutputPixelSize(ratio, REF_LONG_EDGE)
   const refShortSide = Math.min(refSize.width, refSize.height)
@@ -187,7 +194,7 @@ export async function exportCollageGrid(
     const y = contentY + cell.row * (cellH + gutterPx)
     const w = cellW * cell.colSpan + gutterPx * (cell.colSpan - 1)
     const h = cellH * cell.rowSpan + gutterPx * (cell.rowSpan - 1)
-    drawPhotoInRect(ctx, photo, x, y, w, h, assignment.transform, 0, 'cover', shape)
+    drawPhotoInRect(ctx, photo, x, y, w, h, assignment.transform, 0, 'cover', shape, grainIntensity)
   })
 
   return downloadCanvas(canvas, `polargrid-collage-${Date.now()}.jpg`)
@@ -198,6 +205,7 @@ export async function exportCollageFree(
   photos: Record<string, LoadedPhoto>,
   ratio: number,
   quality: ExportQuality = 'native',
+  grainIntensity = 0,
 ) {
   const refSize = computeOutputPixelSize(ratio, REF_LONG_EDGE)
 
@@ -236,6 +244,9 @@ export async function exportCollageFree(
       item.height * height,
       item.transform,
       item.rotation,
+      'cover',
+      'rect',
+      grainIntensity,
     )
   }
 
