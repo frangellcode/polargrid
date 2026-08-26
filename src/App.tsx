@@ -150,6 +150,17 @@ function App() {
         return
       }
       useUpdateStore.getState().applyUpdate()
+      // Belt-and-suspenders reload: pwaUpdate.ts's onNeedReload already
+      // reloads once the new worker's `controllerchange` fires, but iOS
+      // Safari has a long-standing WebKit bug where an already-open
+      // standalone (home-screen) PWA never gets that event for an existing
+      // client — applyUpdate() silently activates the new worker with
+      // nothing to trigger the actual reload, so the badge clears but the
+      // app keeps running the old bundle no matter how many times you tap
+      // Actualizar. This fires independently of that event; if the primary
+      // path already reloaded by then this is a no-op (navigation is
+      // already underway).
+      setTimeout(() => window.location.reload(), 1200)
       setBarExiting(true)
       setTimeout(() => {
         setUpdatePhase(updateFlightEnabled.current ? 'toHome' : 'idle')
