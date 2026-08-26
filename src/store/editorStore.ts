@@ -16,6 +16,7 @@ import { DEFAULT_TRANSFORM, clampTransform } from '../lib/cropMath'
 import { GRID_TEMPLATES, MAX_COLLAGE_PHOTOS, MIN_COLLAGE_PHOTOS, getTemplatesForCount } from '../lib/collageTemplates'
 import { DEFAULT_EXPORT_QUALITY } from '../lib/exportQuality'
 import { DEFAULT_WORKSPACE_BACKGROUND } from '../lib/workspaceBackgrounds'
+import { DEFAULT_BORDER_COLOR } from '../lib/borderColors'
 
 export const DEFAULT_BORDER_PCT = 0.04
 export const DEFAULT_GUTTER_PCT = 0.015
@@ -45,6 +46,8 @@ interface BorderState {
   exportQuality: ExportQuality
   /** 0..1 film-grain amount, 0 = off. */
   grainIntensity: number
+  /** BORDER_COLORS id — the border's own fill color, not the workspace backdrop. */
+  borderColor: string
 }
 
 interface CollageState {
@@ -87,6 +90,7 @@ interface EditorStoreState {
   setBorderTransform: (transform: PhotoTransform) => void
   setBorderExportQuality: (quality: ExportQuality) => void
   setBorderGrain: (intensity: number) => void
+  setBorderColor: (id: string) => void
 
   setCollageLayoutMode: (mode: CollageLayoutMode) => void
   setCollageTemplateId: (templateId: string) => void
@@ -126,6 +130,7 @@ function createInitialBorderState(): BorderState {
     transform: { ...DEFAULT_TRANSFORM },
     exportQuality: DEFAULT_EXPORT_QUALITY,
     grainIntensity: 0,
+    borderColor: DEFAULT_BORDER_COLOR,
   }
 }
 
@@ -212,6 +217,9 @@ export const useEditorStore = create<EditorStoreState>((set, get) => ({
 
   setBorderGrain: (intensity) =>
     set((state) => ({ border: { ...state.border, grainIntensity: intensity } })),
+
+  setBorderColor: (id) =>
+    set((state) => ({ border: { ...state.border, borderColor: id } })),
 
   setCollageLayoutMode: (layoutMode) =>
     set((state) => ({ collage: { ...state.collage, layoutMode } })),

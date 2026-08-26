@@ -14,12 +14,14 @@ import { Dropzone } from './Dropzone'
 import { EditorBottomBar, type BottomBarTool } from './EditorBottomBar'
 import { CLOSE_MS, ExportSuccessToast } from './ExportSuccessToast'
 import { WorkspaceBackgroundPicker } from './WorkspaceBackgroundPicker'
+import { BorderColorPicker } from './BorderColorPicker'
+import { getBorderColor } from '../../lib/borderColors'
 import { IconCrop, IconDrop, IconFrame, IconGrain } from './icons'
 
 const PREVIEW_LONG_EDGE = 900
 
 const TOOLS: BottomBarTool[] = [
-  { id: 'fondo', label: 'Fondo', icon: <IconDrop /> },
+  { id: 'color', label: 'Color', icon: <IconDrop /> },
   { id: 'recorte', label: 'Recorte', icon: <IconCrop /> },
   { id: 'bordes', label: 'Bordes', icon: <IconFrame /> },
   { id: 'grain', label: 'Grain', icon: <IconGrain /> },
@@ -39,6 +41,7 @@ export function BorderEditor() {
     setBorderTransform,
     setBorderExportQuality,
     setBorderGrain,
+    setBorderColor,
     resetBorder,
     workspaceBackground,
     setWorkspaceBackground,
@@ -89,6 +92,7 @@ export function BorderEditor() {
   const fitMix = useAnimatedNumber(border.locked ? 0 : 1)
 
   const borderPx = border.borderThicknessPct * Math.min(outputWidth, outputHeight)
+  const borderColorHex = getBorderColor(border.borderColor).hex
 
   const handleUpload = async (files: FileList) => {
     const loaded = await loadFiles(files)
@@ -110,6 +114,7 @@ export function BorderEditor() {
         quality,
         border.locked,
         border.grainIntensity,
+        borderColorHex,
       )
       if (saved) setShowSuccessToast(true)
     } finally {
@@ -134,7 +139,7 @@ export function BorderEditor() {
         className={`min-h-0 flex-1 p-4 transition-opacity duration-300 ${resetting ? 'opacity-0' : 'opacity-100'}`}
       >
         {photo ? (
-          <CanvasStage outputWidth={outputWidth} outputHeight={outputHeight}>
+          <CanvasStage outputWidth={outputWidth} outputHeight={outputHeight} background={borderColorHex}>
             <PhotoCell
               x={borderPx}
               y={borderPx}
@@ -203,8 +208,11 @@ export function BorderEditor() {
             />
           )}
 
-          {activeTool === 'fondo' && (
-            <WorkspaceBackgroundPicker value={workspaceBackground} onChange={setWorkspaceBackground} />
+          {activeTool === 'color' && (
+            <>
+              <WorkspaceBackgroundPicker value={workspaceBackground} onChange={setWorkspaceBackground} />
+              <BorderColorPicker value={border.borderColor} onChange={setBorderColor} />
+            </>
           )}
 
           {activeTool === 'grain' && (

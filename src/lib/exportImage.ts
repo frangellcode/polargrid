@@ -85,6 +85,7 @@ export async function exportBorderPhoto(
   quality: ExportQuality = 'native',
   locked = true,
   grainIntensity = 0,
+  borderColorHex = '#ffffff',
 ) {
   const sizeFn = locked ? computeNativeCanvasSize : computeNativeCanvasSizeContain
   // Cap the PHOTO's own resolution to the quality tier first, then build the
@@ -101,7 +102,7 @@ export async function exportBorderPhoto(
   if (!ctx) throw new Error('Canvas no soportado')
   ctx.imageSmoothingEnabled = true
   ctx.imageSmoothingQuality = 'high'
-  ctx.fillStyle = '#ffffff'
+  ctx.fillStyle = borderColorHex
   ctx.fillRect(0, 0, width, height)
 
   const borderPx = borderThicknessPct * Math.min(width, height)
