@@ -54,7 +54,12 @@ export function CanvasStage({
       className={`flex h-full w-full items-center justify-center overflow-hidden rounded-xl p-[5px] transition-colors duration-300 ${
         workspaceBg.hex ? '' : 'bg-[repeating-conic-gradient(#e2e8f0_0%_25%,#eef2f6_0%_50%)] bg-[length:20px_20px]'
       }`}
-      style={workspaceBg.hex ? { backgroundColor: workspaceBg.hex } : undefined}
+      // Always an explicit value (never omitted) so transition-colors above
+      // has a real color on both ends — leaving it undefined for "Sin fondo"
+      // meant switching TO a color animated FROM the browser's implicit
+      // "no color set" state instead of a real one, which read as a jump/
+      // glitch rather than a smooth cross-fade.
+      style={{ backgroundColor: workspaceBg.hex ?? 'transparent' }}
     >
       {scale > 0 && (
         <div

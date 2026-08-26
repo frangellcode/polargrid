@@ -4,18 +4,18 @@ export interface BorderColorOption {
   hex: string
 }
 
-/** Muted, minimalist palette for the border itself — same restrained-tone
- *  philosophy as WORKSPACE_BACKGROUNDS, but every option is a real fill
- *  color (the border is always painted, unlike the workspace backdrop's
- *  checkered "no color" escape hatch). White stays first/default since
- *  that's the classic polaroid-style border everyone expects. */
+/** The border's own fill color — reuses the app's original moodier/richer
+ *  workspace-backdrop palette (moved here since it read better on a border
+ *  than as an editor backdrop), with white kept first/default for the
+ *  classic polaroid look everyone expects. */
 export const BORDER_COLORS: BorderColorOption[] = [
   { id: 'white', label: 'Blanco', hex: '#ffffff' },
-  { id: 'black', label: 'Negro', hex: '#1c1c1e' },
-  { id: 'cream', label: 'Crema', hex: '#f2ead9' },
-  { id: 'gray', label: 'Gris', hex: '#9c9891' },
+  { id: 'onyx', label: 'Ónix', hex: '#1c1c1e' },
+  { id: 'graphite', label: 'Grafito', hex: '#6e6a65' },
+  { id: 'forest', label: 'Bosque', hex: '#2f3a2e' },
+  { id: 'wine', label: 'Vino', hex: '#5c2a2e' },
+  { id: 'navy', label: 'Noche', hex: '#232b3a' },
   { id: 'sand', label: 'Arena', hex: '#c9bfae' },
-  { id: 'sage', label: 'Salvia', hex: '#a8ad9c' },
 ]
 
 export const DEFAULT_BORDER_COLOR = 'white'

@@ -5,17 +5,19 @@ export interface WorkspaceBackgroundOption {
   hex: string | null
 }
 
-/** Muted, low-saturation tones — deliberately restrained rather than bright/loud.
- *  Colors first, default (onyx) leading the list; the "no color" checkered
- *  pattern goes last since it's the fallback/escape-hatch option, not a color. */
+/** Soft, neutral tones for the editor's own backdrop — kept deliberately
+ *  lighter/quieter than BORDER_COLORS' moodier palette so the two pickers
+ *  don't just duplicate each other. Blanco leads (the "plain/no fuss"
+ *  option), Sin fondo (transparent checkered) trails as the escape hatch;
+ *  the actual default selection is Ónix, independent of list order. */
 export const WORKSPACE_BACKGROUNDS: WorkspaceBackgroundOption[] = [
+  { id: 'white', label: 'Blanco', hex: '#ffffff' },
   { id: 'onyx', label: 'Ónix', hex: '#1c1c1e' },
-  { id: 'graphite', label: 'Grafito', hex: '#6e6a65' },
-  { id: 'forest', label: 'Bosque', hex: '#2f3a2e' },
-  { id: 'wine', label: 'Vino', hex: '#5c2a2e' },
-  { id: 'navy', label: 'Noche', hex: '#232b3a' },
-  { id: 'sand', label: 'Arena', hex: '#c9bfae' },
-  { id: 'checkered', label: 'Cuadros', hex: null },
+  { id: 'pearl', label: 'Perla', hex: '#c9c6c0' },
+  { id: 'beige', label: 'Beige', hex: '#d8cbb8' },
+  { id: 'mist', label: 'Bruma', hex: '#a7b2bd' },
+  { id: 'terracotta', label: 'Terracota', hex: '#c9a08c' },
+  { id: 'checkered', label: 'Sin fondo', hex: null },
 ]
 
 export const DEFAULT_WORKSPACE_BACKGROUND = 'onyx'

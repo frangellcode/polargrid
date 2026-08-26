@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react'
 import type { ExportQuality } from '../../types'
 import { useEditorStore } from '../../store/editorStore'
 import { useImageBitmap } from '../../hooks/useImageBitmap'
-import { useAnimatedNumber } from '../../hooks/useAnimatedNumber'
+import { useAnimatedColor, useAnimatedNumber } from '../../hooks/useAnimatedNumber'
 import { computeOutputPixelSize } from '../../lib/cropMath'
 import { exportBorderPhoto, resolveRatio } from '../../lib/exportImage'
 import { Toolbar } from './Toolbar'
@@ -93,6 +93,9 @@ export function BorderEditor() {
 
   const borderPx = border.borderThicknessPct * Math.min(outputWidth, outputHeight)
   const borderColorHex = getBorderColor(border.borderColor).hex
+  // Only the live preview eases between colors — the export just paints the
+  // final picked color once, no animation needed for a static file.
+  const animatedBorderColorHex = useAnimatedColor(borderColorHex)
 
   const handleUpload = async (files: FileList) => {
     const loaded = await loadFiles(files)
@@ -139,7 +142,7 @@ export function BorderEditor() {
         className={`min-h-0 flex-1 p-4 transition-opacity duration-300 ${resetting ? 'opacity-0' : 'opacity-100'}`}
       >
         {photo ? (
-          <CanvasStage outputWidth={outputWidth} outputHeight={outputHeight} background={borderColorHex}>
+          <CanvasStage outputWidth={outputWidth} outputHeight={outputHeight} background={animatedBorderColorHex}>
             <PhotoCell
               x={borderPx}
               y={borderPx}
