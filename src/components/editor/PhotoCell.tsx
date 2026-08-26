@@ -1,4 +1,4 @@
-import { useRef } from 'react'
+import { useRef, useState } from 'react'
 import { Group, Image as KonvaImage, Shape, Text } from 'react-konva'
 import type Konva from 'konva'
 import type { CellShape, LoadedPhoto, PhotoFit, PhotoTransform } from '../../types'
@@ -45,6 +45,16 @@ export function PhotoCell({
 }: PhotoCellProps) {
   const pinchDist = useRef<number | null>(null)
   const imageRef = useRef<Konva.Image>(null)
+  const wheelIdleTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
+  // True while actively dragging/pinching/wheel-zooming this photo. The grain
+  // overlay below is skipped while true — it blends with 'overlay' at partial
+  // opacity, which forces Konva into an off-screen buffer-canvas composite
+  // every redraw, and redrawing that on every pointer-move frame during a
+  // drag/pinch made the gesture itself feel laggy/unresponsive on real
+  // phones. Grain is a static effect anyway (independent of pan/zoom), so
+  // hiding it mid-gesture and letting it snap back on release costs nothing
+  // visually once your finger is off the screen.
+  const [interacting, setInteracting] = useState(false)
 
   // Always called (never behind the `animateLayout` flag) so this instance's hook
   // count stays identical across renders regardless of that flag's value.
@@ -118,6 +128,7 @@ export function PhotoCell({
     const offsetX = slackX === 0 ? 0 : (centeredX - e.target.x()) / slackX
     const offsetY = slackY === 0 ? 0 : (centeredY - e.target.y()) / slackY
     onTransformChange(clampTransform({ ...transform, offsetX, offsetY }))
+    setInteracting(false)
   }
 
   const handleWheel = (e: Konva.KonvaEventObject<WheelEvent>) => {
@@ -125,12 +136,18 @@ export function PhotoCell({
     const delta = -e.evt.deltaY * 0.0015
     const zoom = Math.min(MAX_ZOOM, Math.max(1, transform.zoom + delta))
     onTransformChange(clampTransform({ ...transform, zoom }))
+    setInteracting(true)
+    clearTimeout(wheelIdleTimer.current)
+    // Wheel fires many events per gesture with no discrete "end" — treat
+    // 200ms of silence as the gesture being over.
+    wheelIdleTimer.current = setTimeout(() => setInteracting(false), 200)
   }
 
   const handleTouchMove = (e: Konva.KonvaEventObject<TouchEvent>) => {
     const touches = e.evt.touches
     if (touches.length < 2) return
     e.evt.preventDefault()
+    setInteracting(true)
     const [a, b] = [touches[0], touches[1]]
     const dist = Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY)
     if (pinchDist.current != null) {
@@ -143,6 +160,7 @@ export function PhotoCell({
 
   const handleTouchEnd = () => {
     pinchDist.current = null
+    setInteracting(false)
   }
 
   return (
@@ -163,9 +181,16 @@ export function PhotoCell({
         height={draw.height}
         draggable
         dragBoundFunc={dragBounds}
+        onDragStart={() => setInteracting(true)}
         onDragEnd={handleDragEnd}
       />
-      <GrainOverlay width={width} height={height} intensity={grain} referenceWidth={photo.width} referenceHeight={photo.height} />
+      <GrainOverlay
+        width={width}
+        height={height}
+        intensity={interacting ? 0 : grain}
+        referenceWidth={photo.width}
+        referenceHeight={photo.height}
+      />
     </Group>
   )
 }
