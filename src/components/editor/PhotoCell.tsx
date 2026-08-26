@@ -185,8 +185,15 @@ export function PhotoCell({
         onDragEnd={handleDragEnd}
       />
       <GrainOverlay
-        width={width}
-        height={height}
+        // Clamped to the target (not animated) size: when animateLayout is
+        // shrinking a cell (e.g. border/gutter thickened), `width`/`height`
+        // still ease down from the old, larger size for a few frames while
+        // widthTarget/heightTarget already reflect the new, un-animated
+        // border/gutter geometry. Sizing the grain off the animated value
+        // let it briefly overhang past the real cell edge onto the border —
+        // clamping to whichever is smaller keeps it inside the photo always.
+        width={Math.min(width, widthTarget)}
+        height={Math.min(height, heightTarget)}
         intensity={interacting ? 0 : grain}
         referenceWidth={photo.width}
         referenceHeight={photo.height}

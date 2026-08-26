@@ -4,6 +4,11 @@ import { Stage, Layer, Rect } from 'react-konva'
 import { useEditorStore } from '../../store/editorStore'
 import { getWorkspaceBackground } from '../../lib/workspaceBackgrounds'
 
+// Matches the lighter of the checkerboard gradient's two square colors below,
+// so fading the backing color into this tone reads as blending toward the
+// pattern rather than toward an unrelated color.
+const CHECKER_BASE_HEX = '#eef2f6'
+
 interface CanvasStageProps {
   /** Logical (virtual) canvas size — children should be authored in this coordinate space. */
   outputWidth: number
@@ -51,19 +56,27 @@ export function CanvasStage({
   return (
     <div
       ref={containerRef}
-      className={`flex h-full w-full items-center justify-center overflow-hidden rounded-xl p-[5px] transition-colors duration-300 ${
-        workspaceBg.hex ? '' : 'bg-[repeating-conic-gradient(#e2e8f0_0%_25%,#eef2f6_0%_50%)] bg-[length:20px_20px]'
-      }`}
-      // Always an explicit value (never omitted) so transition-colors above
-      // has a real color on both ends — leaving it undefined for "Sin fondo"
-      // meant switching TO a color animated FROM the browser's implicit
-      // "no color set" state instead of a real one, which read as a jump/
-      // glitch rather than a smooth cross-fade.
-      style={{ backgroundColor: workspaceBg.hex ?? 'transparent' }}
+      className="relative flex h-full w-full items-center justify-center overflow-hidden rounded-xl p-[5px] transition-colors duration-300"
+      // Backed by CHECKER_BASE_HEX (one of the checkerboard's own two square
+      // colors) instead of literal 'transparent' for "Sin fondo". Animating
+      // background-color THROUGH transparent made the browser interpolate
+      // through transparent's implicit (0,0,0) RGB — a black-tinted fade —
+      // on top of which the checker layer below was also fading, compounding
+      // into the "washed-out double-exposure" look. With a real, checker-
+      // matched color on both ends, this fades cleanly like any other
+      // color<->color transition, and the checker layer's own opacity fade
+      // (below) blends into it seamlessly once it's mostly faded in.
+      style={{ backgroundColor: workspaceBg.hex ?? CHECKER_BASE_HEX }}
     >
+      {/* Checkered "Sin fondo" pattern as its own opacity-animated layer, in
+          sync with the color fade above. */}
+      <div
+        className="pointer-events-none absolute inset-0 bg-[repeating-conic-gradient(#e2e8f0_0%_25%,#eef2f6_0%_50%)] bg-[length:20px_20px] transition-opacity duration-300"
+        style={{ opacity: workspaceBg.hex ? 0 : 1 }}
+      />
       {scale > 0 && (
         <div
-          className="fade-in-slow rounded-sm ring-1 ring-slate-900/10"
+          className="fade-in-slow relative rounded-sm ring-1 ring-slate-900/10"
           style={{ boxShadow: '0 4px 16px -4px rgba(15, 23, 42, 0.25)' }}
         >
           <Stage width={outputWidth * scale} height={outputHeight * scale} scaleX={scale} scaleY={scale}>
