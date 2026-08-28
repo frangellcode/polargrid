@@ -64,7 +64,7 @@ export function HomeScreen({
       <button
         type="button"
         onClick={toggleLanguage}
-        className={`absolute right-4 top-[max(1rem,env(safe-area-inset-top))] rounded-full border border-white/25 px-3 py-1 font-label text-[10px] font-semibold uppercase tracking-[0.14em] text-white/60 transition duration-200 hover:border-white/40 hover:text-white active:scale-90 ${revealCls('delay-0')}`}
+        className={`absolute right-4 top-[max(2.25rem,calc(env(safe-area-inset-top)+1.25rem))] rounded-full border border-white/25 px-3 py-1 font-label text-[10px] font-semibold uppercase tracking-[0.14em] text-white/60 transition duration-200 hover:border-white/40 hover:text-white active:scale-90 ${revealCls('delay-0')}`}
       >
         <FadeText value={tr.home.langToggle} trigger={language} />
       </button>
@@ -133,7 +133,7 @@ export function HomeScreen({
             </span>
           )}
         </span>
-        <FadeText value={tr.home.updateApp} trigger={language} />
+        <FadeText value={tr.home.updateApp} trigger={language} animateWidth />
       </button>
       </div>
 
@@ -156,9 +156,9 @@ export function HomeScreen({
           rel="noopener noreferrer"
           className="font-label flex items-center gap-3 rounded-full bg-white/10 py-2 pl-4 pr-3.5 text-[11px] font-light text-white/60 transition duration-200 hover:bg-white/15 active:scale-95"
         >
-          <FadeText value={tr.home.donateLabel} trigger={language} />
+          <FadeText value={tr.home.donateLabel} trigger={language} animateWidth />
           <span className="h-3.5 w-px bg-white/25" />
-          <span className="font-semibold text-white"><FadeText value={tr.home.donate} trigger={language} /></span>
+          <FadeText value={tr.home.donate} trigger={language} animateWidth className="font-semibold text-white" />
         </a>
         <a
           href={INSTAGRAM_URL}
@@ -166,7 +166,7 @@ export function HomeScreen({
           rel="noopener noreferrer"
           className="flex items-center gap-1.5 font-label text-[11px] font-light text-white/40 active:scale-95"
         >
-          <FadeText value={tr.home.followUs} trigger={language} /> @frangellgram
+          <FadeText value={tr.home.followUs} trigger={language} animateWidth />&nbsp;@frangellgram
           <IconInstagram className="h-3.5 w-3.5" />
         </a>
       </div>
