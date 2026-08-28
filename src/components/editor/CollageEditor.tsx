@@ -591,7 +591,17 @@ export function CollageEditor() {
           setResetting(true)
           setTimeout(() => {
             store.resetCollage()
-            setResetting(false)
+            // Resetting swaps the content to the Dropzone in the SAME commit
+            // that would otherwise flip opacity back to 100 — the browser
+            // never paints a frame with "Dropzone at opacity 0" to transition
+            // FROM, so it just pops in at full opacity instead of fading in.
+            // Waiting two rAFs lets that opacity-0 Dropzone frame actually
+            // paint first, so the opacity-100 flip has something to animate
+            // from (one rAF fires before the frame in which the DOM change
+            // is painted; the second fires after it).
+            requestAnimationFrame(() => {
+              requestAnimationFrame(() => setResetting(false))
+            })
           }, CLOSE_MS)
         }}
         onGoHome={() => {
