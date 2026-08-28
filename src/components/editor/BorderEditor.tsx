@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import type { ExportQuality } from '../../types'
 import { useEditorStore } from '../../store/editorStore'
+import { useTranslation } from '../../store/languageStore'
 import { useImageBitmap } from '../../hooks/useImageBitmap'
 import { useAnimatedColor, useAnimatedNumber } from '../../hooks/useAnimatedNumber'
 import { computeOutputPixelSize } from '../../lib/cropMath'
@@ -20,14 +21,14 @@ import { IconCrop, IconDrop, IconFrame, IconGrain } from './icons'
 
 const PREVIEW_LONG_EDGE = 900
 
-const TOOLS: BottomBarTool[] = [
-  { id: 'color', label: 'Color', icon: <IconDrop /> },
-  { id: 'recorte', label: 'Crop', icon: <IconCrop /> },
-  { id: 'bordes', label: 'Border', icon: <IconFrame /> },
-  { id: 'grain', label: 'Grain', icon: <IconGrain /> },
-]
-
 export function BorderEditor() {
+  const tr = useTranslation()
+  const TOOLS: BottomBarTool[] = [
+    { id: 'color', label: tr.borderEditor.toolColor, icon: <IconDrop /> },
+    { id: 'recorte', label: tr.borderEditor.toolCrop, icon: <IconCrop /> },
+    { id: 'bordes', label: tr.borderEditor.toolBorder, icon: <IconFrame /> },
+    { id: 'grain', label: tr.borderEditor.toolGrain, icon: <IconGrain /> },
+  ]
   const {
     photos,
     border,
@@ -128,14 +129,14 @@ export function BorderEditor() {
   return (
     <div className="flex h-full flex-col bg-ink-900">
       <Toolbar
-        title="White border"
+        title={tr.borderEditor.title}
         onBack={() => setMode('home')}
         onUpload={handleUpload}
         onExport={handleExport}
         exportQuality={border.exportQuality}
         exporting={exporting}
         canExport={!!photo}
-        uploadLabel={photo ? 'Change photo' : 'Upload photo'}
+        uploadLabel={photo ? tr.borderEditor.changePhoto : tr.borderEditor.uploadPhoto}
       />
 
       <div
@@ -157,8 +158,8 @@ export function BorderEditor() {
           </CanvasStage>
         ) : (
           <Dropzone
-            label="Tap to upload a photo"
-            hint="or drag it here"
+            label={tr.borderEditor.dropLabel}
+            hint={tr.borderEditor.dropHint}
             onFiles={handleUpload}
             multiple={false}
           />
@@ -170,7 +171,7 @@ export function BorderEditor() {
         <EditorBottomBar tools={TOOLS} activeId={activeTool} onSelect={setActiveTool}>
           {activeTool === 'recorte' && (
             <div>
-              <p className="font-label mb-2 text-center text-xs font-semibold uppercase tracking-wider text-white/40">Crop</p>
+              <p className="font-label mb-2 text-center text-xs font-semibold uppercase tracking-wider text-white/40">{tr.borderEditor.cropHeading}</p>
               <AspectRatioPicker
                 value={border.aspectRatioId}
                 onChange={setBorderAspectRatio}
@@ -190,13 +191,13 @@ export function BorderEditor() {
                           : 'bg-white/10 text-white/70 hover:bg-white/15'
                       }`}
                     >
-                      {isLocked ? 'Locked' : 'Unlocked'}
+                      {isLocked ? tr.borderEditor.locked : tr.borderEditor.unlocked}
                     </button>
                   ))}
                 </div>
                 {!border.locked && (
                   <p className="fade-in font-label max-w-[220px] text-center text-[11px] text-white/40">
-                    The border adjusts to show the full photo, without cropping it
+                    {tr.borderEditor.unlockedHint}
                   </p>
                 )}
               </div>
@@ -205,7 +206,7 @@ export function BorderEditor() {
 
           {activeTool === 'bordes' && (
             <BorderThicknessSlider
-              label="Border thickness"
+              label={tr.borderEditor.borderThickness}
               value={border.borderThicknessPct}
               onChange={setBorderThickness}
             />
@@ -220,7 +221,7 @@ export function BorderEditor() {
 
           {activeTool === 'grain' && (
             <BorderThicknessSlider
-              label="Grain"
+              label={tr.borderEditor.grain}
               value={border.grainIntensity}
               onChange={setBorderGrain}
               min={0}

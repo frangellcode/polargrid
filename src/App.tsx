@@ -1,6 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import type { CSSProperties } from 'react'
 import { useEditorStore } from './store/editorStore'
+import { useTranslation } from './store/languageStore'
 import { HomeScreen } from './components/HomeScreen'
 import { BorderEditor } from './components/editor/BorderEditor'
 import { CollageEditor } from './components/editor/CollageEditor'
@@ -53,6 +54,7 @@ function renderView(mode: AppMode, homeProps: HomeRenderProps) {
 
 function App() {
   const mode = useEditorStore((s) => s.mode)
+  const tr = useTranslation()
   const [displayedMode, setDisplayedMode] = useState(mode)
   const [isExiting, setIsExiting] = useState(false)
   const [entered, setEntered] = useState(false)
@@ -306,7 +308,7 @@ function App() {
             <div className="h-full rounded-full bg-white" style={{ width: `${updateProgress}%` }} />
           </div>
           <span className="font-label text-[10px] font-light uppercase tracking-[0.14em] text-white/50">
-            Updating… {updateProgress}%
+            {tr.app.updating} {updateProgress}%
           </span>
         </div>
       )}

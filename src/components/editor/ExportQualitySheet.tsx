@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import type { ExportQuality } from '../../types'
 import { EXPORT_QUALITY_PRESETS } from '../../lib/exportQuality'
+import { useTranslation } from '../../store/languageStore'
 
 interface ExportQualitySheetProps {
   open: boolean
@@ -19,6 +20,7 @@ export const CLOSE_MS = 300
 
 /** Bottom sheet shown when tapping Export: pick a quality, then confirm. */
 export function ExportQualitySheet({ open, defaultQuality, onClose, onExport }: ExportQualitySheetProps) {
+  const tr = useTranslation()
   const [selected, setSelected] = useState(defaultQuality)
   const [mounted, setMounted] = useState(open)
   const [visible, setVisible] = useState(false)
@@ -71,7 +73,7 @@ export function ExportQualitySheet({ open, defaultQuality, onClose, onExport }: 
     >
       <button
         type="button"
-        aria-label="Close"
+        aria-label={tr.exportSheet.close}
         tabIndex={open ? 0 : -1}
         onClick={onClose}
         className="absolute inset-0 bg-black/50"
@@ -83,9 +85,9 @@ export function ExportQualitySheet({ open, defaultQuality, onClose, onExport }: 
       >
         <div className="mx-auto mb-3 h-1.5 w-10 rounded-full bg-white/20" />
         <h2 className="font-display mb-1 px-1 text-center text-sm font-semibold uppercase tracking-wider text-white">
-          Export quality
+          {tr.exportSheet.title}
         </h2>
-        <p className="font-label mb-4 px-1 text-center text-sm text-white/45">Choose the quality you want to save your photo in.</p>
+        <p className="font-label mb-4 px-1 text-center text-sm text-white/45">{tr.exportSheet.subtitle}</p>
 
         <div className="flex flex-col gap-2">
           {EXPORT_QUALITY_PRESETS.map((preset) => (
@@ -100,8 +102,8 @@ export function ExportQualitySheet({ open, defaultQuality, onClose, onExport }: 
               }`}
             >
               <div>
-                <p className="font-label text-xs font-semibold uppercase tracking-wide text-white">{preset.label}</p>
-                <p className="font-label text-xs text-white/45">{preset.hint}</p>
+                <p className="font-label text-xs font-semibold uppercase tracking-wide text-white">{tr.quality[preset.id].label}</p>
+                <p className="font-label text-xs text-white/45">{tr.quality[preset.id].hint}</p>
               </div>
               <div
                 className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 transition-colors duration-200 ${
@@ -120,14 +122,14 @@ export function ExportQualitySheet({ open, defaultQuality, onClose, onExport }: 
             onClick={onClose}
             className="font-label flex-1 rounded-2xl bg-white/10 py-3 text-xs font-semibold uppercase tracking-wide text-white transition duration-200 active:scale-95"
           >
-            Cancel
+            {tr.exportSheet.cancel}
           </button>
           <button
             type="button"
             onClick={() => onExport(selected)}
             className="font-label flex-[2] rounded-2xl bg-white py-3 text-xs font-semibold uppercase tracking-wide text-ink-900 transition duration-200 hover:bg-white/90 active:scale-95"
           >
-            Export
+            {tr.exportSheet.export}
           </button>
         </div>
       </div>

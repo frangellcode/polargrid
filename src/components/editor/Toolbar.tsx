@@ -1,6 +1,7 @@
 import { forwardRef, useEffect, useImperativeHandle, useLayoutEffect, useRef, useState } from 'react'
 import type { ChangeEvent } from 'react'
 import type { ExportQuality } from '../../types'
+import { useTranslation } from '../../store/languageStore'
 import { CLOSE_MS, ExportQualitySheet } from './ExportQualitySheet'
 
 interface ToolbarProps {
@@ -28,11 +29,13 @@ export const Toolbar = forwardRef<ToolbarHandle, ToolbarProps>(function Toolbar(
     exportQuality,
     exporting,
     canExport = true,
-    uploadLabel = 'Add photo',
+    uploadLabel,
     multiple = false,
   },
   ref,
 ) {
+  const tr = useTranslation()
+  const resolvedUploadLabel = uploadLabel ?? tr.toolbar.addPhoto
   const inputRef = useRef<HTMLInputElement>(null)
   const [sheetOpen, setSheetOpen] = useState(false)
 
@@ -48,7 +51,7 @@ export const Toolbar = forwardRef<ToolbarHandle, ToolbarProps>(function Toolbar(
   // incoming label's natural width ahead of that swap.
   const WIDTH_MS = 260
   const LABEL_FADE_MS = 130
-  const [displayLabel, setDisplayLabel] = useState(uploadLabel)
+  const [displayLabel, setDisplayLabel] = useState(resolvedUploadLabel)
   const [labelFading, setLabelFading] = useState(false)
   const [labelWidth, setLabelWidth] = useState<number | undefined>(undefined)
   const measureRef = useRef<HTMLSpanElement>(null)
@@ -58,18 +61,18 @@ export const Toolbar = forwardRef<ToolbarHandle, ToolbarProps>(function Toolbar(
     measuredWidthRef.current = measureRef.current?.offsetWidth
     // First mount: adopt the initial width immediately, no transition needed.
     setLabelWidth((current) => (current === undefined ? measuredWidthRef.current : current))
-  }, [uploadLabel])
+  }, [resolvedUploadLabel])
 
   useEffect(() => {
-    if (uploadLabel === displayLabel) return
+    if (resolvedUploadLabel === displayLabel) return
     setLabelFading(true)
-    const t = setTimeout(() => {
-      setDisplayLabel(uploadLabel)
+    const fadeTimer = setTimeout(() => {
+      setDisplayLabel(resolvedUploadLabel)
       setLabelWidth(measuredWidthRef.current)
       setLabelFading(false)
     }, LABEL_FADE_MS)
-    return () => clearTimeout(t)
-  }, [uploadLabel, displayLabel])
+    return () => clearTimeout(fadeTimer)
+  }, [resolvedUploadLabel, displayLabel])
 
   useImperativeHandle(ref, () => ({
     openFilePicker: () => inputRef.current?.click(),
@@ -93,10 +96,10 @@ export const Toolbar = forwardRef<ToolbarHandle, ToolbarProps>(function Toolbar(
         type="button"
         onClick={onBack}
         className="-ml-2 flex h-9 items-center gap-1.5 rounded-full pl-2 pr-3 text-white transition duration-200 hover:bg-white/10 active:scale-95 active:bg-white/15"
-        aria-label={`Back, ${title}`}
+        aria-label={`${tr.toolbar.back}, ${title}`}
       >
         <span className="text-2xl leading-none">←</span>
-        <span className="font-label text-sm font-semibold uppercase tracking-wide">Back</span>
+        <span className="font-label text-sm font-semibold uppercase tracking-wide">{tr.toolbar.back}</span>
       </button>
       <div className="flex h-9 items-center gap-2">
         <input
@@ -117,7 +120,7 @@ export const Toolbar = forwardRef<ToolbarHandle, ToolbarProps>(function Toolbar(
             ref={measureRef}
             className="pointer-events-none invisible absolute left-0 top-0 whitespace-nowrap"
           >
-            {uploadLabel}
+            {resolvedUploadLabel}
           </span>
           <span
             className="inline-block overflow-hidden whitespace-nowrap"
@@ -137,7 +140,7 @@ export const Toolbar = forwardRef<ToolbarHandle, ToolbarProps>(function Toolbar(
           disabled={exporting || !canExport}
           className="font-label inline-flex h-9 items-center rounded-full bg-white px-4 text-xs font-semibold uppercase tracking-wide text-ink-900 transition duration-200 hover:bg-white/90 active:scale-95 disabled:cursor-not-allowed disabled:opacity-40 disabled:active:scale-100"
         >
-          {exporting ? 'Exporting…' : 'Export'}
+          {exporting ? tr.toolbar.exporting : tr.toolbar.export}
         </button>
       </div>
 

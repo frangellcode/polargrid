@@ -3,6 +3,7 @@ import { Group, Image as KonvaImage, Rect, Transformer } from 'react-konva'
 import type Konva from 'konva'
 import type { CellAssignment, CellShape, ExportQuality, GridTemplate, LoadedPhoto, PhotoTransform } from '../../types'
 import { useEditorStore } from '../../store/editorStore'
+import { useTranslation } from '../../store/languageStore'
 import { useImageBitmap } from '../../hooks/useImageBitmap'
 import { useAnimatedNumber, useReflowFade } from '../../hooks/useAnimatedNumber'
 import { COLLAGE_ASPECT_RATIOS } from '../../lib/aspectRatios'
@@ -23,20 +24,6 @@ import { IconCrop, IconDrop, IconFrame, IconGrain, IconGrid } from './icons'
 import { GrainOverlay } from './GrainOverlay'
 
 const PREVIEW_LONG_EDGE = 900
-
-const GRID_TOOLS: BottomBarTool[] = [
-  { id: 'fondo', label: 'Background', icon: <IconDrop /> },
-  { id: 'formato', label: 'Format', icon: <IconCrop /> },
-  { id: 'plantilla', label: 'Template', icon: <IconGrid /> },
-  { id: 'bordes', label: 'Border', icon: <IconFrame /> },
-  { id: 'grain', label: 'Grain', icon: <IconGrain /> },
-]
-
-const FREE_TOOLS: BottomBarTool[] = [
-  { id: 'fondo', label: 'Background', icon: <IconDrop /> },
-  { id: 'formato', label: 'Format', icon: <IconCrop /> },
-  { id: 'grain', label: 'Grain', icon: <IconGrain /> },
-]
 
 interface FreeItemsLayerProps {
   outputWidth: number
@@ -208,6 +195,19 @@ function GridCellsLayer({
 }
 
 export function CollageEditor() {
+  const tr = useTranslation()
+  const GRID_TOOLS: BottomBarTool[] = [
+    { id: 'fondo', label: tr.collageEditor.toolBackground, icon: <IconDrop /> },
+    { id: 'formato', label: tr.collageEditor.toolFormat, icon: <IconCrop /> },
+    { id: 'plantilla', label: tr.collageEditor.toolTemplate, icon: <IconGrid /> },
+    { id: 'bordes', label: tr.collageEditor.toolBorder, icon: <IconFrame /> },
+    { id: 'grain', label: tr.collageEditor.toolGrain, icon: <IconGrain /> },
+  ]
+  const FREE_TOOLS: BottomBarTool[] = [
+    { id: 'fondo', label: tr.collageEditor.toolBackground, icon: <IconDrop /> },
+    { id: 'formato', label: tr.collageEditor.toolFormat, icon: <IconCrop /> },
+    { id: 'grain', label: tr.collageEditor.toolGrain, icon: <IconGrain /> },
+  ]
   const store = useEditorStore()
   const { photos, collage } = store
   const { loadFiles } = useImageBitmap()
@@ -287,7 +287,7 @@ export function CollageEditor() {
     }
     const added = store.addCollagePhotos(loaded)
     if (!added) {
-      setUploadError(`Select at least ${MIN_COLLAGE_PHOTOS} photos to build a collage`)
+      setUploadError(tr.collageEditor.selectAtLeast(MIN_COLLAGE_PHOTOS))
     }
   }
 
@@ -322,14 +322,14 @@ export function CollageEditor() {
     <div className="flex h-full flex-col bg-ink-900">
       <Toolbar
         ref={toolbarRef}
-        title="Collage"
+        title={tr.home.collageTitle}
         onBack={() => store.setMode('home')}
         onUpload={handleUpload}
         onExport={handleExport}
         exportQuality={collage.exportQuality}
         exporting={exporting}
         canExport={hasContent}
-        uploadLabel="Add photos"
+        uploadLabel={tr.collageEditor.addPhotos}
         multiple
       />
 
@@ -343,7 +343,7 @@ export function CollageEditor() {
               collage.layoutMode === m ? 'bg-white text-ink-900' : 'bg-white/10 text-white/70'
             }`}
           >
-            {m === 'grid' ? 'Template' : 'Free'}
+            {m === 'grid' ? tr.collageEditor.modeTemplate : tr.collageEditor.modeFree}
           </button>
         ))}
       </div>
@@ -386,8 +386,8 @@ export function CollageEditor() {
           </CanvasStage>
         ) : (
           <Dropzone
-            label="Tap to upload your photos"
-            hint="or drag them here (several at once)"
+            label={tr.collageEditor.dropLabel}
+            hint={tr.collageEditor.dropHint}
             error={uploadError}
             onFiles={handleUpload}
           />
@@ -404,7 +404,7 @@ export function CollageEditor() {
             }}
             className="font-label rounded-full bg-red-500/15 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-red-300 transition duration-200 hover:bg-red-500/25 active:scale-90"
           >
-            Remove photo
+            {tr.collageEditor.removePhoto}
           </button>
         </div>
       )}
@@ -414,7 +414,7 @@ export function CollageEditor() {
         <EditorBottomBar tools={tools} activeId={activeToolId} onSelect={setActiveTool}>
           {activeToolId === 'formato' && (
             <div>
-              <p className="font-label mb-2 text-center text-xs font-semibold uppercase tracking-wider text-white/40">Canvas format</p>
+              <p className="font-label mb-2 text-center text-xs font-semibold uppercase tracking-wider text-white/40">{tr.collageEditor.canvasFormat}</p>
               <AspectRatioPicker
                 value={collage.aspectRatioId}
                 onChange={store.setCollageAspectRatio}
@@ -428,7 +428,7 @@ export function CollageEditor() {
           {activeToolId === 'plantilla' && (
             <>
               <div>
-                <p className="font-label mb-2 text-center text-xs font-semibold uppercase tracking-wider text-white/40">Orientation</p>
+                <p className="font-label mb-2 text-center text-xs font-semibold uppercase tracking-wider text-white/40">{tr.collageEditor.orientation}</p>
                 <div className="flex justify-center gap-2">
                   {(['vertical', 'horizontal'] as const).map((o) => (
                     <button
@@ -441,18 +441,18 @@ export function CollageEditor() {
                           : 'bg-white/10 text-white/70 hover:bg-white/15'
                       }`}
                     >
-                      {o === 'vertical' ? 'Vertical' : 'Horizontal'}
+                      {o === 'vertical' ? tr.collageEditor.vertical : tr.collageEditor.horizontal}
                     </button>
                   ))}
                 </div>
               </div>
               <div>
-                <p className="font-label mb-2 text-center text-xs font-semibold uppercase tracking-wider text-white/40">Shape</p>
+                <p className="font-label mb-2 text-center text-xs font-semibold uppercase tracking-wider text-white/40">{tr.collageEditor.shape}</p>
                 <div className="flex justify-center gap-2">
                   {(
                     [
-                      { shape: 'rect' as const, label: 'Rectangular' },
-                      { shape: 'rounded' as const, label: 'Rounded' },
+                      { shape: 'rect' as const, label: tr.collageEditor.rectangular },
+                      { shape: 'rounded' as const, label: tr.collageEditor.rounded },
                     ]
                   ).map(({ shape, label }) => (
                     <button
@@ -472,7 +472,7 @@ export function CollageEditor() {
               </div>
               <div>
                 <p className="font-label mb-2 text-center text-xs font-semibold uppercase tracking-wider text-white/40">
-                  Layout ({collage.photoCount} photos)
+                  {tr.collageEditor.layout(collage.photoCount)}
                 </p>
                 <GridTemplatePicker
                   count={collage.photoCount}
@@ -482,14 +482,14 @@ export function CollageEditor() {
                   onChange={store.setCollageTemplateId}
                 />
               </div>
-              <p className="font-label text-center text-xs text-white/40">Tap an empty cell on the canvas to upload a photo.</p>
+              <p className="font-label text-center text-xs text-white/40">{tr.collageEditor.emptyCellHint}</p>
             </>
           )}
 
           {activeToolId === 'bordes' && (
             <>
               <BorderThicknessSlider
-                label="Outer border"
+                label={tr.collageEditor.outerBorder}
                 value={collage.outerBorderPct}
                 onChange={(pct) => {
                   store.setOuterBorderPct(pct)
@@ -498,7 +498,7 @@ export function CollageEditor() {
               />
               <div className="space-y-3">
                 <BorderThicknessSlider
-                  label="Space between photos"
+                  label={tr.collageEditor.spaceBetween}
                   value={collage.gutterPct}
                   onChange={(pct) => {
                     store.setGutterPct(pct)
@@ -522,7 +522,7 @@ export function CollageEditor() {
                         : 'bg-white/10 text-white/70 hover:bg-white/15'
                     }`}
                   >
-                    {gutterLinked ? 'Linked with outer border ✓' : 'Match outer border'}
+                    {gutterLinked ? tr.collageEditor.linked : tr.collageEditor.matchOuter}
                   </button>
                 </div>
               </div>
@@ -535,7 +535,7 @@ export function CollageEditor() {
 
           {activeToolId === 'grain' && (
             <BorderThicknessSlider
-              label="Grain"
+              label={tr.collageEditor.grain}
               value={collage.grainIntensity}
               onChange={store.setCollageGrain}
               min={0}

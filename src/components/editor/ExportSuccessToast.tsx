@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { useTranslation } from '../../store/languageStore'
 
 interface ExportSuccessToastProps {
   open: boolean
@@ -17,6 +18,7 @@ const AUTO_DISMISS_MS = 9000
 
 /** Confirmation shown after a successful export, offering a quick way to start a new photo/collage. */
 export function ExportSuccessToast({ open, onClose, onCreateAnother, onGoHome }: ExportSuccessToastProps) {
+  const tr = useTranslation()
   const [mounted, setMounted] = useState(open)
   const [visible, setVisible] = useState(false)
 
@@ -58,7 +60,7 @@ export function ExportSuccessToast({ open, onClose, onCreateAnother, onGoHome }:
     >
       <button
         type="button"
-        aria-label="Close"
+        aria-label={tr.exportToast.close}
         tabIndex={open ? 0 : -1}
         onClick={onClose}
         className="absolute inset-0 bg-black/60"
@@ -70,7 +72,7 @@ export function ExportSuccessToast({ open, onClose, onCreateAnother, onGoHome }:
       >
         <button
           type="button"
-          aria-label="Close"
+          aria-label={tr.exportToast.close}
           onClick={onClose}
           className="absolute right-2 top-2 flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-white/50 transition duration-200 hover:bg-white/10 hover:text-white active:scale-90"
         >
@@ -79,7 +81,7 @@ export function ExportSuccessToast({ open, onClose, onCreateAnother, onGoHome }:
 
         <div className="flex h-12 w-12 items-center justify-center rounded-full bg-white/10 text-2xl">✓</div>
 
-        <p className="font-display text-base font-semibold text-white">Photo saved!</p>
+        <p className="font-display text-base font-semibold text-white">{tr.exportToast.saved}</p>
 
         <div className="flex w-full flex-col gap-2">
           <button
@@ -87,14 +89,14 @@ export function ExportSuccessToast({ open, onClose, onCreateAnother, onGoHome }:
             onClick={onCreateAnother}
             className="font-label w-full rounded-2xl bg-white py-3 text-xs font-semibold uppercase tracking-wide text-ink-900 transition duration-200 hover:bg-white/90 active:scale-95"
           >
-            Create another
+            {tr.exportToast.createAnother}
           </button>
           <button
             type="button"
             onClick={onGoHome}
             className="font-label w-full rounded-2xl bg-white/10 py-3 text-xs font-semibold uppercase tracking-wide text-white transition duration-200 hover:bg-white/15 active:scale-95"
           >
-            Back to home
+            {tr.exportToast.backHome}
           </button>
         </div>
 

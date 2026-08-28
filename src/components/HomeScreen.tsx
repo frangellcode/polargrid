@@ -1,6 +1,8 @@
 import type { Ref } from 'react'
 import { useEditorStore } from '../store/editorStore'
 import { useUpdateStore } from '../store/updateStore'
+import { useLanguageStore, useTranslation } from '../store/languageStore'
+import { FadeText } from './FadeText'
 import { Logo } from './Logo'
 import { IconInstagram, IconRefresh } from './editor/icons'
 
@@ -39,6 +41,9 @@ export function HomeScreen({
 }: HomeScreenProps) {
   const setMode = useEditorStore((s) => s.setMode)
   const updateAvailable = useUpdateStore((s) => s.updateAvailable)
+  const language = useLanguageStore((s) => s.language)
+  const toggleLanguage = useLanguageStore((s) => s.toggleLanguage)
+  const tr = useTranslation()
 
   const handleUpdate = () => {
     useUpdateStore.getState().setUpdateAvailable(false)
@@ -55,7 +60,15 @@ export function HomeScreen({
     }`
 
   return (
-    <div className="flex h-full flex-col items-center bg-ink-900 px-6 pb-[max(1.5rem,env(safe-area-inset-bottom))] pt-[max(1.5rem,env(safe-area-inset-top))] text-center">
+    <div className="relative flex h-full flex-col items-center bg-ink-900 px-6 pb-[max(1.5rem,env(safe-area-inset-bottom))] pt-[max(1.5rem,env(safe-area-inset-top))] text-center">
+      <button
+        type="button"
+        onClick={toggleLanguage}
+        className={`absolute right-4 top-[max(1rem,env(safe-area-inset-top))] rounded-full border border-white/25 px-3 py-1 font-label text-[10px] font-semibold uppercase tracking-[0.14em] text-white/60 transition duration-200 hover:border-white/40 hover:text-white active:scale-90 ${revealCls('delay-0')}`}
+      >
+        <FadeText value={tr.home.langToggle} trigger={language} />
+      </button>
+
       {/* flex-1 centers the main content within whatever space is left above
           the donate/follow footer below, instead of the footer joining this
           group's own gap-10 rhythm — keeps it visually isolated at the very
@@ -73,7 +86,7 @@ export function HomeScreen({
         <h1 className={`font-display text-3xl font-bold text-white ${revealCls('delay-0')}`}>PolarGrid</h1>
         <div className={`h-px w-8 bg-white/35 ${revealCls('delay-0')}`} />
         <p className={`max-w-xs font-label text-xs font-light leading-7 text-white/60 ${revealCls('delay-0')}`}>
-          White borders and collages for your artistic photos, in high quality and with no internet connection required.
+          <FadeText value={tr.home.tagline} trigger={language} />
         </p>
       </div>
 
@@ -85,8 +98,8 @@ export function HomeScreen({
         >
           <span className="font-display w-5 text-sm font-bold text-white/50">I</span>
           <span className="flex flex-col gap-1">
-            <span className="font-display text-base font-medium text-white">White border</span>
-            <span className="font-label text-[10.5px] font-light text-white/50">Frame a photo with a white border</span>
+            <span className="font-display text-base font-medium text-white"><FadeText value={tr.home.borderTitle} trigger={language} /></span>
+            <span className="font-label text-[10.5px] font-light text-white/50"><FadeText value={tr.home.borderDesc} trigger={language} /></span>
           </span>
         </button>
 
@@ -97,8 +110,8 @@ export function HomeScreen({
         >
           <span className="font-display w-5 text-sm font-bold text-white/50">II</span>
           <span className="flex flex-col gap-1">
-            <span className="font-display text-base font-medium text-white">Collage</span>
-            <span className="font-label text-[10.5px] font-light text-white/50">Combine several photos into a grid</span>
+            <span className="font-display text-base font-medium text-white"><FadeText value={tr.home.collageTitle} trigger={language} /></span>
+            <span className="font-label text-[10.5px] font-light text-white/50"><FadeText value={tr.home.collageDesc} trigger={language} /></span>
           </span>
         </button>
       </div>
@@ -120,7 +133,7 @@ export function HomeScreen({
             </span>
           )}
         </span>
-        Update app
+        <FadeText value={tr.home.updateApp} trigger={language} />
       </button>
       </div>
 
@@ -143,9 +156,9 @@ export function HomeScreen({
           rel="noopener noreferrer"
           className="font-label flex items-center gap-3 rounded-full bg-white/10 py-2 pl-4 pr-3.5 text-[11px] font-light text-white/60 transition duration-200 hover:bg-white/15 active:scale-95"
         >
-          Help keep this app alive
+          <FadeText value={tr.home.donateLabel} trigger={language} />
           <span className="h-3.5 w-px bg-white/25" />
-          <span className="font-semibold text-white">Donate</span>
+          <span className="font-semibold text-white"><FadeText value={tr.home.donate} trigger={language} /></span>
         </a>
         <a
           href={INSTAGRAM_URL}
@@ -153,7 +166,7 @@ export function HomeScreen({
           rel="noopener noreferrer"
           className="flex items-center gap-1.5 font-label text-[11px] font-light text-white/40 active:scale-95"
         >
-          Follow us at @frangellgram
+          <FadeText value={tr.home.followUs} trigger={language} /> @frangellgram
           <IconInstagram className="h-3.5 w-3.5" />
         </a>
       </div>
