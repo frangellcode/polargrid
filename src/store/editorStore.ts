@@ -66,6 +66,8 @@ interface CollageState {
   exportQuality: ExportQuality
   /** 0..1 film-grain amount applied to every photo at once, 0 = off. */
   grainIntensity: number
+  /** BORDER_COLORS id — the outer border/gutter fill color, not the workspace backdrop. */
+  borderColor: string
 }
 
 interface EditorStoreState {
@@ -106,6 +108,7 @@ interface EditorStoreState {
   setGutterPct: (pct: number) => void
   setCollageExportQuality: (quality: ExportQuality) => void
   setCollageGrain: (intensity: number) => void
+  setCollageBorderColor: (id: string) => void
   assignPhotoToCell: (cellId: string, photoId: string | null) => void
   setCellTransform: (cellId: string, transform: PhotoTransform) => void
   updateFreeItem: (id: string, patch: Partial<FreeItem>) => void
@@ -149,6 +152,7 @@ function createInitialCollageState(): CollageState {
     freeItems: [],
     exportQuality: DEFAULT_EXPORT_QUALITY,
     grainIntensity: 0,
+    borderColor: DEFAULT_BORDER_COLOR,
   }
 }
 
@@ -350,6 +354,9 @@ export const useEditorStore = create<EditorStoreState>((set, get) => ({
 
   setCollageGrain: (intensity) =>
     set((state) => ({ collage: { ...state.collage, grainIntensity: intensity } })),
+
+  setCollageBorderColor: (id) =>
+    set((state) => ({ collage: { ...state.collage, borderColor: id } })),
 
   assignPhotoToCell: (cellId, photoId) =>
     set((state) => ({

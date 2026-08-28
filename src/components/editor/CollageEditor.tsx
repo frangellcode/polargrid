@@ -5,11 +5,12 @@ import type { CellAssignment, CellShape, ExportQuality, GridTemplate, LoadedPhot
 import { useEditorStore } from '../../store/editorStore'
 import { useTranslation } from '../../store/languageStore'
 import { useImageBitmap } from '../../hooks/useImageBitmap'
-import { useAnimatedNumber, useReflowFade } from '../../hooks/useAnimatedNumber'
+import { useAnimatedColor, useAnimatedNumber, useReflowFade } from '../../hooks/useAnimatedNumber'
 import { COLLAGE_ASPECT_RATIOS } from '../../lib/aspectRatios'
 import { computeOutputPixelSize, getImageDrawRect } from '../../lib/cropMath'
 import { MIN_COLLAGE_PHOTOS, getTemplateById, transposeTemplate } from '../../lib/collageTemplates'
 import { exportCollageFree, exportCollageGrid, resolveRatio } from '../../lib/exportImage'
+import { getBorderColor } from '../../lib/borderColors'
 import { Toolbar, type ToolbarHandle } from './Toolbar'
 import { AspectRatioPicker } from './AspectRatioPicker'
 import { BorderThicknessSlider } from './BorderThicknessSlider'
@@ -20,6 +21,7 @@ import { Dropzone } from './Dropzone'
 import { EditorBottomBar, type BottomBarTool } from './EditorBottomBar'
 import { CLOSE_MS, ExportSuccessToast } from './ExportSuccessToast'
 import { WorkspaceBackgroundPicker } from './WorkspaceBackgroundPicker'
+import { BorderColorPicker } from './BorderColorPicker'
 import { IconCrop, IconDrop, IconFrame, IconGrain, IconGrid } from './icons'
 import { GrainOverlay } from './GrainOverlay'
 
@@ -123,6 +125,12 @@ interface GridCellsLayerProps {
   template: GridTemplate
   assignments: CellAssignment[]
   photos: Record<string, LoadedPhoto>
+  /** CanvasStage's own (animated) frame size — the reflow veil below covers this
+   *  full frame rather than just the content box, since it must stay
+   *  independent of exactly where the still-transitioning cells (or the
+   *  content box's own raw target, which jumps ahead of them) currently are. */
+  canvasWidth: number
+  canvasHeight: number
   contentX: number
   contentY: number
   cellW: number
@@ -143,6 +151,8 @@ function GridCellsLayer({
   template,
   assignments,
   photos,
+  canvasWidth,
+  canvasHeight,
   contentX,
   contentY,
   cellW,
@@ -158,39 +168,59 @@ function GridCellsLayer({
   // to its new rect independently via animateLayout (in PhotoCell), which is
   // the actual motion the person wants to see — but with no shared clock
   // between cells, they can visibly cross paths or drift out of step with
-  // the border/gutter mid-move. A synchronized dip all the way toward
-  // transparent used to read as "everything went white for a second" (see
-  // git history) and was removed; this floors much higher (0.82) so it
-  // softens that crossover into a barely-there cross-fade instead of a flash.
+  // the border/gutter mid-move. A synchronized dip in the CELLS' OWN opacity
+  // used to mask that crossover — first all the way toward transparent (read
+  // as "everything went white for a second", see git history), then floored
+  // at 0.82 to soften it — but any opacity dip on content sitting over an
+  // opaque border/backdrop necessarily reveals that backdrop through it, and
+  // for the default white border that's still a visible brightening, just a
+  // smaller one. Cells now stay fully opaque (never revealing the backdrop),
+  // and a dark veil sweeps over them instead — same triangular envelope,
+  // but darkening can only ever read as an intentional cross-dissolve, never
+  // as a flash toward white.
   const reflowFade = useReflowFade(reflowKey, 320, 0.82)
+  const reflowVeilOpacity = 1 - reflowFade
 
   return (
-    <Group opacity={reflowFade}>
-      {template.cells.map((cell, i) => {
-        const assignment = assignments[i]
-        const photo = assignment?.photoId ? photos[assignment.photoId] : null
-        const x = contentX + cell.col * (cellW + gutterPx)
-        const y = contentY + cell.row * (cellH + gutterPx)
-        const w = cellW * cell.colSpan + gutterPx * (cell.colSpan - 1)
-        const h = cellH * cell.rowSpan + gutterPx * (cell.rowSpan - 1)
-        return (
-          <PhotoCell
-            key={assignment.cellId}
-            x={x}
-            y={y}
-            width={w}
-            height={h}
-            animateLayout
-            shape={shape}
-            grain={grain}
-            photo={photo}
-            transform={assignment.transform}
-            onTransformChange={(t) => onCellTransformChange(assignment.cellId, t)}
-            onEmptyClick={() => onEmptyCellClick(assignment.cellId)}
-          />
-        )
-      })}
-    </Group>
+    <>
+      <Group>
+        {template.cells.map((cell, i) => {
+          const assignment = assignments[i]
+          const photo = assignment?.photoId ? photos[assignment.photoId] : null
+          const x = contentX + cell.col * (cellW + gutterPx)
+          const y = contentY + cell.row * (cellH + gutterPx)
+          const w = cellW * cell.colSpan + gutterPx * (cell.colSpan - 1)
+          const h = cellH * cell.rowSpan + gutterPx * (cell.rowSpan - 1)
+          return (
+            <PhotoCell
+              key={assignment.cellId}
+              x={x}
+              y={y}
+              width={w}
+              height={h}
+              animateLayout
+              shape={shape}
+              grain={grain}
+              photo={photo}
+              transform={assignment.transform}
+              onTransformChange={(t) => onCellTransformChange(assignment.cellId, t)}
+              onEmptyClick={() => onEmptyCellClick(assignment.cellId)}
+            />
+          )
+        })}
+      </Group>
+      {reflowVeilOpacity > 0.001 && (
+        <Rect
+          x={0}
+          y={0}
+          width={canvasWidth}
+          height={canvasHeight}
+          fill="#000000"
+          opacity={reflowVeilOpacity}
+          listening={false}
+        />
+      )}
+    </>
   )
 }
 
@@ -273,6 +303,11 @@ export function CollageEditor() {
   const cellW = (contentW - gutterPx * (template.cols - 1)) / template.cols
   const cellH = (contentH - gutterPx * (template.rows - 1)) / template.rows
 
+  const borderColorHex = getBorderColor(collage.borderColor).hex
+  // Only the live preview eases between colors — the export just paints the
+  // final picked color once, no animation needed for a static file.
+  const animatedBorderColorHex = useAnimatedColor(borderColorHex)
+
   const tools = collage.layoutMode === 'grid' ? GRID_TOOLS : FREE_TOOLS
   const activeToolId = tools.some((t) => t.id === activeTool) ? activeTool : null
 
@@ -307,8 +342,9 @@ export function CollageEditor() {
               quality,
               collage.shape,
               collage.grainIntensity,
+              borderColorHex,
             )
-          : await exportCollageFree(collage.freeItems, photos, ratio, quality, collage.grainIntensity)
+          : await exportCollageFree(collage.freeItems, photos, ratio, quality, collage.grainIntensity, borderColorHex)
       if (saved) setShowSuccessToast(true)
     } finally {
       setExporting(false)
@@ -352,7 +388,7 @@ export function CollageEditor() {
         className={`min-h-0 flex-1 p-4 transition-opacity duration-300 ${resetting ? 'opacity-0' : 'opacity-100'}`}
       >
         {hasContent ? (
-          <CanvasStage outputWidth={outputWidth} outputHeight={outputHeight}>
+          <CanvasStage outputWidth={outputWidth} outputHeight={outputHeight} background={animatedBorderColorHex}>
             {collage.layoutMode === 'grid'
               ? (
                 <GridCellsLayer
@@ -360,6 +396,8 @@ export function CollageEditor() {
                   template={template}
                   assignments={collage.assignments}
                   photos={photos}
+                  canvasWidth={outputWidth}
+                  canvasHeight={outputHeight}
                   contentX={contentX}
                   contentY={contentY}
                   cellW={cellW}
@@ -530,7 +568,10 @@ export function CollageEditor() {
           )}
 
           {activeToolId === 'fondo' && (
-            <WorkspaceBackgroundPicker value={store.workspaceBackground} onChange={store.setWorkspaceBackground} />
+            <>
+              <WorkspaceBackgroundPicker value={store.workspaceBackground} onChange={store.setWorkspaceBackground} />
+              <BorderColorPicker value={collage.borderColor} onChange={store.setCollageBorderColor} />
+            </>
           )}
 
           {activeToolId === 'grain' && (

@@ -185,15 +185,23 @@ export function PhotoCell({
         onDragEnd={handleDragEnd}
       />
       <GrainOverlay
-        // Clamped to the target (not animated) size: when animateLayout is
-        // shrinking a cell (e.g. border/gutter thickened), `width`/`height`
-        // still ease down from the old, larger size for a few frames while
-        // widthTarget/heightTarget already reflect the new, un-animated
-        // border/gutter geometry. Sizing the grain off the animated value
-        // let it briefly overhang past the real cell edge onto the border —
-        // clamping to whichever is smaller keeps it inside the photo always.
-        width={Math.min(width, widthTarget)}
-        height={Math.min(height, heightTarget)}
+        // Sized to the actual drawn photo rect intersected with the cell's
+        // safe bounds — NOT the raw cell size. In 'cover' fit `draw` always
+        // covers the whole cell, so this is a no-op there; but in 'contain'
+        // fit (border-unlocked mode) the photo can letterbox inside the cell,
+        // and painting the overlay over the full cell would speckle grain
+        // onto that empty gap too — which reads as the border/background
+        // color, so it looked like grain leaking onto the border. The
+        // min(width, widthTarget)/min(height, heightTarget) half of the
+        // intersection is the same animateLayout safety as before: while a
+        // cell is easing into a smaller size (border/gutter thickened),
+        // `width`/`height` still lag the new, un-animated target for a few
+        // frames, so clamping to whichever is smaller keeps this inside the
+        // real cell edge too.
+        x={Math.max(0, draw.x)}
+        y={Math.max(0, draw.y)}
+        width={Math.max(0, Math.min(width, widthTarget, draw.x + draw.width) - Math.max(0, draw.x))}
+        height={Math.max(0, Math.min(height, heightTarget, draw.y + draw.height) - Math.max(0, draw.y))}
         intensity={interacting ? 0 : grain}
         referenceWidth={photo.width}
         referenceHeight={photo.height}

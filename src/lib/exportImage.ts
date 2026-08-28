@@ -36,7 +36,15 @@ function drawPhotoInRect(
   ctx.clip()
   const draw = getImageDrawRect(rectW, rectH, photo.width, photo.height, transform, fit)
   ctx.drawImage(photo.bitmap, draw.x, draw.y, draw.width, draw.height)
-  drawGrainOverlay(ctx, rectW, rectH, grainIntensity)
+  // Grain is drawn over the photo's own rect, not the full cell: in 'cover'
+  // fit `draw` already covers the whole cell (the shape clip above trims any
+  // overflow), but in 'contain' fit the photo can letterbox inside the cell —
+  // grain over the full cell would then speckle noise onto that empty gap,
+  // which shows through as the border/background color.
+  ctx.save()
+  ctx.translate(draw.x, draw.y)
+  drawGrainOverlay(ctx, draw.width, draw.height, grainIntensity)
+  ctx.restore()
   ctx.restore()
 }
 
@@ -138,6 +146,7 @@ export async function exportCollageGrid(
   quality: ExportQuality = 'native',
   shape: CellShape = 'rect',
   grainIntensity = 0,
+  borderColorHex = '#ffffff',
 ) {
   const refSize = computeOutputPixelSize(ratio, REF_LONG_EDGE)
   const refShortSide = Math.min(refSize.width, refSize.height)
@@ -171,7 +180,7 @@ export async function exportCollageGrid(
   if (!ctx) throw new Error('Canvas not supported')
   ctx.imageSmoothingEnabled = true
   ctx.imageSmoothingQuality = 'high'
-  ctx.fillStyle = '#ffffff'
+  ctx.fillStyle = borderColorHex
   ctx.fillRect(0, 0, width, height)
 
   const shortSide = Math.min(width, height)
@@ -206,6 +215,7 @@ export async function exportCollageFree(
   ratio: number,
   quality: ExportQuality = 'native',
   grainIntensity = 0,
+  borderColorHex = '#ffffff',
 ) {
   const refSize = computeOutputPixelSize(ratio, REF_LONG_EDGE)
 
@@ -229,7 +239,7 @@ export async function exportCollageFree(
   if (!ctx) throw new Error('Canvas not supported')
   ctx.imageSmoothingEnabled = true
   ctx.imageSmoothingQuality = 'high'
-  ctx.fillStyle = '#ffffff'
+  ctx.fillStyle = borderColorHex
   ctx.fillRect(0, 0, width, height)
 
   for (const item of freeItems) {
