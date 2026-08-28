@@ -28,7 +28,7 @@ export const Toolbar = forwardRef<ToolbarHandle, ToolbarProps>(function Toolbar(
     exportQuality,
     exporting,
     canExport = true,
-    uploadLabel = 'Agregar foto',
+    uploadLabel = 'Add photo',
     multiple = false,
   },
   ref,
@@ -93,10 +93,10 @@ export const Toolbar = forwardRef<ToolbarHandle, ToolbarProps>(function Toolbar(
         type="button"
         onClick={onBack}
         className="-ml-2 flex h-9 items-center gap-1.5 rounded-full pl-2 pr-3 text-white transition duration-200 hover:bg-white/10 active:scale-95 active:bg-white/15"
-        aria-label={`Volver, ${title}`}
+        aria-label={`Back, ${title}`}
       >
         <span className="text-2xl leading-none">←</span>
-        <span className="font-label text-sm font-semibold uppercase tracking-wide">Atrás</span>
+        <span className="font-label text-sm font-semibold uppercase tracking-wide">Back</span>
       </button>
       <div className="flex h-9 items-center gap-2">
         <input
@@ -137,7 +137,7 @@ export const Toolbar = forwardRef<ToolbarHandle, ToolbarProps>(function Toolbar(
           disabled={exporting || !canExport}
           className="font-label inline-flex h-9 items-center rounded-full bg-white px-4 text-xs font-semibold uppercase tracking-wide text-ink-900 transition duration-200 hover:bg-white/90 active:scale-95 disabled:cursor-not-allowed disabled:opacity-40 disabled:active:scale-100"
         >
-          {exporting ? 'Exportando…' : 'Exportar'}
+          {exporting ? 'Exporting…' : 'Export'}
         </button>
       </div>
 

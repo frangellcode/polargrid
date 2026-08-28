@@ -12,7 +12,7 @@ interface ExportQualitySheetProps {
 const EASE = 'ease-[cubic-bezier(0.22,1,0.36,1)]'
 // Exported so Toolbar can delay kicking off the (synchronous, main-thread-
 // blocking) canvas export until this sheet has actually finished closing —
-// otherwise that work starts the instant "Exportar" is tapped and hogs the
+// otherwise that work starts the instant "Export" is tapped and hogs the
 // thread right through this close transition, so the sheet never gets to
 // paint its slide-down frames and just snaps away instead.
 export const CLOSE_MS = 300
@@ -71,7 +71,7 @@ export function ExportQualitySheet({ open, defaultQuality, onClose, onExport }: 
     >
       <button
         type="button"
-        aria-label="Cerrar"
+        aria-label="Close"
         tabIndex={open ? 0 : -1}
         onClick={onClose}
         className="absolute inset-0 bg-black/50"
@@ -83,9 +83,9 @@ export function ExportQualitySheet({ open, defaultQuality, onClose, onExport }: 
       >
         <div className="mx-auto mb-3 h-1.5 w-10 rounded-full bg-white/20" />
         <h2 className="font-display mb-1 px-1 text-center text-sm font-semibold uppercase tracking-wider text-white">
-          Calidad de exportación
+          Export quality
         </h2>
-        <p className="font-label mb-4 px-1 text-center text-sm text-white/45">Elige con qué calidad quieres guardar tu foto.</p>
+        <p className="font-label mb-4 px-1 text-center text-sm text-white/45">Choose the quality you want to save your photo in.</p>
 
         <div className="flex flex-col gap-2">
           {EXPORT_QUALITY_PRESETS.map((preset) => (
@@ -120,14 +120,14 @@ export function ExportQualitySheet({ open, defaultQuality, onClose, onExport }: 
             onClick={onClose}
             className="font-label flex-1 rounded-2xl bg-white/10 py-3 text-xs font-semibold uppercase tracking-wide text-white transition duration-200 active:scale-95"
           >
-            Cancelar
+            Cancel
           </button>
           <button
             type="button"
             onClick={() => onExport(selected)}
             className="font-label flex-[2] rounded-2xl bg-white py-3 text-xs font-semibold uppercase tracking-wide text-ink-900 transition duration-200 hover:bg-white/90 active:scale-95"
           >
-            Exportar
+            Export
           </button>
         </div>
       </div>

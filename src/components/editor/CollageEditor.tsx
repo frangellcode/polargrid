@@ -25,16 +25,16 @@ import { GrainOverlay } from './GrainOverlay'
 const PREVIEW_LONG_EDGE = 900
 
 const GRID_TOOLS: BottomBarTool[] = [
-  { id: 'fondo', label: 'Fondo', icon: <IconDrop /> },
-  { id: 'formato', label: 'Formato', icon: <IconCrop /> },
-  { id: 'plantilla', label: 'Plantilla', icon: <IconGrid /> },
-  { id: 'bordes', label: 'Bordes', icon: <IconFrame /> },
+  { id: 'fondo', label: 'Background', icon: <IconDrop /> },
+  { id: 'formato', label: 'Format', icon: <IconCrop /> },
+  { id: 'plantilla', label: 'Template', icon: <IconGrid /> },
+  { id: 'bordes', label: 'Border', icon: <IconFrame /> },
   { id: 'grain', label: 'Grain', icon: <IconGrain /> },
 ]
 
 const FREE_TOOLS: BottomBarTool[] = [
-  { id: 'fondo', label: 'Fondo', icon: <IconDrop /> },
-  { id: 'formato', label: 'Formato', icon: <IconCrop /> },
+  { id: 'fondo', label: 'Background', icon: <IconDrop /> },
+  { id: 'formato', label: 'Format', icon: <IconCrop /> },
   { id: 'grain', label: 'Grain', icon: <IconGrain /> },
 ]
 
@@ -213,7 +213,7 @@ export function CollageEditor() {
   const { loadFiles } = useImageBitmap()
   const [exporting, setExporting] = useState(false)
   const [showSuccessToast, setShowSuccessToast] = useState(false)
-  // True for the CLOSE_MS window between tapping "Hacer otro" and the
+  // True for the CLOSE_MS window between tapping "Create another" and the
   // collage actually being cleared — fades the current canvas/bottom bar
   // out instead of them just vanishing the instant resetCollage() fires.
   const [resetting, setResetting] = useState(false)
@@ -287,7 +287,7 @@ export function CollageEditor() {
     }
     const added = store.addCollagePhotos(loaded)
     if (!added) {
-      setUploadError(`Selecciona al menos ${MIN_COLLAGE_PHOTOS} fotos para armar un collage`)
+      setUploadError(`Select at least ${MIN_COLLAGE_PHOTOS} photos to build a collage`)
     }
   }
 
@@ -329,7 +329,7 @@ export function CollageEditor() {
         exportQuality={collage.exportQuality}
         exporting={exporting}
         canExport={hasContent}
-        uploadLabel="Agregar fotos"
+        uploadLabel="Add photos"
         multiple
       />
 
@@ -343,7 +343,7 @@ export function CollageEditor() {
               collage.layoutMode === m ? 'bg-white text-ink-900' : 'bg-white/10 text-white/70'
             }`}
           >
-            {m === 'grid' ? 'Plantilla' : 'Libre'}
+            {m === 'grid' ? 'Template' : 'Free'}
           </button>
         ))}
       </div>
@@ -386,8 +386,8 @@ export function CollageEditor() {
           </CanvasStage>
         ) : (
           <Dropzone
-            label="Toca para subir tus fotos"
-            hint="o arrástralas aquí (varias a la vez)"
+            label="Tap to upload your photos"
+            hint="or drag them here (several at once)"
             error={uploadError}
             onFiles={handleUpload}
           />
@@ -404,7 +404,7 @@ export function CollageEditor() {
             }}
             className="font-label rounded-full bg-red-500/15 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-red-300 transition duration-200 hover:bg-red-500/25 active:scale-90"
           >
-            Eliminar foto
+            Remove photo
           </button>
         </div>
       )}
@@ -414,7 +414,7 @@ export function CollageEditor() {
         <EditorBottomBar tools={tools} activeId={activeToolId} onSelect={setActiveTool}>
           {activeToolId === 'formato' && (
             <div>
-              <p className="font-label mb-2 text-center text-xs font-semibold uppercase tracking-wider text-white/40">Formato del lienzo</p>
+              <p className="font-label mb-2 text-center text-xs font-semibold uppercase tracking-wider text-white/40">Canvas format</p>
               <AspectRatioPicker
                 value={collage.aspectRatioId}
                 onChange={store.setCollageAspectRatio}
@@ -428,7 +428,7 @@ export function CollageEditor() {
           {activeToolId === 'plantilla' && (
             <>
               <div>
-                <p className="font-label mb-2 text-center text-xs font-semibold uppercase tracking-wider text-white/40">Orientación</p>
+                <p className="font-label mb-2 text-center text-xs font-semibold uppercase tracking-wider text-white/40">Orientation</p>
                 <div className="flex justify-center gap-2">
                   {(['vertical', 'horizontal'] as const).map((o) => (
                     <button
@@ -447,12 +447,12 @@ export function CollageEditor() {
                 </div>
               </div>
               <div>
-                <p className="font-label mb-2 text-center text-xs font-semibold uppercase tracking-wider text-white/40">Forma</p>
+                <p className="font-label mb-2 text-center text-xs font-semibold uppercase tracking-wider text-white/40">Shape</p>
                 <div className="flex justify-center gap-2">
                   {(
                     [
                       { shape: 'rect' as const, label: 'Rectangular' },
-                      { shape: 'rounded' as const, label: 'Redondeado' },
+                      { shape: 'rounded' as const, label: 'Rounded' },
                     ]
                   ).map(({ shape, label }) => (
                     <button
@@ -472,7 +472,7 @@ export function CollageEditor() {
               </div>
               <div>
                 <p className="font-label mb-2 text-center text-xs font-semibold uppercase tracking-wider text-white/40">
-                  Diseño ({collage.photoCount} fotos)
+                  Layout ({collage.photoCount} photos)
                 </p>
                 <GridTemplatePicker
                   count={collage.photoCount}
@@ -482,14 +482,14 @@ export function CollageEditor() {
                   onChange={store.setCollageTemplateId}
                 />
               </div>
-              <p className="font-label text-center text-xs text-white/40">Toca una celda vacía en el lienzo para subir una foto.</p>
+              <p className="font-label text-center text-xs text-white/40">Tap an empty cell on the canvas to upload a photo.</p>
             </>
           )}
 
           {activeToolId === 'bordes' && (
             <>
               <BorderThicknessSlider
-                label="Borde exterior"
+                label="Outer border"
                 value={collage.outerBorderPct}
                 onChange={(pct) => {
                   store.setOuterBorderPct(pct)
@@ -498,7 +498,7 @@ export function CollageEditor() {
               />
               <div className="space-y-3">
                 <BorderThicknessSlider
-                  label="Espacio entre fotos"
+                  label="Space between photos"
                   value={collage.gutterPct}
                   onChange={(pct) => {
                     store.setGutterPct(pct)
@@ -522,7 +522,7 @@ export function CollageEditor() {
                         : 'bg-white/10 text-white/70 hover:bg-white/15'
                     }`}
                   >
-                    {gutterLinked ? 'Vinculado con el borde exterior ✓' : 'Igualar con el borde exterior'}
+                    {gutterLinked ? 'Linked with outer border ✓' : 'Match outer border'}
                   </button>
                 </div>
               </div>
@@ -535,7 +535,7 @@ export function CollageEditor() {
 
           {activeToolId === 'grain' && (
             <BorderThicknessSlider
-              label="Grano"
+              label="Grain"
               value={collage.grainIntensity}
               onChange={store.setCollageGrain}
               min={0}

@@ -13,7 +13,7 @@ export default defineConfig({
     react(),
     tailwindcss(),
     VitePWA({
-      // 'prompt' (not 'autoUpdate') is required for the "Actualizar app"
+      // 'prompt' (not 'autoUpdate') is required for the "Update app"
       // badge/animation in App.tsx to ever be visible: autoUpdate makes the
       // new service worker self-activate and workbox-window silently calls
       // window.location.reload() the instant it does — the page reloads
@@ -32,7 +32,7 @@ export default defineConfig({
       manifest: {
         name: 'PolarGrid',
         short_name: 'PolarGrid',
-        description: 'Bordes blancos y collages de fotos en alta calidad, 100% offline.',
+        description: 'White borders and photo collages in high quality, 100% offline.',
         // Matches the app's dark rebrand (bg-ink-900, #141e30) — otherwise the
         // OS-generated splash screen shown while the app cold-launches from
         // the home screen icon is white, then flashes to the actual dark UI.

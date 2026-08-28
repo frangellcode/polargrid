@@ -58,7 +58,7 @@ export function CanvasStage({
       ref={containerRef}
       className="relative flex h-full w-full items-center justify-center overflow-hidden rounded-xl p-[5px] transition-colors duration-300"
       // Backed by CHECKER_BASE_HEX (one of the checkerboard's own two square
-      // colors) instead of literal 'transparent' for "Sin fondo". Animating
+      // colors) instead of literal 'transparent' for "No background". Animating
       // background-color THROUGH transparent made the browser interpolate
       // through transparent's implicit (0,0,0) RGB — a black-tinted fade —
       // on top of which the checker layer below was also fading, compounding
@@ -68,7 +68,7 @@ export function CanvasStage({
       // (below) blends into it seamlessly once it's mostly faded in.
       style={{ backgroundColor: workspaceBg.hex ?? CHECKER_BASE_HEX }}
     >
-      {/* Checkered "Sin fondo" pattern as its own opacity-animated layer, in
+      {/* Checkered "No background" pattern as its own opacity-animated layer, in
           sync with the color fade above. */}
       <div
         className="pointer-events-none absolute inset-0 bg-[repeating-conic-gradient(#e2e8f0_0%_25%,#eef2f6_0%_50%)] bg-[length:20px_20px] transition-opacity duration-300"

@@ -23,7 +23,7 @@ const BOOT_FLIGHT_MS = 900
 type BootStage = 'hold' | 'flying' | 'done'
 
 // "Update" replay: reuses the exact same floating-logo trick as the boot
-// splash, just run in reverse first. Tapping "Actualizar app" sends the home
+// splash, just run in reverse first. Tapping "Update app" sends the home
 // logo back to the center (growing, text fading out — same motion as boot
 // but backwards) and holds there while a progress bar fills 0->100. At 100%,
 // applyUpdate() activates the waiting service worker, which triggers a real
@@ -157,7 +157,7 @@ function App() {
       // client — applyUpdate() silently activates the new worker with
       // nothing to trigger the actual reload, so the badge clears but the
       // app keeps running the old bundle no matter how many times you tap
-      // Actualizar. This fires independently of that event; if the primary
+      // Update. This fires independently of that event; if the primary
       // path already reloaded by then this is a no-op (navigation is
       // already underway).
       setTimeout(() => window.location.reload(), 1200)
@@ -306,7 +306,7 @@ function App() {
             <div className="h-full rounded-full bg-white" style={{ width: `${updateProgress}%` }} />
           </div>
           <span className="font-label text-[10px] font-light uppercase tracking-[0.14em] text-white/50">
-            Actualizando… {updateProgress}%
+            Updating… {updateProgress}%
           </span>
         </div>
       )}

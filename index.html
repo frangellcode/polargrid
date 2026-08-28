@@ -1,10 +1,10 @@
 <!doctype html>
-<html lang="es">
+<html lang="en">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1" />
     <title>PolarGrid</title>
-    <meta name="description" content="Bordes blancos y collages de fotos en alta calidad, 100% offline." />
+    <meta name="description" content="White borders and photo collages in high quality, 100% offline." />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <!-- display=optional (not swap): with swap, the fallback system font
@@ -15,30 +15,28 @@
          either has the real font ready in time for the first paint or
          sticks with the fallback for that load — no swap, no shift. -->
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Syne:wght@500;700&family=Jost:wght@300;400;500&display=optional" />
-    <!-- Debe coincidir con el fondo real de la app (todas las pantallas son
-         bg-ink-900, #141e30) — en Safari (modo no instalado) esto tiñe la
-         barra de herramientas/tarjeta del selector de apps, así que un
-         valor que no coincida con el fondo de la app crea una franja de
-         color visible en el borde superior. -->
+    <!-- Must match the app's real background (every screen is bg-ink-900,
+         #141e30) — in Safari (non-installed mode) this tints the toolbar/
+         app-switcher card, so a value that doesn't match the app's
+         background creates a visible color stripe along the top edge. -->
     <meta name="theme-color" content="#141e30" />
 
     <link rel="icon" type="image/png" href="./icons/icon-192.png" />
     <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png" />
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
-    <!-- "black-translucent": la app es de fondo oscuro (#141e30) en todas
-         sus pantallas, así que dejamos que el contenido se extienda debajo
-         de la barra de estado con texto/iconos blancos — legibles sobre el
-         fondo oscuro. Cada pantalla ya reserva ese espacio por su cuenta
-         vía `pt-[env(safe-area-inset-top)]` (Toolbar/HomeScreen). -->
+    <!-- "black-translucent": the app has a dark background (#141e30) on
+         every screen, so we let the content extend under the status bar
+         with white text/icons — readable against the dark background.
+         Each screen already reserves that space on its own via
+         `pt-[env(safe-area-inset-top)]` (Toolbar/HomeScreen). -->
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="PolarGrid" />
 
-    <!-- Fondo inmediato antes de que cargue el CSS: si el sistema está en
-         modo claro, Safari puede pintar el primer frame con fondo blanco
-         por defecto (color-scheme sin declarar) y producir un flash claro
-         en el borde superior/inferior antes de que se aplique el azul
-         petróleo de la app. -->
+    <!-- Immediate background before CSS loads: if the system is in light
+         mode, Safari can paint the first frame with a default white
+         background (undeclared color-scheme) and produce a light flash
+         along the top/bottom edge before the app's petrol blue applies. -->
     <style>
       html, body { background-color: #141e30; }
 

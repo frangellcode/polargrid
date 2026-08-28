@@ -4,7 +4,8 @@ import { useUpdateStore } from '../store/updateStore'
 import { Logo } from './Logo'
 import { IconInstagram, IconRefresh } from './editor/icons'
 
-const INSTAGRAM_URL = 'https://instagram.com/frangellcode'
+const INSTAGRAM_URL = 'https://instagram.com/frangellgram'
+const DONATE_URL = 'https://paypal.me/frangellgram'
 
 interface HomeScreenProps {
   /** True while the boot splash's floating logo is still in flight toward this
@@ -56,7 +57,7 @@ export function HomeScreen({
   return (
     <div className="flex h-full flex-col items-center bg-ink-900 px-6 pb-[max(1.5rem,env(safe-area-inset-bottom))] pt-[max(1.5rem,env(safe-area-inset-top))] text-center">
       {/* flex-1 centers the main content within whatever space is left above
-          the Instagram footer below, instead of the footer joining this
+          the donate/follow footer below, instead of the footer joining this
           group's own gap-10 rhythm — keeps it visually isolated at the very
           bottom of the screen rather than reading as one more menu item. */}
       <div className="flex w-full flex-1 flex-col items-center justify-center gap-10">
@@ -72,7 +73,7 @@ export function HomeScreen({
         <h1 className={`font-display text-3xl font-bold text-white ${revealCls('delay-0')}`}>PolarGrid</h1>
         <div className={`h-px w-8 bg-white/35 ${revealCls('delay-0')}`} />
         <p className={`max-w-xs font-label text-xs font-light leading-7 text-white/60 ${revealCls('delay-0')}`}>
-          Bordes blancos y collages para tus fotos artísticas, en alta calidad y sin conexión a internet.
+          White borders and collages for your artistic photos, in high quality and with no internet connection required.
         </p>
       </div>
 
@@ -84,8 +85,8 @@ export function HomeScreen({
         >
           <span className="font-display w-5 text-sm font-bold text-white/50">I</span>
           <span className="flex flex-col gap-1">
-            <span className="font-display text-base font-medium text-white">Bordes blancos</span>
-            <span className="font-label text-[10.5px] font-light text-white/50">Enmarca una foto con borde blanco</span>
+            <span className="font-display text-base font-medium text-white">White border</span>
+            <span className="font-label text-[10.5px] font-light text-white/50">Frame a photo with a white border</span>
           </span>
         </button>
 
@@ -97,7 +98,7 @@ export function HomeScreen({
           <span className="font-display w-5 text-sm font-bold text-white/50">II</span>
           <span className="flex flex-col gap-1">
             <span className="font-display text-base font-medium text-white">Collage</span>
-            <span className="font-label text-[10.5px] font-light text-white/50">Combina varias fotos en una grilla</span>
+            <span className="font-label text-[10.5px] font-light text-white/50">Combine several photos into a grid</span>
           </span>
         </button>
       </div>
@@ -119,7 +120,7 @@ export function HomeScreen({
             </span>
           )}
         </span>
-        Actualizar app
+        Update app
       </button>
       </div>
 
@@ -131,17 +132,31 @@ export function HomeScreen({
           part of the flourish. Its own longer duration-1000 (vs everyone
           else's 700) makes that shared arrival read softer, like it's still
           gently dissolving in after the rest has landed. */}
-      <a
-        href={INSTAGRAM_URL}
-        target="_blank"
-        rel="noopener noreferrer"
-        className={`flex items-center gap-1.5 pb-12 font-label text-[11px] font-light text-white/40 transition-all duration-1000 ease-out delay-300 active:scale-95 ${
+      <div
+        className={`flex flex-col items-center gap-3 pb-12 transition-all duration-1000 ease-out delay-300 ${
           contentVisible ? 'translate-y-0 opacity-100' : 'pointer-events-none translate-y-2 opacity-0'
         }`}
       >
-        Apóyanos siguiéndonos · @frangellcode
-        <IconInstagram className="h-3.5 w-3.5" />
-      </a>
+        <a
+          href={DONATE_URL}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="font-label flex items-center gap-3 rounded-full bg-white/10 py-2 pl-4 pr-3.5 text-[11px] font-light text-white/60 transition duration-200 hover:bg-white/15 active:scale-95"
+        >
+          Help keep this app alive
+          <span className="h-3.5 w-px bg-white/25" />
+          <span className="font-semibold text-white">Donate</span>
+        </a>
+        <a
+          href={INSTAGRAM_URL}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex items-center gap-1.5 font-label text-[11px] font-light text-white/40 active:scale-95"
+        >
+          Follow us at @frangellgram
+          <IconInstagram className="h-3.5 w-3.5" />
+        </a>
+      </div>
     </div>
   )
 }

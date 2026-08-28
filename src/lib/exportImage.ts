@@ -1,4 +1,3 @@
-// prueba: verificando sincronización con GitHub Desktop
 import type { CellAssignment, CellShape, ExportQuality, FreeItem, GridTemplate, LoadedPhoto, Orientation, PhotoFit, PhotoTransform } from '../types'
 import { computeNativeCanvasSize, computeNativeCanvasSizeContain, computeOutputPixelSize, getImageDrawRect } from './cropMath'
 import { ASPECT_RATIOS } from './aspectRatios'
@@ -46,7 +45,7 @@ async function downloadCanvas(canvas: HTMLCanvasElement, filename: string): Prom
   const blob = await new Promise<Blob | null>((resolve) =>
     canvas.toBlob((b) => resolve(b), 'image/jpeg', JPEG_QUALITY),
   )
-  if (!blob) throw new Error('No se pudo generar la imagen')
+  if (!blob) throw new Error('Could not generate the image')
 
   // In an installed iOS PWA, an <a download> anchor can't trigger a real
   // download — Safari instead opens the image in its own full-screen blob
@@ -91,7 +90,7 @@ export async function exportBorderPhoto(
   // Cap the PHOTO's own resolution to the quality tier first, then build the
   // bordered canvas around that. Capping the final (photo + border) canvas
   // instead — as this used to — meant a thicker border ate into the same
-  // pixel budget as the photo, so "Alta"/"Web" got visibly softer just from
+  // pixel budget as the photo, so "High"/"Web" got visibly softer just from
   // adding a border. This way the border only ever adds pixels on top.
   const { width: effPhotoW, height: effPhotoH } = capLongEdge(photo.width, photo.height, getMaxLongEdge(quality))
   const { width, height } = sizeFn(effPhotoW, effPhotoH, ratio, borderThicknessPct, transform.zoom)
@@ -99,7 +98,7 @@ export async function exportBorderPhoto(
   canvas.width = width
   canvas.height = height
   const ctx = canvas.getContext('2d')
-  if (!ctx) throw new Error('Canvas no soportado')
+  if (!ctx) throw new Error('Canvas not supported')
   ctx.imageSmoothingEnabled = true
   ctx.imageSmoothingQuality = 'high'
   ctx.fillStyle = borderColorHex
@@ -120,7 +119,7 @@ export async function exportBorderPhoto(
     grainIntensity,
   )
 
-  return downloadCanvas(canvas, `polargrid-borde-${Date.now()}.jpg`)
+  return downloadCanvas(canvas, `polargrid-border-${Date.now()}.jpg`)
 }
 
 /**
@@ -169,7 +168,7 @@ export async function exportCollageGrid(
   canvas.width = width
   canvas.height = height
   const ctx = canvas.getContext('2d')
-  if (!ctx) throw new Error('Canvas no soportado')
+  if (!ctx) throw new Error('Canvas not supported')
   ctx.imageSmoothingEnabled = true
   ctx.imageSmoothingQuality = 'high'
   ctx.fillStyle = '#ffffff'
@@ -227,7 +226,7 @@ export async function exportCollageFree(
   canvas.width = width
   canvas.height = height
   const ctx = canvas.getContext('2d')
-  if (!ctx) throw new Error('Canvas no soportado')
+  if (!ctx) throw new Error('Canvas not supported')
   ctx.imageSmoothingEnabled = true
   ctx.imageSmoothingQuality = 'high'
   ctx.fillStyle = '#ffffff'

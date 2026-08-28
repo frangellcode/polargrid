@@ -10,7 +10,7 @@ interface BorderColorPickerProps {
 export function BorderColorPicker({ value, onChange }: BorderColorPickerProps) {
   return (
     <div>
-      <p className="font-label mb-2 text-center text-xs font-semibold uppercase tracking-wider text-white/40">Color del borde</p>
+      <p className="font-label mb-2 text-center text-xs font-semibold uppercase tracking-wider text-white/40">Border color</p>
       <div className="flex flex-wrap justify-center gap-3">
         {BORDER_COLORS.map((color) => {
           const active = value === color.id

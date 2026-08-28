@@ -22,8 +22,8 @@ const PREVIEW_LONG_EDGE = 900
 
 const TOOLS: BottomBarTool[] = [
   { id: 'color', label: 'Color', icon: <IconDrop /> },
-  { id: 'recorte', label: 'Recorte', icon: <IconCrop /> },
-  { id: 'bordes', label: 'Bordes', icon: <IconFrame /> },
+  { id: 'recorte', label: 'Crop', icon: <IconCrop /> },
+  { id: 'bordes', label: 'Border', icon: <IconFrame /> },
   { id: 'grain', label: 'Grain', icon: <IconGrain /> },
 ]
 
@@ -49,11 +49,11 @@ export function BorderEditor() {
   const { loadFiles } = useImageBitmap()
   const [exporting, setExporting] = useState(false)
   const [showSuccessToast, setShowSuccessToast] = useState(false)
-  // True for the CLOSE_MS window between tapping "Hacer otro" and the photo
+  // True for the CLOSE_MS window between tapping "Create another" and the photo
   // actually being cleared — fades the current photo/bottom bar out instead
   // of them just vanishing the instant resetBorder() fires.
   const [resetting, setResetting] = useState(false)
-  // Starts on 'recorte' so the panel opens with Recorte already selected the
+  // Starts on 'recorte' so the panel opens with Crop already selected the
   // moment a photo lands — the bottom bar itself is gated on `photo` below,
   // so this has no effect until then.
   const [activeTool, setActiveTool] = useState<string | null>('recorte')
@@ -87,8 +87,8 @@ export function BorderEditor() {
   const outputWidth = useAnimatedNumber(targetWidth)
   const outputHeight = useAnimatedNumber(targetHeight)
   // Animates the cover<->contain blend itself (not just a CSS transition on the
-  // toggle) so the photo's crop eases smoothly instead of snapping when Bloqueada/
-  // Desbloqueada is switched.
+  // toggle) so the photo's crop eases smoothly instead of snapping when Locked/
+  // Unlocked is switched.
   const fitMix = useAnimatedNumber(border.locked ? 0 : 1)
 
   const borderPx = border.borderThicknessPct * Math.min(outputWidth, outputHeight)
@@ -128,14 +128,14 @@ export function BorderEditor() {
   return (
     <div className="flex h-full flex-col bg-ink-900">
       <Toolbar
-        title="Bordes blancos"
+        title="White border"
         onBack={() => setMode('home')}
         onUpload={handleUpload}
         onExport={handleExport}
         exportQuality={border.exportQuality}
         exporting={exporting}
         canExport={!!photo}
-        uploadLabel={photo ? 'Cambiar foto' : 'Subir foto'}
+        uploadLabel={photo ? 'Change photo' : 'Upload photo'}
       />
 
       <div
@@ -157,8 +157,8 @@ export function BorderEditor() {
           </CanvasStage>
         ) : (
           <Dropzone
-            label="Toca para subir una foto"
-            hint="o arrástrala aquí"
+            label="Tap to upload a photo"
+            hint="or drag it here"
             onFiles={handleUpload}
             multiple={false}
           />
@@ -170,7 +170,7 @@ export function BorderEditor() {
         <EditorBottomBar tools={TOOLS} activeId={activeTool} onSelect={setActiveTool}>
           {activeTool === 'recorte' && (
             <div>
-              <p className="font-label mb-2 text-center text-xs font-semibold uppercase tracking-wider text-white/40">Recorte</p>
+              <p className="font-label mb-2 text-center text-xs font-semibold uppercase tracking-wider text-white/40">Crop</p>
               <AspectRatioPicker
                 value={border.aspectRatioId}
                 onChange={setBorderAspectRatio}
@@ -190,13 +190,13 @@ export function BorderEditor() {
                           : 'bg-white/10 text-white/70 hover:bg-white/15'
                       }`}
                     >
-                      {isLocked ? 'Bloqueada' : 'Desbloqueada'}
+                      {isLocked ? 'Locked' : 'Unlocked'}
                     </button>
                   ))}
                 </div>
                 {!border.locked && (
                   <p className="fade-in font-label max-w-[220px] text-center text-[11px] text-white/40">
-                    El borde se ajusta para mostrar la foto completa, sin recortarla
+                    The border adjusts to show the full photo, without cropping it
                   </p>
                 )}
               </div>
@@ -205,7 +205,7 @@ export function BorderEditor() {
 
           {activeTool === 'bordes' && (
             <BorderThicknessSlider
-              label="Grosor del borde"
+              label="Border thickness"
               value={border.borderThicknessPct}
               onChange={setBorderThickness}
             />
@@ -220,7 +220,7 @@ export function BorderEditor() {
 
           {activeTool === 'grain' && (
             <BorderThicknessSlider
-              label="Grano"
+              label="Grain"
               value={border.grainIntensity}
               onChange={setBorderGrain}
               min={0}

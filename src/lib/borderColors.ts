@@ -9,13 +9,13 @@ export interface BorderColorOption {
  *  than as an editor backdrop), with white kept first/default for the
  *  classic polaroid look everyone expects. */
 export const BORDER_COLORS: BorderColorOption[] = [
-  { id: 'white', label: 'Blanco', hex: '#ffffff' },
-  { id: 'onyx', label: 'Ónix', hex: '#1c1c1e' },
-  { id: 'graphite', label: 'Grafito', hex: '#6e6a65' },
-  { id: 'forest', label: 'Bosque', hex: '#2f3a2e' },
-  { id: 'wine', label: 'Vino', hex: '#5c2a2e' },
-  { id: 'navy', label: 'Noche', hex: '#232b3a' },
-  { id: 'sand', label: 'Arena', hex: '#c9bfae' },
+  { id: 'white', label: 'White', hex: '#ffffff' },
+  { id: 'onyx', label: 'Onyx', hex: '#1c1c1e' },
+  { id: 'graphite', label: 'Graphite', hex: '#6e6a65' },
+  { id: 'forest', label: 'Forest', hex: '#2f3a2e' },
+  { id: 'wine', label: 'Wine', hex: '#5c2a2e' },
+  { id: 'navy', label: 'Night', hex: '#232b3a' },
+  { id: 'sand', label: 'Sand', hex: '#c9bfae' },
 ]
 
 export const DEFAULT_BORDER_COLOR = 'white'

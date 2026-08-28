@@ -19,7 +19,7 @@ function rgbToHex(r: number, g: number, b: number): string {
 }
 
 /** Smoothly cross-fades between hex colors whenever `target` changes,
- *  instead of snapping — e.g. Bordes' border-color swatches. */
+ *  instead of snapping — e.g. the border-color swatches. */
 export function useAnimatedColor(target: string, duration = 320): string {
   const [value, setValue] = useState(target)
   const rafRef = useRef<number | undefined>(undefined)

@@ -25,7 +25,7 @@ const GEOMETRIES: GeometryDef[] = [
   // ---- 2 photos ----
   {
     key: 'grid-2-normal',
-    label: '2 fotos',
+    label: '2 photos',
     count: 2,
     cols: 2,
     rows: 1,
@@ -38,7 +38,7 @@ const GEOMETRIES: GeometryDef[] = [
     // 8:5 ~= golden ratio (0.615/0.385) — a subtler, less "cut in a blender"
     // asymmetry than the old plain 3:2 (0.6/0.4) split.
     key: 'grid-2-big-left',
-    label: '2 fotos · grande y chica',
+    label: '2 photos · big and small',
     count: 2,
     cols: 13,
     rows: 1,
@@ -49,7 +49,7 @@ const GEOMETRIES: GeometryDef[] = [
   },
   {
     key: 'grid-2-big-right',
-    label: '2 fotos · chica y grande',
+    label: '2 photos · small and big',
     count: 2,
     cols: 13,
     rows: 1,
@@ -63,7 +63,7 @@ const GEOMETRIES: GeometryDef[] = [
     // as deliberate negative space — reads as a designed accent rather than a
     // leftover gap.
     key: 'grid-2-diagonal',
-    label: '2 fotos · acento diagonal',
+    label: '2 photos · diagonal accent',
     count: 2,
     cols: 2,
     rows: 2,
@@ -76,7 +76,7 @@ const GEOMETRIES: GeometryDef[] = [
   {
     // Deliberate negative space: top-left is intentionally left empty.
     key: 'grid-2-big-right-gap',
-    label: '2 fotos · grande + espacio negativo',
+    label: '2 photos · big + negative space',
     count: 2,
     cols: 3,
     rows: 3,
@@ -88,7 +88,7 @@ const GEOMETRIES: GeometryDef[] = [
   {
     // Deliberate negative space: a small notch at top-left is intentionally left empty.
     key: 'grid-2-side-notch',
-    label: '2 fotos · vertical con muesca',
+    label: '2 photos · vertical with notch',
     count: 2,
     cols: 2,
     rows: 5,
@@ -101,7 +101,7 @@ const GEOMETRIES: GeometryDef[] = [
     // 60/40 horizontal split — a ratio between the plain 50/50 (normal) and
     // the ~61.5/38.5 golden-ratio split (big-left/big-right).
     key: 'grid-2-split-60-40',
-    label: '2 fotos · 60/40',
+    label: '2 photos · 60/40',
     count: 2,
     cols: 5,
     rows: 1,
@@ -114,7 +114,7 @@ const GEOMETRIES: GeometryDef[] = [
     // 70/30 horizontal split — a sharper asymmetry than the golden-ratio and
     // 60/40 splits.
     key: 'grid-2-small-big-70-30',
-    label: '2 fotos · chica y grande (70/30)',
+    label: '2 photos · small and big (70/30)',
     count: 2,
     cols: 10,
     rows: 1,
@@ -127,7 +127,7 @@ const GEOMETRIES: GeometryDef[] = [
     // Deliberate negative space: a big photo fills the left 3/5, the second
     // "floats" as a small square on the right with margin on every side.
     key: 'grid-2-floating',
-    label: '2 fotos · foto flotante',
+    label: '2 photos · floating photo',
     count: 2,
     cols: 5,
     rows: 3,
@@ -140,7 +140,7 @@ const GEOMETRIES: GeometryDef[] = [
   // ---- 3 photos ----
   {
     key: 'grid-3-normal',
-    label: '3 fotos',
+    label: '3 photos',
     count: 3,
     cols: 3,
     rows: 1,
@@ -153,7 +153,7 @@ const GEOMETRIES: GeometryDef[] = [
   {
     // 5:3 rows (62.5/37.5) instead of a flat 50/50 split.
     key: 'grid-3-big-top',
-    label: '3 fotos · grande + 2',
+    label: '3 photos · big + 2',
     count: 3,
     cols: 2,
     rows: 8,
@@ -165,7 +165,7 @@ const GEOMETRIES: GeometryDef[] = [
   },
   {
     key: 'grid-3-big-bottom',
-    label: '3 fotos · 2 + grande',
+    label: '3 photos · 2 + big',
     count: 3,
     cols: 2,
     rows: 8,
@@ -179,7 +179,7 @@ const GEOMETRIES: GeometryDef[] = [
     // Three square cells filling an L in a 2x2 block, one corner left open —
     // a compact, deliberate accent, not a leftover gap.
     key: 'grid-3-corner',
-    label: '3 fotos · esquina',
+    label: '3 photos · corner',
     count: 3,
     cols: 2,
     rows: 2,
@@ -192,7 +192,7 @@ const GEOMETRIES: GeometryDef[] = [
 
   {
     key: 'grid-3-tall-right',
-    label: '3 fotos · columna derecha alta',
+    label: '3 photos · tall right column',
     count: 3,
     cols: 2,
     rows: 2,
@@ -204,7 +204,7 @@ const GEOMETRIES: GeometryDef[] = [
   },
   {
     key: 'grid-3-band-top',
-    label: '3 fotos · franja superior + 2',
+    label: '3 photos · top strip + 2',
     count: 3,
     cols: 2,
     rows: 2,
@@ -216,7 +216,7 @@ const GEOMETRIES: GeometryDef[] = [
   },
   {
     key: 'grid-3-stack-grow',
-    label: '3 fotos · apiladas creciente',
+    label: '3 photos · growing stack',
     count: 3,
     cols: 1,
     rows: 6,
@@ -228,7 +228,7 @@ const GEOMETRIES: GeometryDef[] = [
   },
   {
     key: 'grid-3-strips-uneven',
-    label: '3 fotos · tiras asimétricas',
+    label: '3 photos · asymmetric strips',
     count: 3,
     cols: 9,
     rows: 1,
@@ -240,7 +240,7 @@ const GEOMETRIES: GeometryDef[] = [
   },
   {
     key: 'grid-3-side-stack',
-    label: '3 fotos · panel + 2 apiladas',
+    label: '3 photos · panel + 2 stacked',
     count: 3,
     cols: 9,
     rows: 9,
@@ -252,7 +252,7 @@ const GEOMETRIES: GeometryDef[] = [
   },
   {
     key: 'grid-3-block-column-band',
-    label: '3 fotos · bloque + columna + franja',
+    label: '3 photos · block + column + strip',
     count: 3,
     cols: 3,
     rows: 3,
@@ -264,7 +264,7 @@ const GEOMETRIES: GeometryDef[] = [
   },
   {
     key: 'grid-3-thin-band-cols',
-    label: '3 fotos · franja fina + 2 columnas',
+    label: '3 photos · thin strip + 2 columns',
     count: 3,
     cols: 5,
     rows: 10,
@@ -276,7 +276,7 @@ const GEOMETRIES: GeometryDef[] = [
   },
   {
     key: 'grid-3-stack-panel-right',
-    label: '3 fotos · 2 apiladas + panel derecho',
+    label: '3 photos · 2 stacked + right panel',
     count: 3,
     cols: 9,
     rows: 9,
@@ -290,7 +290,7 @@ const GEOMETRIES: GeometryDef[] = [
   // ---- 4 photos ----
   {
     key: 'grid-4-normal',
-    label: '4 fotos',
+    label: '4 photos',
     count: 4,
     cols: 2,
     rows: 2,
@@ -303,7 +303,7 @@ const GEOMETRIES: GeometryDef[] = [
   },
   {
     key: 'grid-4-big-top',
-    label: '4 fotos · grande + 3',
+    label: '4 photos · big + 3',
     count: 4,
     cols: 3,
     rows: 8,
@@ -316,7 +316,7 @@ const GEOMETRIES: GeometryDef[] = [
   },
   {
     key: 'grid-4-big-bottom',
-    label: '4 fotos · 3 + grande',
+    label: '4 photos · 3 + big',
     count: 4,
     cols: 3,
     rows: 8,
@@ -329,7 +329,7 @@ const GEOMETRIES: GeometryDef[] = [
   },
   {
     key: 'grid-4-row',
-    label: '4 fotos · en fila',
+    label: '4 photos · in a row',
     count: 4,
     cols: 4,
     rows: 1,
@@ -343,7 +343,7 @@ const GEOMETRIES: GeometryDef[] = [
 
   {
     key: 'grid-4-band-split',
-    label: '4 fotos · franja + columna dividida',
+    label: '4 photos · strip + split column',
     count: 4,
     cols: 2,
     rows: 3,
@@ -356,7 +356,7 @@ const GEOMETRIES: GeometryDef[] = [
   },
   {
     key: 'grid-4-mixed-band',
-    label: '4 fotos · mosaico + franja inferior',
+    label: '4 photos · mosaic + bottom strip',
     count: 4,
     cols: 2,
     rows: 4,
@@ -369,7 +369,7 @@ const GEOMETRIES: GeometryDef[] = [
   },
   {
     key: 'grid-4-corner-bands',
-    label: '4 fotos · esquina + 2 franjas',
+    label: '4 photos · corner + 2 strips',
     count: 4,
     cols: 3,
     rows: 3,
@@ -382,7 +382,7 @@ const GEOMETRIES: GeometryDef[] = [
   },
   {
     key: 'grid-4-pinwheel-offset',
-    label: '4 fotos · pinwheel asimétrico',
+    label: '4 photos · asymmetric pinwheel',
     count: 4,
     cols: 2,
     rows: 5,
@@ -395,7 +395,7 @@ const GEOMETRIES: GeometryDef[] = [
   },
   {
     key: 'grid-4-banner-split',
-    label: '4 fotos · banner + reparto',
+    label: '4 photos · banner + split',
     count: 4,
     cols: 8,
     rows: 8,
@@ -408,7 +408,7 @@ const GEOMETRIES: GeometryDef[] = [
   },
   {
     key: 'grid-4-outer-tall',
-    label: '4 fotos · columnas + centro dividido',
+    label: '4 photos · columns + split center',
     count: 4,
     cols: 3,
     rows: 2,
@@ -421,7 +421,7 @@ const GEOMETRIES: GeometryDef[] = [
   },
   {
     key: 'grid-4-pinwheel',
-    label: '4 fotos · pinwheel simétrico',
+    label: '4 photos · symmetric pinwheel',
     count: 4,
     cols: 3,
     rows: 2,
@@ -434,7 +434,7 @@ const GEOMETRIES: GeometryDef[] = [
   },
   {
     key: 'grid-4-tall-stack-band',
-    label: '4 fotos · alta + apiladas + franja',
+    label: '4 photos · tall + stacked + strip',
     count: 4,
     cols: 2,
     rows: 8,
@@ -447,7 +447,7 @@ const GEOMETRIES: GeometryDef[] = [
   },
   {
     key: 'grid-4-cols-band',
-    label: '4 fotos · 3 columnas + franja',
+    label: '4 photos · 3 columns + strip',
     count: 4,
     cols: 3,
     rows: 8,
@@ -462,7 +462,7 @@ const GEOMETRIES: GeometryDef[] = [
   // ---- 5 photos ----
   {
     key: 'grid-5-normal-a',
-    label: '5 fotos · 2 + 3',
+    label: '5 photos · 2 + 3',
     count: 5,
     cols: 6,
     rows: 2,
@@ -476,7 +476,7 @@ const GEOMETRIES: GeometryDef[] = [
   },
   {
     key: 'grid-5-normal-b',
-    label: '5 fotos · 3 + 2',
+    label: '5 photos · 3 + 2',
     count: 5,
     cols: 6,
     rows: 2,
@@ -490,7 +490,7 @@ const GEOMETRIES: GeometryDef[] = [
   },
   {
     key: 'grid-5-tall-left',
-    label: '5 fotos · lateral izq. + 4',
+    label: '5 photos · left side + 4',
     count: 5,
     cols: 3,
     rows: 2,
@@ -504,7 +504,7 @@ const GEOMETRIES: GeometryDef[] = [
   },
   {
     key: 'grid-5-tall-right',
-    label: '5 fotos · lateral der. + 4',
+    label: '5 photos · right side + 4',
     count: 5,
     cols: 3,
     rows: 2,
@@ -519,7 +519,7 @@ const GEOMETRIES: GeometryDef[] = [
 
   {
     key: 'grid-5-top-row-split',
-    label: '5 fotos · 3 arriba + 2 abajo',
+    label: '5 photos · 3 top + 2 bottom',
     count: 5,
     cols: 3,
     rows: 2,
@@ -533,7 +533,7 @@ const GEOMETRIES: GeometryDef[] = [
   },
   {
     key: 'grid-5-cols-asym',
-    label: '5 fotos · columnas asimétricas',
+    label: '5 photos · asymmetric columns',
     count: 5,
     cols: 2,
     rows: 20,
@@ -547,7 +547,7 @@ const GEOMETRIES: GeometryDef[] = [
   },
   {
     key: 'grid-5-strips-band',
-    label: '5 fotos · 4 tiras + franja',
+    label: '5 photos · 4 strips + strip',
     count: 5,
     cols: 4,
     rows: 5,
@@ -561,7 +561,7 @@ const GEOMETRIES: GeometryDef[] = [
   },
   {
     key: 'grid-5-row-band-row',
-    label: '5 fotos · fila + franja + fila',
+    label: '5 photos · row + strip + row',
     count: 5,
     cols: 2,
     rows: 3,
@@ -575,7 +575,7 @@ const GEOMETRIES: GeometryDef[] = [
   },
   {
     key: 'grid-5-split-panel',
-    label: '5 fotos · columna dividida + panel',
+    label: '5 photos · split column + panel',
     count: 5,
     cols: 10,
     rows: 3,
@@ -589,7 +589,7 @@ const GEOMETRIES: GeometryDef[] = [
   },
   {
     key: 'grid-5-hero-strip',
-    label: '5 fotos · protagonista + tira inferior',
+    label: '5 photos · hero + bottom strip',
     count: 5,
     cols: 4,
     rows: 4,
@@ -603,7 +603,7 @@ const GEOMETRIES: GeometryDef[] = [
   },
   {
     key: 'grid-5-band-grid',
-    label: '5 fotos · franja + cuadrícula 2x2',
+    label: '5 photos · strip + 2x2 grid',
     count: 5,
     cols: 4,
     rows: 3,
@@ -619,7 +619,7 @@ const GEOMETRIES: GeometryDef[] = [
     // Deliberate negative space: a thick L (top row + left column) leaves a
     // 2x2 block of the 3x3 grid intentionally empty at bottom-right.
     key: 'grid-5-corner-l',
-    label: '5 fotos · esquina en L',
+    label: '5 photos · L-shaped corner',
     count: 5,
     cols: 3,
     rows: 3,
@@ -633,7 +633,7 @@ const GEOMETRIES: GeometryDef[] = [
   },
   {
     key: 'grid-5-mixed-mosaic',
-    label: '5 fotos · mosaico mixto',
+    label: '5 photos · mixed mosaic',
     count: 5,
     cols: 5,
     rows: 2,
@@ -649,7 +649,7 @@ const GEOMETRIES: GeometryDef[] = [
   // ---- 6 photos ----
   {
     key: 'grid-6-normal',
-    label: '6 fotos',
+    label: '6 photos',
     count: 6,
     cols: 3,
     rows: 2,
@@ -664,7 +664,7 @@ const GEOMETRIES: GeometryDef[] = [
   },
   {
     key: 'grid-6-pairs',
-    label: '6 fotos · 3 filas dobles',
+    label: '6 photos · 3 double rows',
     count: 6,
     cols: 4,
     rows: 3,
@@ -679,7 +679,7 @@ const GEOMETRIES: GeometryDef[] = [
   },
   {
     key: 'grid-6-big',
-    label: '6 fotos · grande + 5',
+    label: '6 photos · big + 5',
     count: 6,
     cols: 4,
     rows: 3,
@@ -694,7 +694,7 @@ const GEOMETRIES: GeometryDef[] = [
   },
   {
     key: 'grid-6-row',
-    label: '6 fotos · en fila',
+    label: '6 photos · in a row',
     count: 6,
     cols: 6,
     rows: 1,
@@ -710,7 +710,7 @@ const GEOMETRIES: GeometryDef[] = [
 
   {
     key: 'grid-6-band-panel-trio',
-    label: '6 fotos · panel + franjas + trío',
+    label: '6 photos · panel + strips + trio',
     count: 6,
     cols: 6,
     rows: 3,
@@ -725,7 +725,7 @@ const GEOMETRIES: GeometryDef[] = [
   },
   {
     key: 'grid-6-trio-tall-split',
-    label: '6 fotos · trío + alta + dividido',
+    label: '6 photos · trio + tall + split',
     count: 6,
     cols: 4,
     rows: 2,
@@ -740,7 +740,7 @@ const GEOMETRIES: GeometryDef[] = [
   },
   {
     key: 'grid-6-stack-tall-band',
-    label: '6 fotos · apiladas + alta + franja',
+    label: '6 photos · stacked + tall + strip',
     count: 6,
     cols: 2,
     rows: 5,
@@ -755,7 +755,7 @@ const GEOMETRIES: GeometryDef[] = [
   },
   {
     key: 'grid-6-mixed-band-a',
-    label: '6 fotos · mosaico + franja A',
+    label: '6 photos · mosaic + strip A',
     count: 6,
     cols: 2,
     rows: 4,
@@ -770,7 +770,7 @@ const GEOMETRIES: GeometryDef[] = [
   },
   {
     key: 'grid-6-two-tall-stack',
-    label: '6 fotos · 2 altas + 4 apiladas',
+    label: '6 photos · 2 tall + 4 stacked',
     count: 6,
     cols: 2,
     rows: 4,
@@ -785,7 +785,7 @@ const GEOMETRIES: GeometryDef[] = [
   },
   {
     key: 'grid-6-cols-asym',
-    label: '6 fotos · columnas asimétricas',
+    label: '6 photos · asymmetric columns',
     count: 6,
     cols: 3,
     rows: 3,
@@ -800,7 +800,7 @@ const GEOMETRIES: GeometryDef[] = [
   },
   {
     key: 'grid-6-stack-tall-top',
-    label: '6 fotos · apiladas + alta arriba',
+    label: '6 photos · stacked + tall on top',
     count: 6,
     cols: 2,
     rows: 4,
@@ -815,7 +815,7 @@ const GEOMETRIES: GeometryDef[] = [
   },
   {
     key: 'grid-6-stack-tall-bottom',
-    label: '6 fotos · apiladas + alta abajo',
+    label: '6 photos · stacked + tall at bottom',
     count: 6,
     cols: 2,
     rows: 4,
@@ -830,7 +830,7 @@ const GEOMETRIES: GeometryDef[] = [
   },
   {
     key: 'grid-6-tall-stack-plain',
-    label: '6 fotos · columna alta + 5 filas',
+    label: '6 photos · tall column + 5 rows',
     count: 6,
     cols: 2,
     rows: 5,
@@ -845,7 +845,7 @@ const GEOMETRIES: GeometryDef[] = [
   },
   {
     key: 'grid-6-stack-panel-band',
-    label: '6 fotos · apiladas + panel + franja',
+    label: '6 photos · stacked + panel + strip',
     count: 6,
     cols: 3,
     rows: 4,
@@ -860,7 +860,7 @@ const GEOMETRIES: GeometryDef[] = [
   },
   {
     key: 'grid-6-mosaic-band',
-    label: '6 fotos · mosaico + franja inferior',
+    label: '6 photos · mosaic + bottom strip',
     count: 6,
     cols: 3,
     rows: 10,
@@ -875,7 +875,7 @@ const GEOMETRIES: GeometryDef[] = [
   },
   {
     key: 'grid-6-bands-pairs',
-    label: '6 fotos · franjas + 2 pares',
+    label: '6 photos · strips + 2 pairs',
     count: 6,
     cols: 2,
     rows: 10,
@@ -890,7 +890,7 @@ const GEOMETRIES: GeometryDef[] = [
   },
   {
     key: 'grid-6-stack-panel',
-    label: '6 fotos · columna + panel grande',
+    label: '6 photos · column + big panel',
     count: 6,
     cols: 3,
     rows: 5,
@@ -907,7 +907,7 @@ const GEOMETRIES: GeometryDef[] = [
   // ---- 7 photos ----
   {
     key: 'grid-7-normal',
-    label: '7 fotos',
+    label: '7 photos',
     count: 7,
     cols: 4,
     rows: 2,
@@ -923,7 +923,7 @@ const GEOMETRIES: GeometryDef[] = [
   },
   {
     key: 'grid-7-big-top',
-    label: '7 fotos · grande arriba',
+    label: '7 photos · big on top',
     count: 7,
     cols: 4,
     rows: 2,
@@ -939,7 +939,7 @@ const GEOMETRIES: GeometryDef[] = [
   },
   {
     key: 'grid-7-big-bottom',
-    label: '7 fotos · grande abajo',
+    label: '7 photos · big at bottom',
     count: 7,
     cols: 4,
     rows: 2,
@@ -956,7 +956,7 @@ const GEOMETRIES: GeometryDef[] = [
   {
     // A 3x3 grid with the center and top-middle left open — a "U" of 7 cells.
     key: 'grid-7-horseshoe',
-    label: '7 fotos · herradura',
+    label: '7 photos · horseshoe',
     count: 7,
     cols: 3,
     rows: 3,
@@ -973,7 +973,7 @@ const GEOMETRIES: GeometryDef[] = [
 
   {
     key: 'grid-7-mosaic',
-    label: '7 fotos · mosaico asimétrico',
+    label: '7 photos · asymmetric mosaic',
     count: 7,
     cols: 3,
     rows: 3,
@@ -989,7 +989,7 @@ const GEOMETRIES: GeometryDef[] = [
   },
   {
     key: 'grid-7-stack-panel-split',
-    label: '7 fotos · columna + panel dividido',
+    label: '7 photos · column + split panel',
     count: 7,
     cols: 3,
     rows: 5,
@@ -1005,7 +1005,7 @@ const GEOMETRIES: GeometryDef[] = [
   },
   {
     key: 'grid-7-mosaic-complex',
-    label: '7 fotos · mosaico complejo',
+    label: '7 photos · complex mosaic',
     count: 7,
     cols: 6,
     rows: 6,
@@ -1021,7 +1021,7 @@ const GEOMETRIES: GeometryDef[] = [
   },
   {
     key: 'grid-7-row',
-    label: '7 fotos · en fila',
+    label: '7 photos · in a row',
     count: 7,
     cols: 7,
     rows: 1,
@@ -1037,7 +1037,7 @@ const GEOMETRIES: GeometryDef[] = [
   },
   {
     key: 'grid-7-hero-strip',
-    label: '7 fotos · protagonista + tira inferior',
+    label: '7 photos · hero + bottom strip',
     count: 7,
     cols: 6,
     rows: 5,
@@ -1053,7 +1053,7 @@ const GEOMETRIES: GeometryDef[] = [
   },
   {
     key: 'grid-7-banner-grid',
-    label: '7 fotos · franja + cuadrícula 3x2',
+    label: '7 photos · strip + 3x2 grid',
     count: 7,
     cols: 6,
     rows: 3,
@@ -1072,7 +1072,7 @@ const GEOMETRIES: GeometryDef[] = [
     // grid leaves a 3x3 block intentionally empty — a larger-scale corner
     // accent than the existing 3x3 "horseshoe" (a ring, not a block).
     key: 'grid-7-corner-l',
-    label: '7 fotos · esquina en L',
+    label: '7 photos · L-shaped corner',
     count: 7,
     cols: 4,
     rows: 4,
@@ -1088,7 +1088,7 @@ const GEOMETRIES: GeometryDef[] = [
   },
   {
     key: 'grid-7-mixed-mosaic',
-    label: '7 fotos · mosaico mixto',
+    label: '7 photos · mixed mosaic',
     count: 7,
     cols: 5,
     rows: 3,
@@ -1106,7 +1106,7 @@ const GEOMETRIES: GeometryDef[] = [
   // ---- 8 photos ----
   {
     key: 'grid-8-normal',
-    label: '8 fotos',
+    label: '8 photos',
     count: 8,
     cols: 4,
     rows: 2,
@@ -1123,7 +1123,7 @@ const GEOMETRIES: GeometryDef[] = [
   },
   {
     key: 'grid-8-big',
-    label: '8 fotos · grande + 7',
+    label: '8 photos · big + 7',
     count: 8,
     cols: 4,
     rows: 3,
@@ -1140,7 +1140,7 @@ const GEOMETRIES: GeometryDef[] = [
   },
   {
     key: 'grid-8-row',
-    label: '8 fotos · en fila',
+    label: '8 photos · in a row',
     count: 8,
     cols: 8,
     rows: 1,
@@ -1157,7 +1157,7 @@ const GEOMETRIES: GeometryDef[] = [
   },
   {
     key: 'grid-8-col',
-    label: '8 fotos · 2 columnas',
+    label: '8 photos · 2 columns',
     count: 8,
     cols: 2,
     rows: 4,
@@ -1174,7 +1174,7 @@ const GEOMETRIES: GeometryDef[] = [
   },
   {
     key: 'grid-8-double-band-cols',
-    label: '8 fotos · doble franja + 4 columnas',
+    label: '8 photos · double strip + 4 columns',
     count: 8,
     cols: 4,
     rows: 4,
@@ -1191,7 +1191,7 @@ const GEOMETRIES: GeometryDef[] = [
   },
   {
     key: 'grid-8-banner-strip',
-    label: '8 fotos · banner + tira de 7',
+    label: '8 photos · banner + strip of 7',
     count: 8,
     cols: 7,
     rows: 3,
@@ -1208,7 +1208,7 @@ const GEOMETRIES: GeometryDef[] = [
   },
   {
     key: 'grid-8-tall-col-mosaic',
-    label: '8 fotos · columna alta + mosaico',
+    label: '8 photos · tall column + mosaic',
     count: 8,
     cols: 5,
     rows: 4,
@@ -1225,7 +1225,7 @@ const GEOMETRIES: GeometryDef[] = [
   },
   {
     key: 'grid-8-bands-split-center',
-    label: '8 fotos · franjas con centro dividido',
+    label: '8 photos · strips with split center',
     count: 8,
     cols: 4,
     rows: 3,
@@ -1242,7 +1242,7 @@ const GEOMETRIES: GeometryDef[] = [
   },
   {
     key: 'grid-8-mosaic-asym',
-    label: '8 fotos · mosaico asimétrico',
+    label: '8 photos · asymmetric mosaic',
     count: 8,
     cols: 6,
     rows: 4,
@@ -1259,7 +1259,7 @@ const GEOMETRIES: GeometryDef[] = [
   },
   {
     key: 'grid-8-frame-center',
-    label: '8 fotos · marco con centro grande',
+    label: '8 photos · frame with big center',
     count: 8,
     cols: 4,
     rows: 4,
@@ -1276,7 +1276,7 @@ const GEOMETRIES: GeometryDef[] = [
   },
   {
     key: 'grid-8-brick-5-3',
-    label: '8 fotos · ladrillo 5+3',
+    label: '8 photos · brick 5+3',
     count: 8,
     cols: 15,
     rows: 2,
@@ -1293,7 +1293,7 @@ const GEOMETRIES: GeometryDef[] = [
   },
   {
     key: 'grid-8-cols-variable',
-    label: '8 fotos · columnas con divisiones variables',
+    label: '8 photos · columns with variable splits',
     count: 8,
     cols: 3,
     rows: 6,
@@ -1310,7 +1310,7 @@ const GEOMETRIES: GeometryDef[] = [
   },
   {
     key: 'grid-8-base-mosaic',
-    label: '8 fotos · base grande + mosaico superior',
+    label: '8 photos · big base + top mosaic',
     count: 8,
     cols: 6,
     rows: 4,
@@ -1329,7 +1329,7 @@ const GEOMETRIES: GeometryDef[] = [
   // ---- 9 photos ----
   {
     key: 'grid-9-normal',
-    label: '9 fotos',
+    label: '9 photos',
     count: 9,
     cols: 3,
     rows: 3,
@@ -1347,7 +1347,7 @@ const GEOMETRIES: GeometryDef[] = [
   },
   {
     key: 'grid-9-big',
-    label: '9 fotos · grande + 8',
+    label: '9 photos · big + 8',
     count: 9,
     cols: 4,
     rows: 3,
@@ -1365,7 +1365,7 @@ const GEOMETRIES: GeometryDef[] = [
   },
   {
     key: 'grid-9-row',
-    label: '9 fotos · en fila',
+    label: '9 photos · in a row',
     count: 9,
     cols: 9,
     rows: 1,
@@ -1383,7 +1383,7 @@ const GEOMETRIES: GeometryDef[] = [
   },
   {
     key: 'grid-9-col',
-    label: '9 fotos · en columna',
+    label: '9 photos · in a column',
     count: 9,
     cols: 1,
     rows: 9,
@@ -1401,7 +1401,7 @@ const GEOMETRIES: GeometryDef[] = [
   },
   {
     key: 'grid-9-frame-center',
-    label: '9 fotos · marco con centro grande',
+    label: '9 photos · frame with big center',
     count: 9,
     cols: 5,
     rows: 5,
@@ -1419,7 +1419,7 @@ const GEOMETRIES: GeometryDef[] = [
   },
   {
     key: 'grid-9-banner-grid',
-    label: '9 fotos · banner + cuadrícula 4x2',
+    label: '9 photos · banner + 4x2 grid',
     count: 9,
     cols: 4,
     rows: 3,
@@ -1437,7 +1437,7 @@ const GEOMETRIES: GeometryDef[] = [
   },
   {
     key: 'grid-9-big-bottom-mosaic',
-    label: '9 fotos · grande inferior + mosaico',
+    label: '9 photos · bottom big + mosaic',
     count: 9,
     cols: 5,
     rows: 3,
@@ -1455,7 +1455,7 @@ const GEOMETRIES: GeometryDef[] = [
   },
   {
     key: 'grid-9-mosaic-asym',
-    label: '9 fotos · mosaico asimétrico',
+    label: '9 photos · asymmetric mosaic',
     count: 9,
     cols: 6,
     rows: 4,
@@ -1473,7 +1473,7 @@ const GEOMETRIES: GeometryDef[] = [
   },
   {
     key: 'grid-9-brick-5-4',
-    label: '9 fotos · ladrillo 5+4',
+    label: '9 photos · brick 5+4',
     count: 9,
     cols: 20,
     rows: 2,
@@ -1491,7 +1491,7 @@ const GEOMETRIES: GeometryDef[] = [
   },
   {
     key: 'grid-9-cols-variable',
-    label: '9 fotos · columnas con divisiones variables',
+    label: '9 photos · columns with variable splits',
     count: 9,
     cols: 3,
     rows: 12,
@@ -1509,7 +1509,7 @@ const GEOMETRIES: GeometryDef[] = [
   },
   {
     key: 'grid-9-big-strip-bands',
-    label: '9 fotos · grande + tira + franjas',
+    label: '9 photos · big + strip + strips',
     count: 9,
     cols: 5,
     rows: 5,
@@ -1527,7 +1527,7 @@ const GEOMETRIES: GeometryDef[] = [
   },
   {
     key: 'grid-9-double-hero-mosaic',
-    label: '9 fotos · doble protagonista + mosaico',
+    label: '9 photos · double hero + mosaic',
     count: 9,
     cols: 6,
     rows: 4,
@@ -1545,7 +1545,7 @@ const GEOMETRIES: GeometryDef[] = [
   },
   {
     key: 'grid-9-center-col-mosaics',
-    label: '9 fotos · columna central + mosaicos laterales',
+    label: '9 photos · center column + side mosaics',
     count: 9,
     cols: 6,
     rows: 4,
