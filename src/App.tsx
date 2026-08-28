@@ -43,7 +43,6 @@ type BootStage = 'hold' | 'flying' | 'done'
 // actually safe from that race.
 const UPDATE_FLIGHT_MS = 700
 const UPDATE_PROGRESS_MS = 5000
-const UPDATE_HOLD_MS = 300
 
 type UpdatePhase = 'idle' | 'toCenter' | 'progress'
 
@@ -164,7 +163,16 @@ function App() {
       // already underway).
       setTimeout(() => window.location.reload(), 1200)
       setBarExiting(true)
-      setTimeout(() => setUpdatePhase('idle'), UPDATE_HOLD_MS)
+      // Deliberately never returns updatePhase to 'idle' here. That used to
+      // fire UPDATE_HOLD_MS after 100%, which reveals Home's real logo/content
+      // again (a hard cut) well before the reload above actually lands — the
+      // reload (up to 1200ms out, sometimes sooner via controllerchange) then
+      // replays the *entire* boot splash on the fresh page, landing the logo
+      // in that exact same spot a second time. Two returns to the same resting
+      // position in quick succession read as a double snap/bounce. Since a
+      // reload is unconditionally guaranteed shortly after 100% either way,
+      // there's nothing to animate back to — just let the bar fade out and
+      // leave the logo sitting centered until the real reload takes over.
     }
     frame = requestAnimationFrame(tick)
     return () => cancelAnimationFrame(frame)
