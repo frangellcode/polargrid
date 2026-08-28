@@ -166,7 +166,7 @@ export function HomeScreen({
           rel="noopener noreferrer"
           className="flex items-center gap-1.5 font-label text-[11px] font-light text-white/40 active:scale-95"
         >
-          <FadeText value={tr.home.followUs} trigger={language} animateWidth />&nbsp;@frangellgram
+          <FadeText value={tr.home.followUs} trigger={language} animateWidth />@frangellgram
           <IconInstagram className="h-3.5 w-3.5" />
         </a>
       </div>
