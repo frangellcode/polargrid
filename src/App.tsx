@@ -28,15 +28,24 @@ type BootStage = 'hold' | 'flying' | 'done'
 // logo back to the center (growing, text fading out — same motion as boot
 // but backwards) and holds there while a progress bar fills 0->100. At 100%,
 // applyUpdate() activates the waiting service worker, which triggers a real
-// window.location.reload() (see pwaUpdate.ts's onNeedReload) — so the
-// "flies back out to home" tail below usually never gets to play; the
-// reload re-runs this whole boot sequence from scratch instead, which reads
-// just as well as the app "restarting" and actually serves the new build.
+// window.location.reload() (see pwaUpdate.ts's onNeedReload — plus a
+// belt-and-suspenders backup timeout right below) — which re-runs this whole
+// boot sequence from scratch, reading just as well as the app "restarting"
+// and actually serving the new build. There USED to be a "fly the logo back
+// out to home" tail played while waiting for that reload, on the theory it
+// "usually" wouldn't get to finish before the reload cut it off — but
+// "usually" isn't "always": whenever the reload landed mid-flight instead of
+// before it started, the fresh boot sequence's own hold-then-fly replayed
+// hard on top of the half-finished reverse flight, reading as a visible
+// double-bounce glitch (down, snap, up again). Since a reload is guaranteed
+// shortly after 100% either way, that tail could only ever race the reload,
+// never reliably win — removed rather than tuned, since no timing here is
+// actually safe from that race.
 const UPDATE_FLIGHT_MS = 700
 const UPDATE_PROGRESS_MS = 5000
 const UPDATE_HOLD_MS = 300
 
-type UpdatePhase = 'idle' | 'toCenter' | 'progress' | 'toHome'
+type UpdatePhase = 'idle' | 'toCenter' | 'progress'
 
 interface HomeRenderProps {
   logoHidden: boolean
@@ -83,8 +92,8 @@ function App() {
   // fly the logo back out — re-measuring later would race the content fade.
   const updateHomeRect = useRef({ dx: 0, dy: 0, scale: 1 })
   // False when there's no logo to fly (or the user prefers reduced motion):
-  // the replay still runs (progress bar, cache purge) but skips straight to
-  // idle afterwards instead of queuing a `toHome` flight that would never fire.
+  // skips the toCenter flight-in entirely and jumps straight to the progress
+  // bar instead of animating a logo that isn't there (or shouldn't move).
   const updateFlightEnabled = useRef(false)
 
   const beginUpdate = () => {
@@ -122,21 +131,12 @@ function App() {
       })
       return () => cancelAnimationFrame(raf)
     }
-    if (updatePhase === 'toHome') {
-      const { dx, dy, scale } = updateHomeRect.current
-      const raf = requestAnimationFrame(() => {
-        setUpdateFlightStyle({
-          transform: `translate(-50%, -50%) translate(${dx}px, ${dy}px) scale(${scale})`,
-          transition: `transform ${UPDATE_FLIGHT_MS}ms cubic-bezier(0.22, 1, 0.36, 1)`,
-        })
-      })
-      return () => cancelAnimationFrame(raf)
-    }
   }, [updatePhase])
 
-  // Fills the progress bar 0->100 over UPDATE_PROGRESS_MS, activates the
-  // real pending service worker once it's full, then either flies the logo
-  // back home or (no-motion path) jumps straight to idle.
+  // Fills the progress bar 0->100 over UPDATE_PROGRESS_MS, then activates
+  // the real pending service worker, which reloads the page shortly after
+  // (see the belt-and-suspenders backup below too) — re-running the whole
+  // boot sequence fresh instead of animating anything back here.
   useEffect(() => {
     if (updatePhase !== 'progress') return
     setUpdateProgress(0)
@@ -164,9 +164,7 @@ function App() {
       // already underway).
       setTimeout(() => window.location.reload(), 1200)
       setBarExiting(true)
-      setTimeout(() => {
-        setUpdatePhase(updateFlightEnabled.current ? 'toHome' : 'idle')
-      }, UPDATE_HOLD_MS)
+      setTimeout(() => setUpdatePhase('idle'), UPDATE_HOLD_MS)
     }
     frame = requestAnimationFrame(tick)
     return () => cancelAnimationFrame(frame)
@@ -293,7 +291,6 @@ function App() {
           style={updateFlightStyle}
           onTransitionEnd={() => {
             if (updatePhase === 'toCenter') setUpdatePhase('progress')
-            if (updatePhase === 'toHome') setUpdatePhase('idle')
           }}
         >
           <Logo size={BOOT_LOGO_SIZE} />

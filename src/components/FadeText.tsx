@@ -42,6 +42,28 @@ export function FadeText({ value, trigger, className, animateWidth = false }: Fa
     setWidth((current) => (current === undefined ? measuredWidthRef.current : current))
   }, [animateWidth, value])
 
+  // The mount measurement above can land before the custom font has actually
+  // loaded (more likely on a cold PWA launch, which has its own separate
+  // cache from the browser and so re-fetches the font from scratch) — it
+  // then reflects the fallback font's metrics instead, leaving a stray gap
+  // (or clip) once the real font swaps in and the wrapper's width doesn't
+  // move to match. Re-measuring once fonts are actually ready corrects that
+  // single case; guarded on `key` so it never stomps a fade already in
+  // flight by the time fonts finish loading.
+  useEffect(() => {
+    if (!animateWidth || !document.fonts) return
+    const keyAtMount = key
+    document.fonts.ready.then(() => {
+      if (prevKey.current !== keyAtMount) return
+      const w = measureRef.current?.offsetWidth
+      if (w !== undefined) {
+        measuredWidthRef.current = w
+        setWidth(w)
+      }
+    })
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- only ever needs to run once, right after mount
+  }, [])
+
   useEffect(() => {
     if (prevKey.current === key) return
     prevKey.current = key
