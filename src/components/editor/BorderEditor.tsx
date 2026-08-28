@@ -13,13 +13,19 @@ import { CanvasStage } from './CanvasStage'
 import { PhotoCell } from './PhotoCell'
 import { Dropzone } from './Dropzone'
 import { EditorBottomBar, type BottomBarTool } from './EditorBottomBar'
-import { CLOSE_MS, ExportSuccessToast } from './ExportSuccessToast'
+import { ExportSuccessToast } from './ExportSuccessToast'
 import { WorkspaceBackgroundPicker } from './WorkspaceBackgroundPicker'
 import { BorderColorPicker } from './BorderColorPicker'
 import { getBorderColor } from '../../lib/borderColors'
 import { IconCrop, IconDrop, IconFrame, IconGrain } from './icons'
 
 const PREVIEW_LONG_EDGE = 900
+// Slightly gentler than CLOSE_MS (used for the toast's own open/close
+// animation, unrelated to this) — the photo->Dropzone cross-fade felt like
+// a snap at 300ms, so it eases a bit longer here. Keep the setTimeout below
+// and both `duration-[…]` classes in step with this, or the reset will fire
+// mid-fade and cut the animation short.
+const CONTENT_FADE_MS = 450
 
 export function BorderEditor() {
   const tr = useTranslation()
@@ -50,7 +56,7 @@ export function BorderEditor() {
   const { loadFiles } = useImageBitmap()
   const [exporting, setExporting] = useState(false)
   const [showSuccessToast, setShowSuccessToast] = useState(false)
-  // True for the CLOSE_MS window between tapping "Create another" and the photo
+  // True for the CONTENT_FADE_MS window between tapping "Create another" and the photo
   // actually being cleared — fades the current photo/bottom bar out instead
   // of them just vanishing the instant resetBorder() fires.
   const [resetting, setResetting] = useState(false)
@@ -140,7 +146,7 @@ export function BorderEditor() {
       />
 
       <div
-        className={`min-h-0 flex-1 p-4 transition-opacity duration-300 ${resetting ? 'opacity-0' : 'opacity-100'}`}
+        className={`min-h-0 flex-1 p-4 transition-opacity duration-[450ms] ${resetting ? 'opacity-0' : 'opacity-100'}`}
       >
         {photo ? (
           <CanvasStage outputWidth={outputWidth} outputHeight={outputHeight} background={animatedBorderColorHex}>
@@ -167,7 +173,7 @@ export function BorderEditor() {
       </div>
 
       {photo && (
-        <div className={`transition-opacity duration-300 ${resetting ? 'opacity-0' : 'opacity-100'}`}>
+        <div className={`transition-opacity duration-[450ms] ${resetting ? 'opacity-0' : 'opacity-100'}`}>
         <EditorBottomBar tools={TOOLS} activeId={activeTool} onSelect={setActiveTool}>
           {activeTool === 'recorte' && (
             <div>
@@ -251,7 +257,7 @@ export function BorderEditor() {
             requestAnimationFrame(() => {
               requestAnimationFrame(() => setResetting(false))
             })
-          }, CLOSE_MS)
+          }, CONTENT_FADE_MS)
         }}
         onGoHome={() => {
           setShowSuccessToast(false)
