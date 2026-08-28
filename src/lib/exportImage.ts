@@ -36,14 +36,26 @@ function drawPhotoInRect(
   ctx.clip()
   const draw = getImageDrawRect(rectW, rectH, photo.width, photo.height, transform, fit)
   ctx.drawImage(photo.bitmap, draw.x, draw.y, draw.width, draw.height)
-  // Grain is drawn over the photo's own rect, not the full cell: in 'cover'
-  // fit `draw` already covers the whole cell (the shape clip above trims any
-  // overflow), but in 'contain' fit the photo can letterbox inside the cell —
-  // grain over the full cell would then speckle noise onto that empty gap,
-  // which shows through as the border/background color.
+  // Grain is drawn over the photo's own rect, intersected with the cell's own
+  // bounds — NOT the raw draw size. In 'contain' fit the photo can letterbox
+  // inside the cell smaller than it, which is why this isn't just rectW/rectH
+  // (grain over the full cell would speckle noise onto that empty gap). But
+  // in 'cover' fit (the common case) `draw` routinely OVERSHOOTS the cell —
+  // any time the photo's aspect ratio doesn't match the crop, or the person
+  // zoomed in — and the shape clip above trims that overflow at render time
+  // anyway, so sizing the grain canvas itself to the full uncropped draw size
+  // was pure waste at best. At worst, for a native-resolution export with a
+  // zoomed-in mismatched-aspect photo, `draw` can balloon to many times the
+  // cell size, and grain.ts allocates a same-proportioned noise canvas from
+  // whatever size it's given — large enough to blow past a canvas's real
+  // pixel-area limit and throw, silently failing the whole export.
+  const grainX = Math.max(0, draw.x)
+  const grainY = Math.max(0, draw.y)
+  const grainW = Math.max(0, Math.min(rectW, draw.x + draw.width) - grainX)
+  const grainH = Math.max(0, Math.min(rectH, draw.y + draw.height) - grainY)
   ctx.save()
-  ctx.translate(draw.x, draw.y)
-  drawGrainOverlay(ctx, draw.width, draw.height, grainIntensity)
+  ctx.translate(grainX, grainY)
+  drawGrainOverlay(ctx, grainW, grainH, grainIntensity)
   ctx.restore()
   ctx.restore()
 }
