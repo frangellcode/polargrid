@@ -379,6 +379,14 @@ function GridCellsLayer({
               photo={photo}
               transform={assignment.transform}
               opacity={isGhosted ? 0.12 : 1}
+              // Once picked up, this cell's own KonvaImage must stop being
+              // draggable: otherwise the very next pointer move re-triggers
+              // Konva's native pan/crop drag on it (its own 3px threshold is
+              // well under LONG_PRESS_CANCEL_PX), which swallows all pointer
+              // events for the gesture and starves the stage-level
+              // mousemove/touchmove listener that tracks the swap's
+              // hoverCellId — the swap can never see a drop target.
+              interactive={dragState?.sourceCellId !== assignment.cellId}
               onTransformChange={(t) => onCellTransformChange(assignment.cellId, t)}
               onEmptyClick={() => onEmptyCellClick(assignment.cellId)}
               onLongPressStart={(evt) => beginDrag(assignment.cellId, evt)}
