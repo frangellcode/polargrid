@@ -154,7 +154,7 @@ export function HomeScreen({
           href={DONATE_URL}
           target="_blank"
           rel="noopener noreferrer"
-          className="font-label flex items-center gap-3 rounded-full bg-white/10 py-2 pl-4 pr-3.5 text-[11px] font-light text-white/60 transition duration-200 hover:bg-white/15 active:scale-95"
+          className="font-label flex items-center gap-2 rounded-full bg-white/10 py-2 pl-4 pr-3.5 text-[11px] font-light text-white/60 transition duration-200 hover:bg-white/15 active:scale-95"
         >
           <FadeText value={tr.home.donateLabel} trigger={language} animateWidth />
           <span className="h-3.5 w-px bg-white/25" />
@@ -164,10 +164,11 @@ export function HomeScreen({
           href={INSTAGRAM_URL}
           target="_blank"
           rel="noopener noreferrer"
-          className="flex items-center gap-1.5 font-label text-[11px] font-light text-white/40 active:scale-95"
+          className="flex items-center font-label text-[11px] font-light text-white/40 active:scale-95"
         >
-          <FadeText value={tr.home.followUs} trigger={language} animateWidth />@frangellgram
-          <IconInstagram className="h-3.5 w-3.5" />
+          <FadeText value={tr.home.followUs} trigger={language} animateWidth />
+          <span className="ml-1">@frangellgram</span>
+          <IconInstagram className="ml-1.5 h-3.5 w-3.5" />
         </a>
       </div>
     </div>
