@@ -5,7 +5,7 @@ import type { CellAssignment, CellShape, ExportQuality, GridTemplate, LoadedPhot
 import { useEditorStore } from '../../store/editorStore'
 import { useTranslation } from '../../store/languageStore'
 import { useImageBitmap } from '../../hooks/useImageBitmap'
-import { useAnimatedColor, useAnimatedNumber, useReflowFade } from '../../hooks/useAnimatedNumber'
+import { useAnimatedColor, useAnimatedNumber, useIsReflowing, useReflowFade } from '../../hooks/useAnimatedNumber'
 import { COLLAGE_ASPECT_RATIOS } from '../../lib/aspectRatios'
 import { computeOutputPixelSize, getImageDrawRect } from '../../lib/cropMath'
 import { MIN_COLLAGE_PHOTOS, getTemplateById, transposeTemplate } from '../../lib/collageTemplates'
@@ -120,17 +120,14 @@ function FreeItemsLayer({ outputWidth, outputHeight, selectedId, onSelect, grain
 }
 
 interface GridCellsLayerProps {
-  /** `${templateId}|${orientation}|${aspectRatioId}` — reflowFade below dips whenever this changes. */
-  reflowKey: string
   template: GridTemplate
   assignments: CellAssignment[]
   photos: Record<string, LoadedPhoto>
-  /** CanvasStage's own (animated) frame size — the reflow veil below covers this
-   *  full frame rather than just the content box, since it must stay
-   *  independent of exactly where the still-transitioning cells (or the
-   *  content box's own raw target, which jumps ahead of them) currently are. */
-  canvasWidth: number
-  canvasHeight: number
+  /** True only for the brief window right after a template/orientation/aspect-
+   *  ratio switch — see the comment above its computation in CollageEditor
+   *  for why cells only animate their layout during that window, not on
+   *  every border/gutter-slider tick. */
+  animateCells: boolean
   contentX: number
   contentY: number
   cellW: number
@@ -147,12 +144,10 @@ interface GridCellsLayerProps {
  *  that component's render body shorter — nothing here depends on it being a
  *  separate component. */
 function GridCellsLayer({
-  reflowKey,
   template,
   assignments,
   photos,
-  canvasWidth,
-  canvasHeight,
+  animateCells,
   contentX,
   contentY,
   cellW,
@@ -163,64 +158,33 @@ function GridCellsLayer({
   onCellTransformChange,
   onEmptyCellClick,
 }: GridCellsLayerProps) {
-  // Switching to a different layout, flipping orientation, or changing the
-  // canvas aspect ratio re-tiles/rescales every cell at once; each one eases
-  // to its new rect independently via animateLayout (in PhotoCell), which is
-  // the actual motion the person wants to see — but with no shared clock
-  // between cells, they can visibly cross paths or drift out of step with
-  // the border/gutter mid-move. A synchronized dip in the CELLS' OWN opacity
-  // used to mask that crossover — first all the way toward transparent (read
-  // as "everything went white for a second", see git history), then floored
-  // at 0.82 to soften it — but any opacity dip on content sitting over an
-  // opaque border/backdrop necessarily reveals that backdrop through it, and
-  // for the default white border that's still a visible brightening, just a
-  // smaller one. Cells now stay fully opaque (never revealing the backdrop),
-  // and a dark veil sweeps over them instead — same triangular envelope,
-  // but darkening can only ever read as an intentional cross-dissolve, never
-  // as a flash toward white.
-  const reflowFade = useReflowFade(reflowKey, 320, 0.82)
-  const reflowVeilOpacity = 1 - reflowFade
-
   return (
-    <>
-      <Group>
-        {template.cells.map((cell, i) => {
-          const assignment = assignments[i]
-          const photo = assignment?.photoId ? photos[assignment.photoId] : null
-          const x = contentX + cell.col * (cellW + gutterPx)
-          const y = contentY + cell.row * (cellH + gutterPx)
-          const w = cellW * cell.colSpan + gutterPx * (cell.colSpan - 1)
-          const h = cellH * cell.rowSpan + gutterPx * (cell.rowSpan - 1)
-          return (
-            <PhotoCell
-              key={assignment.cellId}
-              x={x}
-              y={y}
-              width={w}
-              height={h}
-              animateLayout
-              shape={shape}
-              grain={grain}
-              photo={photo}
-              transform={assignment.transform}
-              onTransformChange={(t) => onCellTransformChange(assignment.cellId, t)}
-              onEmptyClick={() => onEmptyCellClick(assignment.cellId)}
-            />
-          )
-        })}
-      </Group>
-      {reflowVeilOpacity > 0.001 && (
-        <Rect
-          x={0}
-          y={0}
-          width={canvasWidth}
-          height={canvasHeight}
-          fill="#000000"
-          opacity={reflowVeilOpacity}
-          listening={false}
-        />
-      )}
-    </>
+    <Group>
+      {template.cells.map((cell, i) => {
+        const assignment = assignments[i]
+        const photo = assignment?.photoId ? photos[assignment.photoId] : null
+        const x = contentX + cell.col * (cellW + gutterPx)
+        const y = contentY + cell.row * (cellH + gutterPx)
+        const w = cellW * cell.colSpan + gutterPx * (cell.colSpan - 1)
+        const h = cellH * cell.rowSpan + gutterPx * (cell.rowSpan - 1)
+        return (
+          <PhotoCell
+            key={assignment.cellId}
+            x={x}
+            y={y}
+            width={w}
+            height={h}
+            animateLayout={animateCells}
+            shape={shape}
+            grain={grain}
+            photo={photo}
+            transform={assignment.transform}
+            onTransformChange={(t) => onCellTransformChange(assignment.cellId, t)}
+            onEmptyClick={() => onEmptyCellClick(assignment.cellId)}
+          />
+        )
+      })}
+    </Group>
   )
 }
 
@@ -273,9 +237,7 @@ export function CollageEditor() {
   // (see contentW/cellW/etc. further down), fed through animateLayout on
   // each PhotoCell instead of this tween, so a slider drag isn't stuck
   // chasing a value that's itself still moving (see BorderEditor's history
-  // for the full writeup — same bug, same fix). Since animateLayout has no
-  // shared clock across cells, ratio/orientation/template changes are also
-  // smoothed by reflowFade's opacity dip below, on top of the position tween.
+  // for the full writeup — same bug, same fix).
   const outputWidth = useAnimatedNumber(targetWidth)
   const outputHeight = useAnimatedNumber(targetHeight)
 
@@ -302,6 +264,37 @@ export function CollageEditor() {
   const contentH = targetHeight - outerBorderPx * 2
   const cellW = (contentW - gutterPx * (template.cols - 1)) / template.cols
   const cellH = (contentH - gutterPx * (template.rows - 1)) / template.rows
+
+  // Switching template/orientation/aspect-ratio re-tiles every cell at once;
+  // each one eases to its new rect independently via animateLayout (in
+  // PhotoCell), which is the actual motion the person wants to see for THAT
+  // kind of change. But `animateLayout` shouldn't be on for outerBorderPct/
+  // gutterPct changes too — a slider drag fires a new target on every
+  // 'input' event, and animateLayout's tween restarts on every one of them
+  // before the last finishes, so the cell is perpetually chasing the live
+  // slider value instead of tracking it (the exact laggy-slider bug
+  // BorderEditor's own history warns about — it avoids animateLayout
+  // entirely for its border-thickness slider for this reason). Gating
+  // animateLayout on "is a reflow in flight" — true only right after
+  // template/orientation/aspectRatioId changes, never for outerBorderPct/
+  // gutterPct — gets both: instant 1:1 slider tracking AND smooth reflows.
+  const reflowKey = `${collage.templateId}|${collage.orientation}|${collage.aspectRatioId}`
+  const animateCells = useIsReflowing(reflowKey, 320)
+  // With no shared clock across cells, a reflow can still show them visibly
+  // cross paths mid-move. A dip in the cells' own opacity was tried to mask
+  // that (first toward fully transparent — read as "everything went white
+  // for a second", then floored at 0.82 to soften it — see git history) but
+  // any uniform, synchronized full-canvas color change reads as a flash
+  // regardless of which color: a later attempt swapped it for a same-shaped
+  // dark veil specifically to avoid revealing the (often white) backdrop,
+  // and that read as a brief flash to black instead. Blurring the whole
+  // frame during the same window sidesteps the entire "flash to X" family:
+  // motion blur is the visual language people already read as fast
+  // movement, not an error, and it has no synchronized on/off brightness
+  // edge for the eye to catch.
+  const reflowBlurWave = useReflowFade(reflowKey, 320, 0)
+  const REFLOW_BLUR_PEAK_PX = 5
+  const reflowBlurPx = (1 - reflowBlurWave) * REFLOW_BLUR_PEAK_PX
 
   const borderColorHex = getBorderColor(collage.borderColor).hex
   // Only the live preview eases between colors — the export just paints the
@@ -388,16 +381,19 @@ export function CollageEditor() {
         className={`min-h-0 flex-1 p-4 transition-opacity duration-300 ${resetting ? 'opacity-0' : 'opacity-100'}`}
       >
         {hasContent ? (
-          <CanvasStage outputWidth={outputWidth} outputHeight={outputHeight} background={animatedBorderColorHex}>
+          <CanvasStage
+            outputWidth={outputWidth}
+            outputHeight={outputHeight}
+            background={animatedBorderColorHex}
+            blurPx={collage.layoutMode === 'grid' ? reflowBlurPx : 0}
+          >
             {collage.layoutMode === 'grid'
               ? (
                 <GridCellsLayer
-                  reflowKey={`${collage.templateId}|${collage.orientation}|${collage.aspectRatioId}`}
                   template={template}
                   assignments={collage.assignments}
                   photos={photos}
-                  canvasWidth={outputWidth}
-                  canvasHeight={outputHeight}
+                  animateCells={animateCells}
                   contentX={contentX}
                   contentY={contentY}
                   cellW={cellW}
