@@ -111,6 +111,11 @@ interface EditorStoreState {
   setCollageBorderColor: (id: string) => void
   assignPhotoToCell: (cellId: string, photoId: string | null) => void
   setCellTransform: (cellId: string, transform: PhotoTransform) => void
+  /** Swaps photoId + transform between two grid cells (long-press-drag reorder) —
+   *  cellId itself denotes grid POSITION, not photo identity, so this is the one
+   *  atomic update that moves a photo (with its own crop) to a new spot while
+   *  the photo that was there goes the other way, in a single state transition. */
+  swapCellAssignments: (cellIdA: string, cellIdB: string) => void
   updateFreeItem: (id: string, patch: Partial<FreeItem>) => void
   removeFreeItem: (id: string) => void
 }
@@ -377,6 +382,23 @@ export const useEditorStore = create<EditorStoreState>((set, get) => ({
         ),
       },
     })),
+
+  swapCellAssignments: (cellIdA, cellIdB) =>
+    set((state) => {
+      const a = state.collage.assignments.find((x) => x.cellId === cellIdA)
+      const b = state.collage.assignments.find((x) => x.cellId === cellIdB)
+      if (!a || !b) return state
+      return {
+        collage: {
+          ...state.collage,
+          assignments: state.collage.assignments.map((x) => {
+            if (x.cellId === cellIdA) return { ...x, photoId: b.photoId, transform: b.transform }
+            if (x.cellId === cellIdB) return { ...x, photoId: a.photoId, transform: a.transform }
+            return x
+          }),
+        },
+      }
+    }),
 
   updateFreeItem: (id, patch) =>
     set((state) => ({

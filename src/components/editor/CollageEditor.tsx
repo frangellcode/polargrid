@@ -5,7 +5,7 @@ import type { CellAssignment, CellShape, ExportQuality, GridTemplate, LoadedPhot
 import { useEditorStore } from '../../store/editorStore'
 import { useTranslation } from '../../store/languageStore'
 import { useImageBitmap } from '../../hooks/useImageBitmap'
-import { useAnimatedColor, useAnimatedNumber, useIsReflowing, useReflowFade } from '../../hooks/useAnimatedNumber'
+import { easeInOutCubic, useAnimatedColor, useAnimatedNumber, useIsReflowing, useReflowFade } from '../../hooks/useAnimatedNumber'
 import { COLLAGE_ASPECT_RATIOS } from '../../lib/aspectRatios'
 import { computeOutputPixelSize, getImageDrawRect } from '../../lib/cropMath'
 import { MIN_COLLAGE_PHOTOS, getTemplateById, transposeTemplate } from '../../lib/collageTemplates'
@@ -146,9 +146,70 @@ interface GridCellsLayerProps {
   onEmptyCellClick: (cellId: string) => void
 }
 
+/** How long the flying overlay pair takes to land in each other's spot once
+ *  a long-press-drag is dropped on a valid target — matches the ~320-380ms
+ *  feel of every other eased move in this file. */
+const SWAP_FLIGHT_MS = 380
+
+interface CellRect {
+  x: number
+  y: number
+  w: number
+  h: number
+  colSpan: number
+  rowSpan: number
+}
+
+interface CellDragState {
+  sourceCellId: string
+  /** Pointer position, in the SAME unscaled/virtual units as cell rects
+   *  (Konva's own pointer position is in real stage pixels — see the same
+   *  scale division `dragBounds` does in PhotoCell). */
+  pointerX: number
+  pointerY: number
+  /** Pointer position minus the source cell's own x/y at pick-up time, so the
+   *  floating copy keeps the same spot under the finger it was grabbed at
+   *  instead of snapping to center it. */
+  grabDX: number
+  grabDY: number
+  hoverCellId: string | null
+}
+
+interface SwapAnimState {
+  aCellId: string
+  bCellId: string
+  aFromX: number
+  aFromY: number
+  aToX: number
+  aToY: number
+  bFromX: number
+  bFromY: number
+  bToX: number
+  bToY: number
+  w: number
+  h: number
+  photoA: LoadedPhoto | null
+  transformA: PhotoTransform
+  photoB: LoadedPhoto | null
+  transformB: PhotoTransform
+}
+
+const noopTransformChange = () => {}
+
 /** Renders one grid cell per photo. Split out of CollageEditor mainly to keep
  *  that component's render body shorter — nothing here depends on it being a
- *  separate component. */
+ *  separate component.
+ *
+ *  Also owns the long-press-drag-to-reorder gesture: each PhotoCell only
+ *  knows how to report "I've been held still long enough to pick up" (see
+ *  LONG_PRESS_MS in PhotoCell.tsx) — everything after that (tracking the
+ *  pointer wherever it goes next, figuring out which OTHER cell it's over,
+ *  and animating the swap once released) needs the full set of cell rects,
+ *  which only this layer has. Pointer tracking during the drag is done via
+ *  Konva's own Stage-level event bus (`stage.on(...)`) rather than React
+ *  props, since the finger can move over any cell (or the gutters between
+ *  them) — a per-cell React handler would only ever see moves within its
+ *  own hit area. */
 function GridCellsLayer({
   template,
   assignments,
@@ -164,32 +225,263 @@ function GridCellsLayer({
   onCellTransformChange,
   onEmptyCellClick,
 }: GridCellsLayerProps) {
+  const [dragState, setDragState] = useState<CellDragState | null>(null)
+  const [swapAnim, setSwapAnim] = useState<SwapAnimState | null>(null)
+  const [swapProgress, setSwapProgress] = useState(0)
+
+  const cellRects = new Map<string, CellRect>()
+  template.cells.forEach((cell, i) => {
+    const assignment = assignments[i]
+    if (!assignment) return
+    cellRects.set(assignment.cellId, {
+      x: contentX + cell.col * (cellW + gutterPx),
+      y: contentY + cell.row * (cellH + gutterPx),
+      w: cellW * cell.colSpan + gutterPx * (cell.colSpan - 1),
+      h: cellH * cell.rowSpan + gutterPx * (cell.rowSpan - 1),
+      colSpan: cell.colSpan,
+      rowSpan: cell.rowSpan,
+    })
+  })
+
+  // Only cells with the same span as the one being dragged are valid drop
+  // targets — anything else would need the template's actual shape to
+  // reflow, which a same-position content swap can't do. Simplest correct
+  // rule, not the cleverest one: an incompatible target just behaves like no
+  // target at all (release cancels, no swap, no crash).
+  const hitTestCell = (px: number, py: number, excludeCellId: string): string | null => {
+    const source = cellRects.get(excludeCellId)
+    if (!source) return null
+    for (const [cellId, rect] of cellRects) {
+      if (cellId === excludeCellId) continue
+      if (rect.colSpan !== source.colSpan || rect.rowSpan !== source.rowSpan) continue
+      if (px >= rect.x && px <= rect.x + rect.w && py >= rect.y && py <= rect.y + rect.h) return cellId
+    }
+    return null
+  }
+
+  const beginDrag = (cellId: string, evt: Konva.KonvaEventObject<MouseEvent | TouchEvent>) => {
+    const stage = evt.target.getStage()
+    const rect = cellRects.get(cellId)
+    const pos = stage?.getPointerPosition()
+    if (!stage || !rect || !pos) return
+    const scale = stage.scaleX() || 1
+    const localX = pos.x / scale
+    const localY = pos.y / scale
+
+    setDragState({
+      sourceCellId: cellId,
+      pointerX: localX,
+      pointerY: localY,
+      grabDX: localX - rect.x,
+      grabDY: localY - rect.y,
+      hoverCellId: null,
+    })
+
+    const handleMove = () => {
+      const p = stage.getPointerPosition()
+      if (!p) return
+      const s = stage.scaleX() || 1
+      const lx = p.x / s
+      const ly = p.y / s
+      const hover = hitTestCell(lx, ly, cellId)
+      setDragState((current) => (current ? { ...current, pointerX: lx, pointerY: ly, hoverCellId: hover } : current))
+    }
+
+    const handleRelease = () => {
+      stage.off('mousemove.celldrag touchmove.celldrag')
+      stage.off('mouseup.celldrag touchend.celldrag touchcancel.celldrag')
+      setDragState((current) => {
+        if (current?.hoverCellId) {
+          const aRect = cellRects.get(current.sourceCellId)
+          const bRect = cellRects.get(current.hoverCellId)
+          const aAssignment = assignments.find((a) => a.cellId === current.sourceCellId)
+          const bAssignment = assignments.find((a) => a.cellId === current.hoverCellId)
+          if (aRect && bRect && aAssignment && bAssignment) {
+            setSwapAnim({
+              aCellId: current.sourceCellId,
+              bCellId: current.hoverCellId,
+              aFromX: aRect.x,
+              aFromY: aRect.y,
+              aToX: bRect.x,
+              aToY: bRect.y,
+              bFromX: bRect.x,
+              bFromY: bRect.y,
+              bToX: aRect.x,
+              bToY: aRect.y,
+              w: aRect.w,
+              h: aRect.h,
+              photoA: aAssignment.photoId ? photos[aAssignment.photoId] : null,
+              transformA: aAssignment.transform,
+              photoB: bAssignment.photoId ? photos[bAssignment.photoId] : null,
+              transformB: bAssignment.transform,
+            })
+          }
+        }
+        return null
+      })
+    }
+
+    stage.on('mousemove.celldrag touchmove.celldrag', handleMove)
+    stage.on('mouseup.celldrag touchend.celldrag touchcancel.celldrag', handleRelease)
+  }
+
+  // Drives the two flying overlays below from a single shared progress value
+  // (rather than two independent tweens) so they're guaranteed to land in
+  // perfect sync — depends on `swapAnim`'s own identity, which is only ever
+  // set once per swap (progress lives in its own state instead of inside
+  // `swapAnim`), so this doesn't re-fire on every animation tick.
+  useEffect(() => {
+    if (!swapAnim) return
+    setSwapProgress(0)
+    let raf: number
+    const start = performance.now()
+    const tick = (now: number) => {
+      const t = Math.min(1, (now - start) / SWAP_FLIGHT_MS)
+      setSwapProgress(t)
+      if (t < 1) {
+        raf = requestAnimationFrame(tick)
+      } else {
+        useEditorStore.getState().swapCellAssignments(swapAnim.aCellId, swapAnim.bCellId)
+        setSwapAnim(null)
+      }
+    }
+    raf = requestAnimationFrame(tick)
+    return () => cancelAnimationFrame(raf)
+  }, [swapAnim])
+
+  const draggedRect = dragState ? cellRects.get(dragState.sourceCellId) : null
+
   return (
     <Group>
-      {template.cells.map((cell, i) => {
+      {template.cells.map((_cell, i) => {
         const assignment = assignments[i]
         const photo = assignment?.photoId ? photos[assignment.photoId] : null
-        const x = contentX + cell.col * (cellW + gutterPx)
-        const y = contentY + cell.row * (cellH + gutterPx)
-        const w = cellW * cell.colSpan + gutterPx * (cell.colSpan - 1)
-        const h = cellH * cell.rowSpan + gutterPx * (cell.rowSpan - 1)
+        const rect = cellRects.get(assignment.cellId)
+        if (!rect) return null
+        // Dimmed nearly out of sight (not removed — that would reflow the
+        // grid) while it's the drag source or one half of an in-flight swap;
+        // a floating overlay carries the actual visible motion instead.
+        const isGhosted =
+          dragState?.sourceCellId === assignment.cellId ||
+          swapAnim?.aCellId === assignment.cellId ||
+          swapAnim?.bCellId === assignment.cellId
+        const isHoverTarget = dragState?.hoverCellId === assignment.cellId
         return (
-          <PhotoCell
-            key={assignment.cellId}
-            x={x}
-            y={y}
-            width={w}
-            height={h}
-            animateLayout={animateCells}
-            shape={shape}
-            grain={grain}
-            photo={photo}
-            transform={assignment.transform}
-            onTransformChange={(t) => onCellTransformChange(assignment.cellId, t)}
-            onEmptyClick={() => onEmptyCellClick(assignment.cellId)}
-          />
+          <Group key={assignment.cellId}>
+            <PhotoCell
+              x={rect.x}
+              y={rect.y}
+              width={rect.w}
+              height={rect.h}
+              animateLayout={animateCells}
+              shape={shape}
+              grain={grain}
+              photo={photo}
+              transform={assignment.transform}
+              opacity={isGhosted ? 0.12 : 1}
+              onTransformChange={(t) => onCellTransformChange(assignment.cellId, t)}
+              onEmptyClick={() => onEmptyCellClick(assignment.cellId)}
+              onLongPressStart={(evt) => beginDrag(assignment.cellId, evt)}
+            />
+            {isHoverTarget && (
+              <Rect
+                x={rect.x}
+                y={rect.y}
+                width={rect.w}
+                height={rect.h}
+                stroke="#ffffff"
+                strokeWidth={3}
+                cornerRadius={shape === 'rounded' ? Math.min(rect.w, rect.h) * 0.08 : 0}
+                listening={false}
+              />
+            )}
+          </Group>
         )
       })}
+
+      {/* Floating pick-up copy: follows the pointer, lifted with a scale-up
+          and drop shadow so it visibly detaches from the grid. Wrapped in its
+          own Group (rather than adding shadow/scale props to PhotoCell
+          itself) purely so PhotoCell doesn't need to know this overlay use
+          case exists at all. */}
+      {dragState && draggedRect && (() => {
+        const assignment = assignments.find((a) => a.cellId === dragState.sourceCellId)
+        const photo = assignment?.photoId ? photos[assignment.photoId] : null
+        if (!assignment || !photo) return null
+        const cx = dragState.pointerX - dragState.grabDX + draggedRect.w / 2
+        const cy = dragState.pointerY - dragState.grabDY + draggedRect.h / 2
+        return (
+          <Group
+            x={cx}
+            y={cy}
+            offsetX={draggedRect.w / 2}
+            offsetY={draggedRect.h / 2}
+            scaleX={1.06}
+            scaleY={1.06}
+            shadowColor="black"
+            shadowBlur={24}
+            shadowOpacity={0.45}
+            shadowOffsetY={6}
+            listening={false}
+          >
+            <PhotoCell
+              x={0}
+              y={0}
+              width={draggedRect.w}
+              height={draggedRect.h}
+              shape={shape}
+              grain={grain}
+              photo={photo}
+              transform={assignment.transform}
+              interactive={false}
+              onTransformChange={noopTransformChange}
+            />
+          </Group>
+        )
+      })()}
+
+      {/* The dropped swap itself: two copies fly to each other's rects in
+          lockstep, then the real assignments swap underneath them — landing
+          exactly where these overlays end up, so nothing pops. */}
+      {swapAnim && (() => {
+        const e = easeInOutCubic(swapProgress)
+        const ax = swapAnim.aFromX + (swapAnim.aToX - swapAnim.aFromX) * e
+        const ay = swapAnim.aFromY + (swapAnim.aToY - swapAnim.aFromY) * e
+        const bx = swapAnim.bFromX + (swapAnim.bToX - swapAnim.bFromX) * e
+        const by = swapAnim.bFromY + (swapAnim.bToY - swapAnim.bFromY) * e
+        return (
+          <>
+            {swapAnim.photoA && (
+              <PhotoCell
+                x={ax}
+                y={ay}
+                width={swapAnim.w}
+                height={swapAnim.h}
+                shape={shape}
+                grain={grain}
+                photo={swapAnim.photoA}
+                transform={swapAnim.transformA}
+                interactive={false}
+                onTransformChange={noopTransformChange}
+              />
+            )}
+            {swapAnim.photoB && (
+              <PhotoCell
+                x={bx}
+                y={by}
+                width={swapAnim.w}
+                height={swapAnim.h}
+                shape={shape}
+                grain={grain}
+                photo={swapAnim.photoB}
+                transform={swapAnim.transformB}
+                interactive={false}
+                onTransformChange={noopTransformChange}
+              />
+            )}
+          </>
+        )
+      })()}
     </Group>
   )
 }

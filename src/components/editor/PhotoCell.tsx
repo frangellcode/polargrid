@@ -26,7 +26,32 @@ interface PhotoCellProps {
   shape?: CellShape
   /** 0..1 film-grain amount over this photo, 0/undefined = no overlay drawn. */
   grain?: number
+  /** Fades the whole cell — used to dim the source cell nearly out of sight
+   *  while it's being long-press-dragged (or mid-swap-flight), without
+   *  disturbing the grid's layout by actually removing it. */
+  opacity?: number
+  /** False for the floating drag/swap overlay copies Collage renders on top
+   *  of the grid — a static, non-interactive picture with no pan/zoom/long-
+   *  press wiring of its own (those belong to the real cell underneath). */
+  interactive?: boolean
+  /** Fires once a press has been held roughly still for LONG_PRESS_MS —
+   *  Collage's grid uses this to pick the cell up for a drag-to-reorder,
+   *  as distinct from the quick drag directly below that pans/crops the
+   *  photo in place. Never wired when `interactive` is false or there's no
+   *  photo (nothing to pick up). */
+  onLongPressStart?: (evt: Konva.KonvaEventObject<MouseEvent | TouchEvent>) => void
 }
+
+/** How long a still press has to be held before it's treated as "pick this
+ *  cell up to move it" instead of "pan/crop the photo in place". Long enough
+ *  that a normal quick drag (the far more common gesture) never gets
+ *  mistaken for it, short enough that it doesn't feel like the tap failed. */
+const LONG_PRESS_MS = 550
+/** How far the pointer can drift during that hold before it's treated as the
+ *  start of a normal pan instead — real fingers/mice never sit perfectly
+ *  still, so this needs slack, but not so much it eats into an intentional
+ *  quick pan gesture. */
+const LONG_PRESS_CANCEL_PX = 8
 
 /** One photo inside a clipped rect: cover- or contain-fit, draggable to pan, wheel/pinch to zoom. */
 export function PhotoCell({
@@ -42,10 +67,15 @@ export function PhotoCell({
   animateLayout = false,
   shape = 'rect',
   grain = 0,
+  opacity = 1,
+  interactive = true,
+  onLongPressStart,
 }: PhotoCellProps) {
   const pinchDist = useRef<number | null>(null)
   const imageRef = useRef<Konva.Image>(null)
   const wheelIdleTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
+  const holdTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
+  const holdStart = useRef<{ x: number; y: number } | null>(null)
   // True while actively dragging/pinching/wheel-zooming this photo. The grain
   // overlay below is skipped while true — it blends with 'overlay' at partial
   // opacity, which forces Konva into an off-screen buffer-canvas composite
@@ -161,16 +191,61 @@ export function PhotoCell({
   const handleTouchEnd = () => {
     pinchDist.current = null
     setInteracting(false)
+    clearHold()
+  }
+
+  // Long-press-to-pick-up detection lives here rather than on the KonvaImage
+  // itself, so it can watch the gesture in parallel with (not instead of)
+  // that image's own `draggable` pan — a quick drag should keep behaving
+  // exactly as it always has. Whichever fires first wins: real movement
+  // beyond LONG_PRESS_CANCEL_PX cancels the hold (Konva's own drag threshold
+  // is smaller, so a genuine pan gesture is already underway well before
+  // that), while holding still for LONG_PRESS_MS instead fires
+  // `onLongPressStart` — Collage's grid takes it from there.
+  function clearHold() {
+    if (holdTimer.current) clearTimeout(holdTimer.current)
+    holdTimer.current = undefined
+    holdStart.current = null
+  }
+
+  const handleHoldStart = (e: Konva.KonvaEventObject<MouseEvent | TouchEvent>) => {
+    if (!interactive || !onLongPressStart) return
+    const stage = e.target.getStage()
+    const pos = stage?.getPointerPosition()
+    if (!pos) return
+    holdStart.current = pos
+    clearTimeout(holdTimer.current)
+    holdTimer.current = setTimeout(() => {
+      holdTimer.current = undefined
+      onLongPressStart(e)
+    }, LONG_PRESS_MS)
+  }
+
+  const handleHoldCheckMove = (e: Konva.KonvaEventObject<MouseEvent | TouchEvent>) => {
+    if (!holdStart.current) return
+    const stage = e.target.getStage()
+    const pos = stage?.getPointerPosition()
+    if (!pos) return
+    const dist = Math.hypot(pos.x - holdStart.current.x, pos.y - holdStart.current.y)
+    if (dist > LONG_PRESS_CANCEL_PX) clearHold()
   }
 
   return (
     <Group
       x={x}
       y={y}
+      opacity={opacity}
       clipFunc={(ctx) => traceRoundedRectPath(ctx, cornerRadius, width, height)}
       onWheel={handleWheel}
-      onTouchMove={handleTouchMove}
+      onTouchMove={(e) => {
+        handleTouchMove(e)
+        handleHoldCheckMove(e)
+      }}
       onTouchEnd={handleTouchEnd}
+      onMouseDown={handleHoldStart}
+      onTouchStart={handleHoldStart}
+      onMouseMove={handleHoldCheckMove}
+      onMouseUp={clearHold}
     >
       <KonvaImage
         ref={imageRef}
@@ -179,9 +254,12 @@ export function PhotoCell({
         y={draw.y}
         width={draw.width}
         height={draw.height}
-        draggable
+        draggable={interactive}
         dragBoundFunc={dragBounds}
-        onDragStart={() => setInteracting(true)}
+        onDragStart={() => {
+          clearHold()
+          setInteracting(true)
+        }}
         onDragEnd={handleDragEnd}
       />
       <GrainOverlay
