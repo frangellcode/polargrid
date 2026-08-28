@@ -30,9 +30,9 @@ const CONTENT_FADE_MS = 450
 export function BorderEditor() {
   const tr = useTranslation()
   const TOOLS: BottomBarTool[] = [
-    { id: 'color', label: tr.borderEditor.toolColor, icon: <IconDrop /> },
     { id: 'recorte', label: tr.borderEditor.toolCrop, icon: <IconCrop /> },
     { id: 'bordes', label: tr.borderEditor.toolBorder, icon: <IconFrame /> },
+    { id: 'color', label: tr.borderEditor.toolColor, icon: <IconDrop /> },
     { id: 'grain', label: tr.borderEditor.toolGrain, icon: <IconGrain /> },
   ]
   const {
@@ -246,17 +246,19 @@ export function BorderEditor() {
           setResetting(true)
           setTimeout(() => {
             resetBorder()
-            // Resetting swaps the content to the Dropzone in the SAME commit
-            // that would otherwise flip opacity back to 100 — the browser
-            // never paints a frame with "Dropzone at opacity 0" to transition
-            // FROM, so it just pops in at full opacity instead of fading in.
-            // Waiting two rAFs lets that opacity-0 Dropzone frame actually
-            // paint first, so the opacity-100 flip has something to animate
-            // from (one rAF fires before the frame in which the DOM change
-            // is painted; the second fires after it).
-            requestAnimationFrame(() => {
-              requestAnimationFrame(() => setResetting(false))
-            })
+            // No rAF dance needed to bring this back in: unlike the fade-out
+            // above (a CSS *transition*, which needs its "from" state
+            // actually painted before flipping the target so there's
+            // something to animate from), Dropzone mounts with `fade-in-slow`
+            // — a CSS *animation*, which always plays its own 0% keyframe
+            // regardless of when it's triggered. Snapping this wrapper
+            // straight back to opacity-100 just uncovers that animation
+            // already in motion. Flipping it via the old rAF dance instead
+            // made this wrapper run its OWN opacity transition at the same
+            // time as Dropzone's independent fade-in-up underneath it — two
+            // competing opacity/translateY ramps on top of each other, which
+            // is what actually read as things "snapping" into place.
+            setResetting(false)
           }, CONTENT_FADE_MS)
         }}
         onGoHome={() => {
