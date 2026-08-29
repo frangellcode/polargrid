@@ -181,7 +181,7 @@ export function BorderEditor() {
       />
 
       {isBatch && (
-        <p className="font-label bg-ink-900 px-4 pt-2 text-center text-[11px] font-semibold uppercase tracking-wide text-white/40">
+        <p className="font-label mx-4 mt-2 rounded-lg border border-white/15 bg-white/5 px-3 py-2 text-center text-[11px] leading-snug text-white/70">
           {tr.borderEditor.batchCount(border.batchPhotoIds.length)}
         </p>
       )}
