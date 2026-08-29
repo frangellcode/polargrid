@@ -118,7 +118,7 @@ function FreeItemsLayer({ outputWidth, outputHeight, selectedId, onSelect, grain
           >
             <Rect width={w} height={h} fill="#f8fafc" />
             <KonvaImage
-              image={photo.bitmap as unknown as CanvasImageSource}
+              image={photo.previewBitmap as unknown as CanvasImageSource}
               x={draw.x}
               y={draw.y}
               width={draw.width}

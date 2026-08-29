@@ -28,7 +28,14 @@ export type PhotoFit = 'cover' | 'contain'
 /** A loaded source photo, decoded once and reused across transforms */
 export interface LoadedPhoto {
   id: string
+  /** Full native-resolution decode — export draws from this so "Maximum"
+   *  quality stays the camera's real pixels. */
   bitmap: ImageBitmap
+  /** Downscaled copy for the live Konva canvas (see useImageBitmap.ts) — the
+   *  on-screen preview never needs more than a couple thousand px, and
+   *  redrawing a huge camera bitmap on every animation/drag frame is what
+   *  made editing sluggish on higher-megapixel phone cameras. */
+  previewBitmap: ImageBitmap
   width: number
   height: number
   name: string

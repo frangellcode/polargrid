@@ -249,7 +249,7 @@ export function PhotoCell({
     >
       <KonvaImage
         ref={imageRef}
-        image={photo.bitmap as unknown as CanvasImageSource}
+        image={photo.previewBitmap as unknown as CanvasImageSource}
         x={draw.x}
         y={draw.y}
         width={draw.width}
