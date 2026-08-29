@@ -24,6 +24,7 @@ export const translations = {
       export: 'Export',
       exporting: 'Exporting…',
       addPhoto: 'Add photo',
+      exportFailed: 'Could not export — try a lower quality or fewer photos.',
     },
     borderEditor: {
       toolWorkspace: 'Workspace',
@@ -139,6 +140,7 @@ export const translations = {
       export: 'Exportar',
       exporting: 'Exportando…',
       addPhoto: 'Agregar foto',
+      exportFailed: 'No se pudo exportar — prueba con menos calidad o menos fotos.',
     },
     borderEditor: {
       toolWorkspace: 'Espacio',

@@ -563,6 +563,7 @@ export function CollageEditor() {
   const [activeTool, setActiveTool] = useState<string | null>(null)
   const [gutterLinked, setGutterLinked] = useState(false)
   const [uploadError, setUploadError] = useState<string | null>(null)
+  const [exportError, setExportError] = useState<string | null>(null)
   const toolbarRef = useRef<ToolbarHandle>(null)
 
   useEffect(() => {
@@ -570,6 +571,12 @@ export function CollageEditor() {
     const t = setTimeout(() => setUploadError(null), 3000)
     return () => clearTimeout(t)
   }, [uploadError])
+
+  useEffect(() => {
+    if (!exportError) return
+    const t = setTimeout(() => setExportError(null), 4000)
+    return () => clearTimeout(t)
+  }, [exportError])
 
   const ratio = useMemo(
     () => resolveRatio(collage.aspectRatioId, 1, collage.ratioOrientation),
@@ -699,6 +706,13 @@ export function CollageEditor() {
             )
           : await exportCollageFree(collage.freeItems, photos, ratio, quality, collage.grainIntensity, borderColorHex)
       if (saved) setShowSuccessToast(true)
+    } catch {
+      // Nothing upstream ever surfaced a failed export — it just quietly
+      // reset the button, with no way to tell a real error apart from a
+      // dismissed share sheet. Whatever the cause (a canvas too large for
+      // this device to render, an out-of-memory decode, ...), the person
+      // needs SOME signal instead of silence.
+      setExportError(tr.toolbar.exportFailed)
     } finally {
       setExporting(false)
     }
@@ -721,6 +735,12 @@ export function CollageEditor() {
         uploadLabel={tr.collageEditor.addPhotos}
         multiple
       />
+
+      {exportError && (
+        <p className="fade-in font-label mx-4 mt-2 rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-center text-[11px] leading-snug text-red-300">
+          {exportError}
+        </p>
+      )}
 
       <div className="flex items-center justify-center gap-2 border-b border-white/10 bg-ink-900 px-4 py-2">
         {(['grid', 'free'] as const).map((m) => (

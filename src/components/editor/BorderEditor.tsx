@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import type { ExportQuality } from '../../types'
 import { useEditorStore } from '../../store/editorStore'
 import { useTranslation } from '../../store/languageStore'
@@ -78,6 +78,13 @@ export function BorderEditor() {
   const [activeTool, setActiveTool] = useState<string | null>('aspecto')
   const [batchTooMany, setBatchTooMany] = useState(false)
   const [exportProgress, setExportProgress] = useState<{ done: number; total: number } | null>(null)
+  const [exportError, setExportError] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (!exportError) return
+    const t = setTimeout(() => setExportError(null), 4000)
+    return () => clearTimeout(t)
+  }, [exportError])
 
   const swapContent = (apply: () => void) => {
     setSwapPhase('exiting')
@@ -181,6 +188,13 @@ export function BorderEditor() {
             borderColorHex,
           )
       if (saved) setShowSuccessToast(true)
+    } catch {
+      // Nothing upstream ever surfaced a failed export — it just quietly
+      // reset the button, with no way to tell a real error apart from a
+      // dismissed share sheet. Whatever the cause (a canvas too large for
+      // this device to render, an out-of-memory decode, ...), the person
+      // needs SOME signal instead of silence.
+      setExportError(tr.toolbar.exportFailed)
     } finally {
       setExporting(false)
       setExportProgress(null)
@@ -205,6 +219,12 @@ export function BorderEditor() {
       {isBatch && (
         <p className="font-label mx-4 mt-2 rounded-lg border border-white/15 bg-white/5 px-3 py-2 text-center text-[11px] leading-snug text-white/70">
           {tr.borderEditor.batchCount(border.batchPhotoIds.length)}
+        </p>
+      )}
+
+      {exportError && (
+        <p className="fade-in font-label mx-4 mt-2 rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-center text-[11px] leading-snug text-red-300">
+          {exportError}
         </p>
       )}
 
