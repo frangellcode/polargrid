@@ -17,7 +17,7 @@ import { ExportSuccessToast } from './ExportSuccessToast'
 import { WorkspaceBackgroundPicker } from './WorkspaceBackgroundPicker'
 import { BorderColorPicker } from './BorderColorPicker'
 import { getBorderColor } from '../../lib/borderColors'
-import { IconCrop, IconDrop, IconFrame, IconGrain } from './icons'
+import { IconCrop, IconDrop, IconFrame, IconGrain, IconSwatch } from './icons'
 
 const PREVIEW_LONG_EDGE = 900
 // Slightly gentler than CLOSE_MS (used for the toast's own open/close
@@ -30,9 +30,10 @@ const CONTENT_FADE_MS = 450
 export function BorderEditor() {
   const tr = useTranslation()
   const TOOLS: BottomBarTool[] = [
-    { id: 'recorte', label: tr.borderEditor.toolCrop, icon: <IconCrop /> },
+    { id: 'workspace', label: tr.borderEditor.toolWorkspace, icon: <IconDrop /> },
+    { id: 'aspecto', label: tr.borderEditor.toolAspect, icon: <IconCrop /> },
     { id: 'bordes', label: tr.borderEditor.toolBorder, icon: <IconFrame /> },
-    { id: 'color', label: tr.borderEditor.toolColor, icon: <IconDrop /> },
+    { id: 'color', label: tr.borderEditor.toolColor, icon: <IconSwatch /> },
     { id: 'grain', label: tr.borderEditor.toolGrain, icon: <IconGrain /> },
   ]
   const {
@@ -60,10 +61,10 @@ export function BorderEditor() {
   // actually being cleared — fades the current photo/bottom bar out instead
   // of them just vanishing the instant resetBorder() fires.
   const [resetting, setResetting] = useState(false)
-  // Starts on 'recorte' so the panel opens with Crop already selected the
+  // Starts on 'aspecto' so the panel opens with Aspect already selected the
   // moment a photo lands — the bottom bar itself is gated on `photo` below,
   // so this has no effect until then.
-  const [activeTool, setActiveTool] = useState<string | null>('recorte')
+  const [activeTool, setActiveTool] = useState<string | null>('aspecto')
 
   const photo = border.photoId ? photos[border.photoId] : null
 
@@ -175,7 +176,7 @@ export function BorderEditor() {
       {photo && (
         <div className={`transition-opacity duration-[450ms] ${resetting ? 'opacity-0' : 'opacity-100'}`}>
         <EditorBottomBar tools={TOOLS} activeId={activeTool} onSelect={setActiveTool}>
-          {activeTool === 'recorte' && (
+          {activeTool === 'aspecto' && (
             <div>
               <p className="font-label mb-2 text-center text-xs font-semibold uppercase tracking-wider text-white/40">{tr.borderEditor.cropHeading}</p>
               <AspectRatioPicker
@@ -218,11 +219,12 @@ export function BorderEditor() {
             />
           )}
 
+          {activeTool === 'workspace' && (
+            <WorkspaceBackgroundPicker value={workspaceBackground} onChange={setWorkspaceBackground} />
+          )}
+
           {activeTool === 'color' && (
-            <>
-              <WorkspaceBackgroundPicker value={workspaceBackground} onChange={setWorkspaceBackground} />
-              <BorderColorPicker value={border.borderColor} onChange={setBorderColor} />
-            </>
+            <BorderColorPicker value={border.borderColor} onChange={setBorderColor} />
           )}
 
           {activeTool === 'grain' && (

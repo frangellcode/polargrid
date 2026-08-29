@@ -43,6 +43,16 @@ export function IconDrop({ className = 'h-5 w-5' }: IconProps) {
   )
 }
 
+/** Two overlapping circles — used for border-color tools. */
+export function IconSwatch({ className = 'h-5 w-5' }: IconProps) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" className={className}>
+      <circle cx="9" cy="12" r="7" />
+      <circle cx="15" cy="12" r="7" />
+    </svg>
+  )
+}
+
 /** Circular refresh arrows — used for the "force update" button. */
 export function IconRefresh({ className = 'h-4 w-4' }: IconProps) {
   return (
