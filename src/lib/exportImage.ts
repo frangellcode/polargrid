@@ -60,23 +60,24 @@ function drawPhotoInRect(
   ctx.restore()
 }
 
-/** Resolves true once the image is actually saved/shared, false if the person backed out of the share sheet. */
-async function downloadCanvas(canvas: HTMLCanvasElement, filename: string): Promise<boolean> {
-  const blob = await new Promise<Blob | null>((resolve) =>
-    canvas.toBlob((b) => resolve(b), 'image/jpeg', JPEG_QUALITY),
-  )
-  if (!blob) throw new Error('Could not generate the image')
+/** Resolves true once the file(s) are actually saved/shared, false if the person
+ *  backed out of the share sheet. Handles one photo or a whole batch — a batch is
+ *  always passed as a SINGLE array to ONE navigator.share() call (not one call per
+ *  file): calling share() again per file would fire without a fresh user gesture on
+ *  the 2nd+ call and get silently rejected by the browser, and would mean N separate
+ *  share-sheet prompts instead of one native "save 10 images" action. */
+async function saveFiles(files: File[]): Promise<boolean> {
+  if (files.length === 0) return false
 
   // In an installed iOS PWA, an <a download> anchor can't trigger a real
   // download — Safari instead opens the image in its own full-screen blob
   // viewer (the "black screen"), and returning from it is what causes the
   // app shell to visibly reflow. The native share sheet stays inside the
-  // app and gives "Save Image" as one of its actions, so prefer it
-  // whenever the platform can share files.
-  const file = new File([blob], filename, { type: 'image/jpeg' })
-  if (navigator.canShare?.({ files: [file] })) {
+  // app and gives "Save Image" (or "Save N Images") as one of its actions,
+  // so prefer it whenever the platform can share files.
+  if (navigator.canShare?.({ files })) {
     try {
-      await navigator.share({ files: [file] })
+      await navigator.share({ files })
       return true
     } catch (err) {
       // User dismissed the share sheet — not an error, just stop here.
@@ -85,27 +86,41 @@ async function downloadCanvas(canvas: HTMLCanvasElement, filename: string): Prom
     }
   }
 
-  const url = URL.createObjectURL(blob)
-  const a = document.createElement('a')
-  a.href = url
-  a.download = filename
-  document.body.appendChild(a)
-  a.click()
-  a.remove()
-  URL.revokeObjectURL(url)
+  // Fallback: one <a download> click per file. Desktop browsers may prompt
+  // to allow "this site is downloading multiple files" starting on the
+  // 2nd — a browser-level protection, not something to route around here.
+  for (const file of files) {
+    const url = URL.createObjectURL(file)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = file.name
+    document.body.appendChild(a)
+    a.click()
+    a.remove()
+    URL.revokeObjectURL(url)
+  }
   return true
 }
 
-export async function exportBorderPhoto(
+/** Resolves true once the image is actually saved/shared, false if the person backed out of the share sheet. */
+async function downloadCanvas(canvas: HTMLCanvasElement, filename: string): Promise<boolean> {
+  const blob = await new Promise<Blob | null>((resolve) =>
+    canvas.toBlob((b) => resolve(b), 'image/jpeg', JPEG_QUALITY),
+  )
+  if (!blob) throw new Error('Could not generate the image')
+  return saveFiles([new File([blob], filename, { type: 'image/jpeg' })])
+}
+
+function renderBorderCanvas(
   photo: LoadedPhoto,
   ratio: number,
   borderThicknessPct: number,
   transform: PhotoTransform,
-  quality: ExportQuality = 'native',
-  locked = true,
-  grainIntensity = 0,
-  borderColorHex = '#ffffff',
-) {
+  quality: ExportQuality,
+  locked: boolean,
+  grainIntensity: number,
+  borderColorHex: string,
+): HTMLCanvasElement {
   const sizeFn = locked ? computeNativeCanvasSize : computeNativeCanvasSizeContain
   // Cap the PHOTO's own resolution to the quality tier first, then build the
   // bordered canvas around that. Capping the final (photo + border) canvas
@@ -138,8 +153,47 @@ export async function exportBorderPhoto(
     'rect',
     grainIntensity,
   )
+  return canvas
+}
 
+export async function exportBorderPhoto(
+  photo: LoadedPhoto,
+  ratio: number,
+  borderThicknessPct: number,
+  transform: PhotoTransform,
+  quality: ExportQuality = 'native',
+  locked = true,
+  grainIntensity = 0,
+  borderColorHex = '#ffffff',
+) {
+  const canvas = renderBorderCanvas(photo, ratio, borderThicknessPct, transform, quality, locked, grainIntensity, borderColorHex)
   return downloadCanvas(canvas, `polargrid-border-${Date.now()}.jpg`)
+}
+
+/** Same shared adjustment (ratio/border/transform/etc.) rendered against every
+ *  photo in `photos`, saved as one batch — see saveFiles' own comment for why
+ *  this collects every File first and shares them in a single call, rather than
+ *  one exportBorderPhoto()-style call (and share-sheet prompt) per photo. */
+export async function exportBorderPhotosBatch(
+  photos: LoadedPhoto[],
+  ratio: number,
+  borderThicknessPct: number,
+  transform: PhotoTransform,
+  quality: ExportQuality,
+  locked: boolean,
+  grainIntensity: number,
+  borderColorHex: string,
+  onProgress?: (done: number, total: number) => void,
+): Promise<boolean> {
+  const files: File[] = []
+  for (let i = 0; i < photos.length; i++) {
+    const canvas = renderBorderCanvas(photos[i], ratio, borderThicknessPct, transform, quality, locked, grainIntensity, borderColorHex)
+    const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob((b) => resolve(b), 'image/jpeg', JPEG_QUALITY))
+    if (!blob) throw new Error('Could not generate the image')
+    files.push(new File([blob], `polargrid-border-${Date.now()}-${i + 1}.jpg`, { type: 'image/jpeg' }))
+    onProgress?.(i + 1, photos.length)
+  }
+  return saveFiles(files)
 }
 
 /**

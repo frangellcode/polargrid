@@ -11,6 +11,8 @@ interface ToolbarProps {
   onExport: (quality: ExportQuality) => void
   exportQuality: ExportQuality
   exporting?: boolean
+  /** Overrides the default "Exporting…" label while `exporting` is true — e.g. a batch's "Exporting 3/10…". */
+  exportingLabel?: string
   canExport?: boolean
   uploadLabel?: string
   multiple?: boolean
@@ -28,6 +30,7 @@ export const Toolbar = forwardRef<ToolbarHandle, ToolbarProps>(function Toolbar(
     onExport,
     exportQuality,
     exporting,
+    exportingLabel,
     canExport = true,
     uploadLabel,
     multiple = false,
@@ -140,7 +143,7 @@ export const Toolbar = forwardRef<ToolbarHandle, ToolbarProps>(function Toolbar(
           disabled={exporting || !canExport}
           className="font-label inline-flex h-9 items-center rounded-full bg-white px-4 text-xs font-semibold uppercase tracking-wide text-ink-900 transition duration-200 hover:bg-white/90 active:scale-95 disabled:cursor-not-allowed disabled:opacity-40 disabled:active:scale-100"
         >
-          {exporting ? tr.toolbar.exporting : tr.toolbar.export}
+          {exporting ? (exportingLabel ?? tr.toolbar.exporting) : tr.toolbar.export}
         </button>
       </div>
 

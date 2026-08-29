@@ -5,7 +5,7 @@ import { useTranslation } from '../../store/languageStore'
 import { useImageBitmap } from '../../hooks/useImageBitmap'
 import { useAnimatedColor, useAnimatedNumber } from '../../hooks/useAnimatedNumber'
 import { computeOutputPixelSize } from '../../lib/cropMath'
-import { exportBorderPhoto, resolveRatio } from '../../lib/exportImage'
+import { exportBorderPhoto, exportBorderPhotosBatch, resolveRatio } from '../../lib/exportImage'
 import { Toolbar } from './Toolbar'
 import { AspectRatioPicker } from './AspectRatioPicker'
 import { BorderThicknessSlider } from './BorderThicknessSlider'
@@ -26,6 +26,7 @@ const PREVIEW_LONG_EDGE = 900
 // and both `duration-[…]` classes in step with this, or the reset will fire
 // mid-fade and cut the animation short.
 const CONTENT_FADE_MS = 450
+const MAX_BORDER_BATCH_PHOTOS = 10
 
 export function BorderEditor() {
   const tr = useTranslation()
@@ -42,6 +43,7 @@ export function BorderEditor() {
     setMode,
     addPhotos,
     setBorderPhoto,
+    setBorderPhotos,
     setBorderAspectRatio,
     setBorderRatioOrientation,
     setBorderLocked,
@@ -65,8 +67,11 @@ export function BorderEditor() {
   // moment a photo lands — the bottom bar itself is gated on `photo` below,
   // so this has no effect until then.
   const [activeTool, setActiveTool] = useState<string | null>('aspecto')
+  const [batchTooMany, setBatchTooMany] = useState(false)
+  const [exportProgress, setExportProgress] = useState<{ done: number; total: number } | null>(null)
 
   const photo = border.photoId ? photos[border.photoId] : null
+  const isBatch = border.batchPhotoIds.length > 1
 
   const ratio = useMemo(() => {
     const fallback = photo ? photo.width / photo.height : 1
@@ -108,28 +113,55 @@ export function BorderEditor() {
   const handleUpload = async (files: FileList) => {
     const loaded = await loadFiles(files)
     if (loaded.length === 0) return
+    setBatchTooMany(false)
     addPhotos(loaded)
     setBorderPhoto(loaded[0].id)
+  }
+
+  // Same decode path as the single-photo upload (and the same one Collage
+  // already uses for up to MAX_COLLAGE_PHOTOS photos at once) — just cap
+  // and hand every id to setBorderPhotos instead of one to setBorderPhoto.
+  const handleBatchUpload = async (files: FileList) => {
+    const loaded = await loadFiles(files)
+    if (loaded.length === 0) return
+    const capped = loaded.slice(0, MAX_BORDER_BATCH_PHOTOS)
+    setBatchTooMany(loaded.length > MAX_BORDER_BATCH_PHOTOS)
+    addPhotos(capped)
+    setBorderPhotos(capped.map((p) => p.id))
   }
 
   const handleExport = async (quality: ExportQuality) => {
     if (!photo) return
     setBorderExportQuality(quality)
     setExporting(true)
+    setExportProgress(null)
     try {
-      const saved = await exportBorderPhoto(
-        photo,
-        ratio,
-        border.borderThicknessPct,
-        border.transform,
-        quality,
-        border.locked,
-        border.grainIntensity,
-        borderColorHex,
-      )
+      const saved = isBatch
+        ? await exportBorderPhotosBatch(
+            border.batchPhotoIds.map((id) => photos[id]).filter((p) => !!p),
+            ratio,
+            border.borderThicknessPct,
+            border.transform,
+            quality,
+            border.locked,
+            border.grainIntensity,
+            borderColorHex,
+            (done, total) => setExportProgress({ done, total }),
+          )
+        : await exportBorderPhoto(
+            photo,
+            ratio,
+            border.borderThicknessPct,
+            border.transform,
+            quality,
+            border.locked,
+            border.grainIntensity,
+            borderColorHex,
+          )
       if (saved) setShowSuccessToast(true)
     } finally {
       setExporting(false)
+      setExportProgress(null)
     }
   }
 
@@ -138,13 +170,21 @@ export function BorderEditor() {
       <Toolbar
         title={tr.borderEditor.title}
         onBack={() => setMode('home')}
-        onUpload={handleUpload}
+        onUpload={isBatch ? handleBatchUpload : handleUpload}
         onExport={handleExport}
         exportQuality={border.exportQuality}
         exporting={exporting}
+        exportingLabel={exportProgress ? tr.borderEditor.exportingBatch(exportProgress.done, exportProgress.total) : undefined}
         canExport={!!photo}
         uploadLabel={photo ? tr.borderEditor.changePhoto : tr.borderEditor.uploadPhoto}
+        multiple={isBatch}
       />
+
+      {isBatch && (
+        <p className="font-label bg-ink-900 px-4 pt-2 text-center text-[11px] font-semibold uppercase tracking-wide text-white/40">
+          {tr.borderEditor.batchCount(border.batchPhotoIds.length)}
+        </p>
+      )}
 
       <div
         className={`min-h-0 flex-1 p-4 transition-opacity duration-[450ms] ${resetting ? 'opacity-0' : 'opacity-100'}`}
@@ -164,12 +204,21 @@ export function BorderEditor() {
             />
           </CanvasStage>
         ) : (
-          <Dropzone
-            label={tr.borderEditor.dropLabel}
-            hint={tr.borderEditor.dropHint}
-            onFiles={handleUpload}
-            multiple={false}
-          />
+          <div className="flex h-full w-full flex-col gap-3 sm:flex-row">
+            <Dropzone
+              label={tr.borderEditor.dropLabel}
+              hint={tr.borderEditor.dropHint}
+              onFiles={handleUpload}
+              multiple={false}
+            />
+            <Dropzone
+              label={tr.borderEditor.dropBatchLabel}
+              hint={tr.borderEditor.dropBatchHint(MAX_BORDER_BATCH_PHOTOS)}
+              error={batchTooMany ? tr.borderEditor.batchTooMany(MAX_BORDER_BATCH_PHOTOS) : null}
+              onFiles={handleBatchUpload}
+              multiple
+            />
+          </div>
         )}
       </div>
 

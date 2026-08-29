@@ -35,6 +35,11 @@ function readStoredWorkspaceBackground(): string {
 
 interface BorderState {
   photoId: string | null
+  /** Empty in single-photo mode. Non-empty means White Border's batch
+   *  upload was used — holds every photo in the batch, always starting
+   *  with `photoId` (the one shown on the canvas; the rest export with
+   *  the same shared settings without ever being previewed). */
+  batchPhotoIds: string[]
   aspectRatioId: string
   ratioOrientation: Orientation
   borderThicknessPct: number
@@ -85,6 +90,9 @@ interface EditorStoreState {
   resetCollage: () => void
 
   setBorderPhoto: (photoId: string) => void
+  /** Batch upload: `photoIds[0]` becomes `photoId` (shown/adjusted), the
+   *  full array becomes `batchPhotoIds`. */
+  setBorderPhotos: (photoIds: string[]) => void
   setBorderAspectRatio: (id: string) => void
   setBorderRatioOrientation: (orientation: Orientation) => void
   setBorderLocked: (locked: boolean) => void
@@ -131,6 +139,7 @@ function buildAssignmentsForCount(count: number): CellAssignment[] {
 function createInitialBorderState(): BorderState {
   return {
     photoId: null,
+    batchPhotoIds: [],
     aspectRatioId: DEFAULT_ASPECT_RATIO_ID,
     ratioOrientation: 'vertical',
     borderThicknessPct: DEFAULT_BORDER_PCT,
@@ -199,7 +208,17 @@ export const useEditorStore = create<EditorStoreState>((set, get) => ({
 
   setBorderPhoto: (photoId) =>
     set((state) => ({
-      border: { ...state.border, photoId, transform: { ...DEFAULT_TRANSFORM } },
+      border: { ...state.border, photoId, batchPhotoIds: [], transform: { ...DEFAULT_TRANSFORM } },
+    })),
+
+  setBorderPhotos: (photoIds) =>
+    set((state) => ({
+      border: {
+        ...state.border,
+        photoId: photoIds[0] ?? null,
+        batchPhotoIds: photoIds,
+        transform: { ...DEFAULT_TRANSFORM },
+      },
     })),
 
   setBorderAspectRatio: (id) =>
