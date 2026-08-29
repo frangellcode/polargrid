@@ -29,7 +29,7 @@ export function WorkspaceBackgroundPicker({ value, onChange }: WorkspaceBackgrou
             >
               <span
                 className={`h-9 w-9 rounded-full border border-black/10 ${
-                  bg.hex ? '' : 'bg-[repeating-conic-gradient(#e2e8f0_0%_25%,#eef2f6_0%_50%)] bg-[length:10px_10px]'
+                  bg.hex ? '' : 'bg-[repeating-conic-gradient(#b6bcc4_0%_25%,#c2c6ca_0%_50%)] bg-[length:10px_10px]'
                 }`}
                 style={bg.hex ? { backgroundColor: bg.hex } : undefined}
               />

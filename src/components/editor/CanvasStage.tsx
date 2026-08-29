@@ -7,7 +7,7 @@ import { getWorkspaceBackground } from '../../lib/workspaceBackgrounds'
 // Matches the lighter of the checkerboard gradient's two square colors below,
 // so fading the backing color into this tone reads as blending toward the
 // pattern rather than toward an unrelated color.
-const CHECKER_BASE_HEX = '#eef2f6'
+const CHECKER_BASE_HEX = '#c2c6ca'
 
 interface CanvasStageProps {
   /** Logical (virtual) canvas size — children should be authored in this coordinate space. */
@@ -71,7 +71,7 @@ export function CanvasStage({
       {/* Checkered "No background" pattern as its own opacity-animated layer, in
           sync with the color fade above. */}
       <div
-        className="pointer-events-none absolute inset-0 bg-[repeating-conic-gradient(#e2e8f0_0%_25%,#eef2f6_0%_50%)] bg-[length:20px_20px] transition-opacity duration-300"
+        className="pointer-events-none absolute inset-0 bg-[repeating-conic-gradient(#b6bcc4_0%_25%,#c2c6ca_0%_50%)] bg-[length:20px_20px] transition-opacity duration-300"
         style={{ opacity: workspaceBg.hex ? 0 : 1 }}
       />
       {scale > 0 && (
