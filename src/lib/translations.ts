@@ -45,7 +45,7 @@ export const translations = {
     },
     collageEditor: {
       toolBackground: 'Background',
-      toolFormat: 'Format',
+      toolAspect: 'Aspect',
       toolTemplate: 'Template',
       toolBorder: 'Border',
       toolGrain: 'Grain',
@@ -155,7 +155,7 @@ export const translations = {
     },
     collageEditor: {
       toolBackground: 'Fondo',
-      toolFormat: 'Formato',
+      toolAspect: 'Aspecto',
       toolTemplate: 'Plantilla',
       toolBorder: 'Bordes',
       toolGrain: 'Grano',

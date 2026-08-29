@@ -73,3 +73,35 @@ export function useAnimatedNumber(target: number, duration = 320): number {
   return value
 }
 
+
+/**
+ * True starting the exact render `trigger` changes, for `duration` ms after —
+ * never true on mount. Meant for gating a consumer's OWN animation (e.g. a
+ * cell's `animateLayout`) on "is a reflow transition in flight right now",
+ * where a one-render lag would matter: a plain effect-based version of this
+ * returns stale state for the render where `trigger` actually changes, so a
+ * consumer using it to pick between an animated and a raw value would render
+ * the raw (snapped) value for one frame, THEN switch to the animated value —
+ * which by then has already started easing from the OLD position —
+ * producing a visible snap-then-jump-back-then-ease glitch. Updating state
+ * during render (React's documented "adjust state when a prop changes"
+ * pattern) instead makes the flip take effect in the same commit as the
+ * trigger change, so no such frame exists.
+ */
+export function useIsReflowing(trigger: string | number, duration = 320): boolean {
+  const [prevTrigger, setPrevTrigger] = useState(trigger)
+  const [reflowing, setReflowing] = useState(false)
+
+  if (trigger !== prevTrigger) {
+    setPrevTrigger(trigger)
+    setReflowing(true)
+  }
+
+  useEffect(() => {
+    if (!reflowing) return
+    const t = setTimeout(() => setReflowing(false), duration)
+    return () => clearTimeout(t)
+  }, [reflowing, duration])
+
+  return reflowing
+}

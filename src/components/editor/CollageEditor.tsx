@@ -5,7 +5,7 @@ import type { CellAssignment, CellShape, ExportQuality, GridTemplate, LoadedPhot
 import { useEditorStore } from '../../store/editorStore'
 import { useTranslation } from '../../store/languageStore'
 import { useImageBitmap } from '../../hooks/useImageBitmap'
-import { easeInOutCubic, useAnimatedColor, useAnimatedNumber } from '../../hooks/useAnimatedNumber'
+import { easeInOutCubic, useAnimatedColor, useAnimatedNumber, useIsReflowing } from '../../hooks/useAnimatedNumber'
 import { COLLAGE_ASPECT_RATIOS } from '../../lib/aspectRatios'
 import { computeOutputPixelSize, getImageDrawRect } from '../../lib/cropMath'
 import { MIN_COLLAGE_PHOTOS, getTemplateById, transposeTemplate } from '../../lib/collageTemplates'
@@ -140,6 +140,11 @@ interface GridCellsLayerProps {
   template: GridTemplate
   assignments: CellAssignment[]
   photos: Record<string, LoadedPhoto>
+  /** True only for the brief window right after a template/orientation/aspect-
+   *  ratio switch — see the comment above its computation in CollageEditor
+   *  for why cells only animate their layout during that window, not on
+   *  every border/gutter-slider tick. */
+  animateCells: boolean
   contentX: number
   contentY: number
   cellW: number
@@ -220,6 +225,7 @@ function GridCellsLayer({
   template,
   assignments,
   photos,
+  animateCells,
   contentX,
   contentY,
   cellW,
@@ -378,6 +384,7 @@ function GridCellsLayer({
               y={rect.y}
               width={rect.w}
               height={rect.h}
+              animateLayout={animateCells}
               shape={shape}
               grain={grain}
               photo={photo}
@@ -502,14 +509,14 @@ export function CollageEditor() {
   const tr = useTranslation()
   const GRID_TOOLS: BottomBarTool[] = [
     { id: 'fondo', label: tr.collageEditor.toolBackground, icon: <IconDrop /> },
-    { id: 'formato', label: tr.collageEditor.toolFormat, icon: <IconCrop /> },
+    { id: 'formato', label: tr.collageEditor.toolAspect, icon: <IconCrop /> },
     { id: 'plantilla', label: tr.collageEditor.toolTemplate, icon: <IconGrid /> },
     { id: 'bordes', label: tr.collageEditor.toolBorder, icon: <IconFrame /> },
     { id: 'grain', label: tr.collageEditor.toolGrain, icon: <IconGrain /> },
   ]
   const FREE_TOOLS: BottomBarTool[] = [
     { id: 'fondo', label: tr.collageEditor.toolBackground, icon: <IconDrop /> },
-    { id: 'formato', label: tr.collageEditor.toolFormat, icon: <IconCrop /> },
+    { id: 'formato', label: tr.collageEditor.toolAspect, icon: <IconCrop /> },
     { id: 'grain', label: tr.collageEditor.toolGrain, icon: <IconGrain /> },
   ]
   const store = useEditorStore()
@@ -542,10 +549,12 @@ export function CollageEditor() {
     () => computeOutputPixelSize(ratio, PREVIEW_LONG_EDGE),
     [ratio],
   )
-  // Animated for FREE mode's own frame size (no grid cells to desync from —
-  // FreeItemsLayer's items are user-positioned, nothing auto-retiles). GRID
-  // mode uses the raw target directly instead (see frameWidth/frameHeight
-  // below) — read on for why.
+  // Animated only for CanvasStage's own frame size below — grid cell rects
+  // deliberately use the raw (unanimated) targetWidth/targetHeight instead
+  // (see contentW/cellW/etc. further down), fed through animateLayout on
+  // each PhotoCell instead of this tween, so a slider drag isn't stuck
+  // chasing a value that's itself still moving (see BorderEditor's history
+  // for the full writeup — same bug, same fix).
   const outputWidth = useAnimatedNumber(targetWidth)
   const outputHeight = useAnimatedNumber(targetHeight)
 
@@ -554,19 +563,15 @@ export function CollageEditor() {
     return collage.orientation === 'vertical' ? transposeTemplate(base) : base
   }, [collage.templateId, collage.photoCount, collage.orientation])
 
-  // Raw (unanimated) targetWidth/targetHeight on purpose. Every grid cell
-  // used to ease into its new rect independently (animateLayout) on a
-  // template/orientation/aspect-ratio switch, with no shared clock between
-  // cells — they could visibly cross paths mid-move, or (for an aspect-ratio
-  // change specifically) race ahead of CanvasStage's own separately-tweened
-  // frame size and briefly render outside its current bounds. Three
-  // different veils were tried to mask the crossover (opacity dip -> read as
-  // a white flash; a dark veil at the same envelope -> read as a black flash
-  // instead; a CSS blur pulse -> still read as an unwanted glitch) without
-  // ever actually reading as intentional. Snapping straight to the target —
-  // the same non-animated approach outerBorderPct/gutterPct's sliders
-  // already use, for the unrelated laggy-slider reason below — sidesteps
-  // the whole "how do we mask this" problem instead of trying a fourth veil.
+  // Raw (unanimated) targetWidth/targetHeight on purpose — outputWidth stays
+  // reserved for CanvasStage's own frame size. GridCellsLayer's PhotoCells
+  // animate themselves (animateLayout), so feeding them a rect derived from
+  // an outer value that's ALSO mid-animation would double-animate (see
+  // BorderEditor's git history for that bug). Using the raw target here is
+  // what actually lets animateLayout smoothly reorganize cells on a template
+  // switch — outputWidth doesn't change for that case at all (only the
+  // template does), so without this, cells had nothing to animate from and
+  // just snapped straight to their new spot.
   const shortSide = Math.min(targetWidth, targetHeight)
   const outerBorderPx = collage.outerBorderPct * shortSide
   const gutterPx = collage.gutterPct * shortSide
@@ -577,13 +582,29 @@ export function CollageEditor() {
   const cellW = (contentW - gutterPx * (template.cols - 1)) / template.cols
   const cellH = (contentH - gutterPx * (template.rows - 1)) / template.rows
 
-  // GRID mode's own frame tracks the raw target too, in lockstep with the
-  // cells above — letting it keep animating (like FREE mode's frame does)
-  // while cells snap instantly would have cells sized/positioned for the
-  // FINAL frame while the canvas itself is still mid-resize toward it,
-  // clipping or leaving a gap around them until the frame caught up.
-  const frameWidth = collage.layoutMode === 'grid' ? targetWidth : outputWidth
-  const frameHeight = collage.layoutMode === 'grid' ? targetHeight : outputHeight
+  // Switching template/orientation/aspect-ratio re-tiles every cell at once;
+  // each one eases to its new rect independently via animateLayout (in
+  // PhotoCell), which is the actual motion the person wants to see for THAT
+  // kind of change. But `animateLayout` shouldn't be on for outerBorderPct/
+  // gutterPct changes too — a slider drag fires a new target on every
+  // 'input' event, and animateLayout's tween restarts on every one of them
+  // before the last finishes, so the cell is perpetually chasing the live
+  // slider value instead of tracking it (the exact laggy-slider bug
+  // BorderEditor's own history warns about — it avoids animateLayout
+  // entirely for its border-thickness slider for this reason). Gating
+  // animateLayout on "is a reflow in flight" — true only right after
+  // template/orientation/aspectRatioId changes, never for outerBorderPct/
+  // gutterPct — gets both: instant 1:1 slider tracking AND smooth reflows.
+  //
+  // No masking veil this time around: an opacity dip read as a white flash,
+  // a same-shaped dark veil read as a black flash instead, and a CSS blur
+  // pulse still read as an unwanted glitch — three different attempts to
+  // hide cells crossing paths mid-move, none of which ever read as
+  // intentional (see git history). Turned out the plain slide, with nothing
+  // trying to hide it, reads fine on its own — it's normal reflow motion,
+  // not an error, and doesn't need a veil to sell that.
+  const reflowKey = `${collage.templateId}|${collage.orientation}|${collage.aspectRatioId}`
+  const animateCells = useIsReflowing(reflowKey, 320)
 
   const borderColorHex = getBorderColor(collage.borderColor).hex
   // Only the live preview eases between colors — the export just paints the
@@ -671,8 +692,8 @@ export function CollageEditor() {
       >
         {hasContent ? (
           <CanvasStage
-            outputWidth={frameWidth}
-            outputHeight={frameHeight}
+            outputWidth={outputWidth}
+            outputHeight={outputHeight}
             background={animatedBorderColorHex}
           >
             {collage.layoutMode === 'grid'
@@ -681,6 +702,7 @@ export function CollageEditor() {
                   template={template}
                   assignments={collage.assignments}
                   photos={photos}
+                  animateCells={animateCells}
                   contentX={contentX}
                   contentY={contentY}
                   cellW={cellW}
