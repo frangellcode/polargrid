@@ -72,6 +72,9 @@ export function PhotoCell({
   onLongPressStart,
 }: PhotoCellProps) {
   const pinchDist = useRef<number | null>(null)
+  // Tracks zoom DURING an active wheel/pinch gesture without going through
+  // React — see applyLiveZoom below for why.
+  const liveZoomRef = useRef(transform.zoom)
   const imageRef = useRef<Konva.Image>(null)
   const wheelIdleTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
   const holdTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
@@ -161,16 +164,36 @@ export function PhotoCell({
     setInteracting(false)
   }
 
+  // Wheel/pinch used to call onTransformChange (a full store commit, which
+  // re-renders the whole editor screen — toolbar, bottom bar, everything)
+  // on EVERY tick of the gesture, tens of times a second. Panning already
+  // avoided this (Konva's own `draggable` moves the node directly; only
+  // handleDragEnd above commits once), but zoom never got the same
+  // treatment — on a real phone that per-frame full-tree re-render is what
+  // read as the gesture stuttering before the zoom visibly caught up. Now
+  // each tick just mutates the Konva node directly and repaints the layer;
+  // the store only gets the final value once, when the gesture ends.
+  const applyLiveZoom = (zoom: number) => {
+    liveZoomRef.current = zoom
+    const liveDraw = getImageDrawRect(width, height, photo.width, photo.height, { ...transform, zoom }, fit)
+    imageRef.current?.setAttrs({ x: liveDraw.x, y: liveDraw.y, width: liveDraw.width, height: liveDraw.height })
+    imageRef.current?.getLayer()?.batchDraw()
+  }
+
   const handleWheel = (e: Konva.KonvaEventObject<WheelEvent>) => {
     e.evt.preventDefault()
+    if (!interacting) liveZoomRef.current = transform.zoom
     const delta = -e.evt.deltaY * 0.0015
-    const zoom = Math.min(MAX_ZOOM, Math.max(1, transform.zoom + delta))
-    onTransformChange(clampTransform({ ...transform, zoom }))
+    const zoom = Math.min(MAX_ZOOM, Math.max(1, liveZoomRef.current + delta))
+    applyLiveZoom(zoom)
     setInteracting(true)
     clearTimeout(wheelIdleTimer.current)
     // Wheel fires many events per gesture with no discrete "end" — treat
-    // 200ms of silence as the gesture being over.
-    wheelIdleTimer.current = setTimeout(() => setInteracting(false), 200)
+    // 200ms of silence as the gesture being over, and commit then.
+    wheelIdleTimer.current = setTimeout(() => {
+      setInteracting(false)
+      onTransformChange(clampTransform({ ...transform, zoom: liveZoomRef.current }))
+    }, 200)
   }
 
   const handleTouchMove = (e: Konva.KonvaEventObject<TouchEvent>) => {
@@ -178,12 +201,13 @@ export function PhotoCell({
     if (touches.length < 2) return
     e.evt.preventDefault()
     setInteracting(true)
+    if (pinchDist.current == null) liveZoomRef.current = transform.zoom
     const [a, b] = [touches[0], touches[1]]
     const dist = Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY)
     if (pinchDist.current != null) {
       const scaleDelta = dist / pinchDist.current
-      const zoom = Math.min(MAX_ZOOM, Math.max(1, transform.zoom * scaleDelta))
-      onTransformChange(clampTransform({ ...transform, zoom }))
+      const zoom = Math.min(MAX_ZOOM, Math.max(1, liveZoomRef.current * scaleDelta))
+      applyLiveZoom(zoom)
     }
     pinchDist.current = dist
   }
@@ -192,6 +216,9 @@ export function PhotoCell({
     pinchDist.current = null
     setInteracting(false)
     clearHold()
+    if (liveZoomRef.current !== transform.zoom) {
+      onTransformChange(clampTransform({ ...transform, zoom: liveZoomRef.current }))
+    }
   }
 
   // Long-press-to-pick-up detection lives here rather than on the KonvaImage
