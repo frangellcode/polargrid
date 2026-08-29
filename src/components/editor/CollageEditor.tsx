@@ -26,12 +26,14 @@ import { IconCrop, IconDrop, IconFrame, IconGrain, IconGrid } from './icons'
 import { GrainOverlay } from './GrainOverlay'
 
 const PREVIEW_LONG_EDGE = 900
-// Slightly gentler than CLOSE_MS (used for the toast's own open/close
-// animation, unrelated to this) — the content->Dropzone cross-fade felt like
-// a snap at 300ms, so it eases a bit longer here. Keep the setTimeout below
-// and both `duration-[…]` classes in step with this, or the reset will fire
-// mid-fade and cut the animation short.
-const CONTENT_FADE_MS = 450
+// Reuses the app's own view-exit/view-enter pair (index.css) — the same
+// crossfade+scale already used for full-screen navigation — instead of a
+// bespoke opacity-only fade, so the Dropzone<->canvas swap ("create
+// another", and the very first photo turning the empty Dropzone into a
+// collage) reads as one consistent, on-brand motion. Must match .view-exit's
+// animation-duration exactly, since the timeout below is what actually
+// triggers the content swap.
+const EXIT_MS = 200
 
 interface FreeItemsLayerProps {
   outputWidth: number
@@ -524,10 +526,19 @@ export function CollageEditor() {
   const { loadFiles } = useImageBitmap()
   const [exporting, setExporting] = useState(false)
   const [showSuccessToast, setShowSuccessToast] = useState(false)
-  // True for the CONTENT_FADE_MS window between tapping "Create another" and the
-  // collage actually being cleared — fades the current canvas/bottom bar
-  // out instead of them just vanishing the instant resetCollage() fires.
-  const [resetting, setResetting] = useState(false)
+  // Drives the content area's crossfade for a full content swap (the very
+  // first photo turning the empty Dropzone into a collage, or "create
+  // another" clearing it back out): 'exiting' plays view-exit on the
+  // always-mounted wrapper, then the timeout below applies the actual state
+  // change and flips to 'entering', which mounts a freshly-keyed child with
+  // view-enter. onAnimationEnd drops back to 'idle' — same pattern App.tsx
+  // uses for its own view transitions, and for the same reason: `animation:
+  // ... both` pins a transform (and its compositing layer) forever unless
+  // the class is removed once the animation finishes, and a permanently
+  // composited layer is what breaks iOS taps/drags — this content area sits
+  // right on top of each cell's own drag gesture.
+  const [swapPhase, setSwapPhase] = useState<'idle' | 'exiting' | 'entering'>('idle')
+  const [swapKey, setSwapKey] = useState(0)
   const [pendingCellId, setPendingCellId] = useState<string | null>(null)
   const [selectedFreeId, setSelectedFreeId] = useState<string | null>(null)
   const [activeTool, setActiveTool] = useState<string | null>(null)
@@ -614,6 +625,15 @@ export function CollageEditor() {
   const tools = collage.layoutMode === 'grid' ? GRID_TOOLS : FREE_TOOLS
   const activeToolId = tools.some((t) => t.id === activeTool) ? activeTool : null
 
+  const swapContent = (apply: () => void) => {
+    setSwapPhase('exiting')
+    setTimeout(() => {
+      apply()
+      setSwapKey((k) => k + 1)
+      setSwapPhase('entering')
+    }, EXIT_MS)
+  }
+
   const handleUpload = async (files: FileList) => {
     const loaded = await loadFiles(files)
     if (loaded.length === 0) return
@@ -621,6 +641,17 @@ export function CollageEditor() {
       store.addPhotos(loaded)
       store.assignPhotoToCell(pendingCellId, loaded[0].id)
       setPendingCellId(null)
+      return
+    }
+    // Only the very first photo — the Dropzone->canvas swap — gets the
+    // crossfade; adding more photos to an already-visible collage stays
+    // instant, since nothing is being replaced (Collage's own grid reflow
+    // already animates those in).
+    if (!hasContent) {
+      swapContent(() => {
+        const added = store.addCollagePhotos(loaded)
+        if (!added) setUploadError(tr.collageEditor.selectAtLeast(MIN_COLLAGE_PHOTOS))
+      })
       return
     }
     const added = store.addCollagePhotos(loaded)
@@ -687,9 +718,12 @@ export function CollageEditor() {
         ))}
       </div>
 
-      <div
-        className={`min-h-0 flex-1 p-4 transition-opacity duration-[450ms] ${resetting ? 'opacity-0' : 'opacity-100'}`}
-      >
+      <div className={`min-h-0 flex-1 p-4 ${swapPhase === 'exiting' ? 'view-exit' : ''}`}>
+        <div
+          key={swapKey}
+          className={`h-full ${swapPhase === 'entering' ? 'view-enter' : ''}`}
+          onAnimationEnd={() => setSwapPhase((p) => (p === 'entering' ? 'idle' : p))}
+        >
         {hasContent ? (
           <CanvasStage
             outputWidth={outputWidth}
@@ -735,6 +769,7 @@ export function CollageEditor() {
             onFiles={handleUpload}
           />
         )}
+        </div>
       </div>
 
       {collage.layoutMode === 'free' && selectedFreeId && (
@@ -753,7 +788,10 @@ export function CollageEditor() {
       )}
 
       {hasContent && (
-        <div className={`transition-opacity duration-[450ms] ${resetting ? 'opacity-0' : 'opacity-100'}`}>
+        <div
+          key={swapKey}
+          className={swapPhase === 'exiting' ? 'view-exit' : swapPhase === 'entering' ? 'view-enter' : ''}
+        >
         <EditorBottomBar tools={tools} activeId={activeToolId} onSelect={setActiveTool}>
           {activeToolId === 'formato' && (
             <div>
@@ -897,23 +935,7 @@ export function CollageEditor() {
         onClose={() => setShowSuccessToast(false)}
         onCreateAnother={() => {
           setShowSuccessToast(false)
-          setResetting(true)
-          setTimeout(() => {
-            store.resetCollage()
-            // No rAF dance needed to bring this back in: unlike the fade-out
-            // above (a CSS *transition*, which needs its "from" state
-            // actually painted before flipping the target so there's
-            // something to animate from), Dropzone mounts with `fade-in-slow`
-            // — a CSS *animation*, which always plays its own 0% keyframe
-            // regardless of when it's triggered. Snapping this wrapper
-            // straight back to opacity-100 just uncovers that animation
-            // already in motion. Flipping it via the old rAF dance instead
-            // made this wrapper run its OWN opacity transition at the same
-            // time as Dropzone's independent fade-in-up underneath it — two
-            // competing opacity/translateY ramps on top of each other, which
-            // is what actually read as things "snapping" into place.
-            setResetting(false)
-          }, CONTENT_FADE_MS)
+          swapContent(() => store.resetCollage())
         }}
         onGoHome={() => {
           setShowSuccessToast(false)
