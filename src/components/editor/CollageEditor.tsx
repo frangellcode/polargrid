@@ -191,16 +191,25 @@ interface CellDragState {
 interface SwapAnimState {
   aCellId: string
   bCellId: string
+  // Each side carries its own from/to rect (position AND size) rather than
+  // sharing one — swapping between cells of different spans means A and B
+  // both change size as they fly, not just position.
   aFromX: number
   aFromY: number
+  aFromW: number
+  aFromH: number
   aToX: number
   aToY: number
+  aToW: number
+  aToH: number
   bFromX: number
   bFromY: number
+  bFromW: number
+  bFromH: number
   bToX: number
   bToY: number
-  w: number
-  h: number
+  bToW: number
+  bToH: number
   photoA: LoadedPhoto | null
   transformA: PhotoTransform
   photoB: LoadedPhoto | null
@@ -256,17 +265,17 @@ function GridCellsLayer({
     })
   })
 
-  // Only cells with the same span as the one being dragged are valid drop
-  // targets — anything else would need the template's actual shape to
-  // reflow, which a same-position content swap can't do. Simplest correct
-  // rule, not the cleverest one: an incompatible target just behaves like no
-  // target at all (release cancels, no swap, no crash).
+  // Any other cell is a valid drop target, regardless of span — swapping
+  // never reflows the template (each cellId keeps its own fixed position
+  // and size from the template), it only exchanges which photo+transform
+  // lives in cellIdA vs cellIdB. A photo landing in a differently-sized
+  // cell just gets re-cropped against that cell's own cover-fit at render
+  // time, same as PhotoCell already does for any photo in any cell.
   const hitTestCell = (px: number, py: number, excludeCellId: string): string | null => {
     const source = cellRects.get(excludeCellId)
     if (!source) return null
     for (const [cellId, rect] of cellRects) {
       if (cellId === excludeCellId) continue
-      if (rect.colSpan !== source.colSpan || rect.rowSpan !== source.rowSpan) continue
       if (px >= rect.x && px <= rect.x + rect.w && py >= rect.y && py <= rect.y + rect.h) return cellId
     }
     return null
@@ -315,14 +324,20 @@ function GridCellsLayer({
               bCellId: current.hoverCellId,
               aFromX: aRect.x,
               aFromY: aRect.y,
+              aFromW: aRect.w,
+              aFromH: aRect.h,
               aToX: bRect.x,
               aToY: bRect.y,
+              aToW: bRect.w,
+              aToH: bRect.h,
               bFromX: bRect.x,
               bFromY: bRect.y,
+              bFromW: bRect.w,
+              bFromH: bRect.h,
               bToX: aRect.x,
               bToY: aRect.y,
-              w: aRect.w,
-              h: aRect.h,
+              bToW: aRect.w,
+              bToH: aRect.h,
               photoA: aAssignment.photoId ? photos[aAssignment.photoId] : null,
               transformA: aAssignment.transform,
               photoB: bAssignment.photoId ? photos[bAssignment.photoId] : null,
@@ -468,16 +483,20 @@ function GridCellsLayer({
         const e = easeInOutCubic(swapProgress)
         const ax = swapAnim.aFromX + (swapAnim.aToX - swapAnim.aFromX) * e
         const ay = swapAnim.aFromY + (swapAnim.aToY - swapAnim.aFromY) * e
+        const aw = swapAnim.aFromW + (swapAnim.aToW - swapAnim.aFromW) * e
+        const ah = swapAnim.aFromH + (swapAnim.aToH - swapAnim.aFromH) * e
         const bx = swapAnim.bFromX + (swapAnim.bToX - swapAnim.bFromX) * e
         const by = swapAnim.bFromY + (swapAnim.bToY - swapAnim.bFromY) * e
+        const bw = swapAnim.bFromW + (swapAnim.bToW - swapAnim.bFromW) * e
+        const bh = swapAnim.bFromH + (swapAnim.bToH - swapAnim.bFromH) * e
         return (
           <>
             {swapAnim.photoA && (
               <PhotoCell
                 x={ax}
                 y={ay}
-                width={swapAnim.w}
-                height={swapAnim.h}
+                width={aw}
+                height={ah}
                 shape={shape}
                 grain={grain}
                 photo={swapAnim.photoA}
@@ -490,8 +509,8 @@ function GridCellsLayer({
               <PhotoCell
                 x={bx}
                 y={by}
-                width={swapAnim.w}
-                height={swapAnim.h}
+                width={bw}
+                height={bh}
                 shape={shape}
                 grain={grain}
                 photo={swapAnim.photoB}
