@@ -176,8 +176,14 @@ export function PhotoCell({
   const applyLiveZoom = (zoom: number) => {
     liveZoomRef.current = zoom
     const liveDraw = getImageDrawRect(width, height, photo.width, photo.height, { ...transform, zoom }, fit)
-    imageRef.current?.setAttrs({ x: liveDraw.x, y: liveDraw.y, width: liveDraw.width, height: liveDraw.height })
-    imageRef.current?.getLayer()?.batchDraw()
+    const node = imageRef.current
+    if (node) {
+      node.x(liveDraw.x)
+      node.y(liveDraw.y)
+      node.width(liveDraw.width)
+      node.height(liveDraw.height)
+      node.getLayer()?.batchDraw()
+    }
   }
 
   const handleWheel = (e: Konva.KonvaEventObject<WheelEvent>) => {
