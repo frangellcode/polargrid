@@ -20,6 +20,14 @@ export const translations = {
       updating: 'Updating…',
       restarting: 'Restarting…',
     },
+    // Bottom-bar labels for tools that BOTH editors have, kept in one place so
+    // they cannot drift apart. They already had: the workspace-background tool
+    // read "Workspace"/"Espacio" in Bordes but "Background"/"Fondo" in Collage,
+    // for what is the same tool opening the same picker over the same
+    // `workspaceBackground` store field. Two copies of a label is all it takes.
+    tools: {
+      workspace: 'Workspace',
+    },
     toolbar: {
       back: 'Back',
       export: 'Export',
@@ -28,7 +36,6 @@ export const translations = {
       exportFailed: 'Could not export — try a lower quality or fewer photos.',
     },
     borderEditor: {
-      toolWorkspace: 'Workspace',
       toolColor: 'Color',
       toolAspect: 'Aspect',
       toolBorder: 'Border',
@@ -51,7 +58,6 @@ export const translations = {
       grain: 'Grain',
     },
     collageEditor: {
-      toolBackground: 'Background',
       toolAspect: 'Aspect',
       toolTemplate: 'Template',
       toolBorder: 'Border',
@@ -137,6 +143,9 @@ export const translations = {
       updating: 'Actualizando…',
       restarting: 'Reiniciando…',
     },
+    tools: {
+      workspace: 'Espacio',
+    },
     toolbar: {
       back: 'Atrás',
       export: 'Exportar',
@@ -145,7 +154,6 @@ export const translations = {
       exportFailed: 'No se pudo exportar — prueba con menos calidad o menos fotos.',
     },
     borderEditor: {
-      toolWorkspace: 'Espacio',
       toolColor: 'Color',
       toolAspect: 'Aspecto',
       toolBorder: 'Bordes',
@@ -168,7 +176,6 @@ export const translations = {
       grain: 'Grano',
     },
     collageEditor: {
-      toolBackground: 'Fondo',
       toolAspect: 'Aspecto',
       toolTemplate: 'Plantilla',
       toolBorder: 'Bordes',

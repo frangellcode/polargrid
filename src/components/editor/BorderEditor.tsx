@@ -32,7 +32,7 @@ const MAX_BORDER_BATCH_PHOTOS = 10
 export function BorderEditor() {
   const tr = useTranslation()
   const TOOLS: BottomBarTool[] = [
-    { id: 'workspace', label: tr.borderEditor.toolWorkspace, icon: <IconDrop /> },
+    { id: 'workspace', label: tr.tools.workspace, icon: <IconDrop /> },
     { id: 'aspecto', label: tr.borderEditor.toolAspect, icon: <IconCrop /> },
     { id: 'bordes', label: tr.borderEditor.toolBorder, icon: <IconFrame /> },
     { id: 'color', label: tr.borderEditor.toolColor, icon: <IconSwatch /> },

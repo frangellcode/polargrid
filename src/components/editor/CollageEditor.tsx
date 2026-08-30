@@ -529,14 +529,14 @@ function GridCellsLayer({
 export function CollageEditor() {
   const tr = useTranslation()
   const GRID_TOOLS: BottomBarTool[] = [
-    { id: 'fondo', label: tr.collageEditor.toolBackground, icon: <IconDrop /> },
+    { id: 'workspace', label: tr.tools.workspace, icon: <IconDrop /> },
     { id: 'formato', label: tr.collageEditor.toolAspect, icon: <IconCrop /> },
     { id: 'plantilla', label: tr.collageEditor.toolTemplate, icon: <IconGrid /> },
     { id: 'bordes', label: tr.collageEditor.toolBorder, icon: <IconFrame /> },
     { id: 'grain', label: tr.collageEditor.toolGrain, icon: <IconGrain /> },
   ]
   const FREE_TOOLS: BottomBarTool[] = [
-    { id: 'fondo', label: tr.collageEditor.toolBackground, icon: <IconDrop /> },
+    { id: 'workspace', label: tr.tools.workspace, icon: <IconDrop /> },
     { id: 'formato', label: tr.collageEditor.toolAspect, icon: <IconCrop /> },
     { id: 'grain', label: tr.collageEditor.toolGrain, icon: <IconGrain /> },
   ]
@@ -975,7 +975,7 @@ export function CollageEditor() {
             </>
           )}
 
-          {activeToolId === 'fondo' && (
+          {activeToolId === 'workspace' && (
             <>
               <WorkspaceBackgroundPicker value={store.workspaceBackground} onChange={store.setWorkspaceBackground} />
               <BorderColorPicker value={collage.borderColor} onChange={store.setCollageBorderColor} />
