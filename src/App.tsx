@@ -1,27 +1,21 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
-import type { CSSProperties } from 'react'
+import type { CSSProperties, TransitionEventHandler } from 'react'
 import { useEditorStore } from './store/editorStore'
 import { useTranslation } from './store/languageStore'
-import { HomeScreen, HOME_LOGO_SIZE } from './components/HomeScreen'
+import { HomeScreen } from './components/HomeScreen'
 import { BorderEditor } from './components/editor/BorderEditor'
 import { CollageEditor } from './components/editor/CollageEditor'
-import { Logo } from './components/Logo'
 import { useUpdateStore } from './store/updateStore'
 import type { AppMode } from './types'
 
 const EXIT_MS = 200
 
-// Boot splash timing: index.html paints a static centered logo (size
-// BOOT_LOGO_SIZE) instantly, before any JS runs, so cold starts never show a
-// bare screen. Once React mounts, a matching floating logo takes over that
-// exact spot (no flash — see the `boot` state machine below), holds for
-// BOOT_HOLD_MS so the branded splash actually registers, then flies to where
-// the logo sits inside HomeScreen while the rest of Home's text fades in.
-// Tied to HomeScreen's own logo rather than a separate number, so the flight's
-// `scale` below always works out to exactly 1 and the SVG is never resampled —
-// see HOME_LOGO_SIZE's comment for why a scaled logo visibly snaps on landing.
-// index.html's pre-JS splash SVG hardcodes the same value.
-const BOOT_LOGO_SIZE = HOME_LOGO_SIZE
+// Boot splash timing: index.html paints a static centered logo (HOME_LOGO_SIZE
+// px) instantly, before any JS runs, so cold starts never show a bare screen.
+// Once React mounts, HomeScreen's own logo is transformed onto that exact spot
+// before the first paint (see logoStyle), holds for BOOT_HOLD_MS so the branded
+// splash actually registers, then releases back to its resting place while the
+// rest of Home's text fades in.
 const BOOT_HOLD_MS = 700
 const BOOT_FLIGHT_MS = 900
 // Backstop margin for the transitionend handlers below. Every handoff in this
@@ -38,10 +32,10 @@ const TRANSITION_BACKSTOP_MS = 200
 
 type BootStage = 'hold' | 'flying' | 'done'
 
-// "Update" replay: reuses the exact same floating-logo trick as the boot
-// splash, just run in reverse first. Tapping "Update app" sends the home
-// logo back to the center (growing, text fading out — same motion as boot
-// but backwards) and holds there while a progress bar fills 0->100. At 100%,
+// "Update" replay: the boot flight run in reverse, on the same element.
+// Tapping "Update app" sends the home logo back to the center (text fading
+// out — the boot motion backwards) and holds there while a bar fills 0->100.
+// At 100%,
 // applyUpdate() activates the waiting service worker, which triggers a real
 // window.location.reload() (see pwaUpdate.ts's onNeedReload — plus a
 // belt-and-suspenders backup timeout right below) — which re-runs this whole
@@ -78,9 +72,10 @@ const UPDATE_RELOAD_FALLBACK_MS = 2500
 type UpdatePhase = 'idle' | 'toCenter' | 'progress' | 'restarting'
 
 interface HomeRenderProps {
-  logoHidden: boolean
   contentVisible: boolean
   logoRef: (node: HTMLDivElement | null) => void
+  logoStyle: CSSProperties
+  onLogoTransitionEnd: TransitionEventHandler<HTMLDivElement>
   updating: boolean
   onUpdateStart: () => void
 }
@@ -101,10 +96,6 @@ function App() {
   // Boot splash: only ever runs for the very first Home render (the store's
   // initial mode is always 'home', so this always applies on cold start).
   const [bootStage, setBootStage] = useState<BootStage>(displayedMode === 'home' ? 'hold' : 'done')
-  const [flightStyle, setFlightStyle] = useState<CSSProperties>({
-    transform: 'translate(-50%, -50%)',
-    transition: 'none',
-  })
   const homeLogoNode = useRef<HTMLDivElement | null>(null)
   const setHomeLogoRef = (node: HTMLDivElement | null) => {
     homeLogoNode.current = node
@@ -112,18 +103,63 @@ function App() {
 
   // Update replay state (see UPDATE_* constants above).
   const [updatePhase, setUpdatePhase] = useState<UpdatePhase>('idle')
-  const [updateFlightStyle, setUpdateFlightStyle] = useState<CSSProperties>({
-    transform: 'translate(-50%, -50%)',
-    transition: 'none',
-  })
   const [updateProgress, setUpdateProgress] = useState(0)
-  // Home rect captured once at the start of the replay, reused unchanged to
-  // fly the logo back out — re-measuring later would race the content fade.
-  const updateHomeRect = useRef({ dx: 0, dy: 0, scale: 1 })
-  // False when there's no logo to fly (or the user prefers reduced motion):
-  // skips the toCenter flight-in entirely and jumps straight to the progress
-  // bar instead of animating a logo that isn't there (or shouldn't move).
-  const updateFlightEnabled = useRef(false)
+
+  /**
+   * The one transform driving every logo movement in the app — boot flight and
+   * update flight both — applied to HomeScreen's OWN logo.
+   *
+   * There used to be a separate `position: fixed` clone for each, flown into
+   * place and then swapped for the real logo by unmounting it. The swap was
+   * exact on paper and measured exact in the browser (both centres landed on
+   * 250, 235.75 to the last decimal) — and the logo still visibly hopped on
+   * landing. The reason is that the offset is fractional: measured here it was
+   * `translate(0px, -257.25px)`. A transformed element gets its own compositing
+   * layer, which the browser rasterises and places on the device-pixel grid,
+   * while the plain in-flow logo it was swapped for is drawn at its true
+   * fractional position with sub-pixel antialiasing. Identical geometry, two
+   * different renderings — so the instant the clone unmounted, the mark shifted
+   * by up to half a CSS pixel (1.5 device pixels at the 3x DPR of a phone).
+   * That is the small jump.
+   *
+   * Moving the real logo instead makes the landing correct by construction
+   * rather than by measurement: the flight ends at `transform: none`, which is
+   * not a position we compute but simply the element where layout already put
+   * it, with no compositing layer left behind. There is no swap left to hop,
+   * and a mis-measurement can now only nudge where the flight STARTS (a static
+   * centred logo, where it cannot be seen) instead of where it lands.
+   */
+  const [logoStyle, setLogoStyle] = useState<CSSProperties>({})
+
+  /** Offset that moves the home logo to the exact centre of the viewport —
+   *  i.e. onto index.html's pre-JS splash logo. Null when there's nothing to
+   *  measure yet. */
+  const centerOffset = () => {
+    const node = homeLogoNode.current
+    if (!node) return null
+    const rect = node.getBoundingClientRect()
+    return {
+      dx: window.innerWidth / 2 - (rect.left + rect.width / 2),
+      dy: window.innerHeight / 2 - (rect.top + rect.height / 2),
+    }
+  }
+
+  const prefersReducedMotion = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches
+
+  /**
+   * Both flights cross Home's own text while it is fading (out on update, in
+   * on boot), so the logo has to be painted above it — the fixed clone this
+   * replaced was z-50 and got that for free. `position: relative` is only
+   * here to make z-index apply; it changes no layout. Both are dropped along
+   * with the transform when the flight lands, so the resting logo is a plain
+   * static box again with no stacking context of its own.
+   */
+  const flightStyle = (transform: string | undefined, transition: string): CSSProperties => ({
+    position: 'relative',
+    zIndex: 50,
+    transform,
+    transition,
+  })
 
   const beginUpdate = () => {
     // The update button sits inside HomeScreen's own content, which starts
@@ -140,49 +176,34 @@ function App() {
     // ignored rather than kicking off a second animation on top of the
     // first.
     if (bootStage !== 'done') return
-    const node = homeLogoNode.current
-    const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
-    updateFlightEnabled.current = Boolean(node) && !reduceMotion
-
-    if (!updateFlightEnabled.current) {
+    const offset = centerOffset()
+    // Nothing to fly (or motion is unwelcome): go straight to the bar.
+    if (!offset || prefersReducedMotion()) {
       setUpdatePhase('progress')
       return
     }
-
-    const rect = node!.getBoundingClientRect()
-    updateHomeRect.current = {
-      dx: rect.left + rect.width / 2 - window.innerWidth / 2,
-      dy: rect.top + rect.height / 2 - window.innerHeight / 2,
-      scale: rect.width / BOOT_LOGO_SIZE,
-    }
-    const { dx, dy, scale } = updateHomeRect.current
-    // Pinned exactly over the real (about-to-hide) home logo, no transition —
-    // same invisible-swap trick the boot splash lands with, just starting here.
-    setUpdateFlightStyle({
-      transform: `translate(-50%, -50%) translate(${dx}px, ${dy}px) scale(${scale})`,
-      transition: 'none',
-    })
+    // The logo is already sitting at rest with no transform, so this single
+    // declaration IS the whole flight — no pinning pass, no waiting a frame
+    // for a "transition: none" start state to paint first.
+    setLogoStyle(
+      flightStyle(
+        `translate(${offset.dx}px, ${offset.dy}px)`,
+        `transform ${UPDATE_FLIGHT_MS}ms cubic-bezier(0.22, 1, 0.36, 1)`,
+      ),
+    )
     setUpdatePhase('toCenter')
   }
 
-  // Kicks off the actual transform transitions a frame after the phase flips,
-  // so the "no transition" starting style above has time to paint first.
-  useLayoutEffect(() => {
+  // See TRANSITION_BACKSTOP_MS: without this a swallowed transitionend strands
+  // the app on a blank screen with a centred logo, permanently. Reaching
+  // 'progress' twice is harmless — the setState is idempotent.
+  useEffect(() => {
     if (updatePhase !== 'toCenter') return
-    const raf = requestAnimationFrame(() => {
-      setUpdateFlightStyle({ transform: 'translate(-50%, -50%)', transition: `transform ${UPDATE_FLIGHT_MS}ms cubic-bezier(0.22, 1, 0.36, 1)` })
-    })
-    // See TRANSITION_BACKSTOP_MS: without this a swallowed transitionend
-    // strands the app on a blank screen with a centred logo, permanently.
-    // Reaching 'progress' twice is harmless — the setState is idempotent.
     const backstop = setTimeout(
       () => setUpdatePhase((p) => (p === 'toCenter' ? 'progress' : p)),
       UPDATE_FLIGHT_MS + TRANSITION_BACKSTOP_MS,
     )
-    return () => {
-      cancelAnimationFrame(raf)
-      clearTimeout(backstop)
-    }
+    return () => clearTimeout(backstop)
   }, [updatePhase])
 
   // Fills the progress bar 0->100 over UPDATE_PROGRESS_MS, then activates
@@ -262,26 +283,44 @@ function App() {
   const finishBoot = () => {
     setBootStage('done')
     setEntered(true)
+    // Clears the transform outright rather than leaving an identity one in
+    // place. `transform: translate(0,0)` still pins the element on its own
+    // compositing layer — the very thing this file's history blames for dead
+    // taps on iOS — and it is also what made the landing render differently
+    // from the settled element. Nothing left behind means nothing to differ.
+    setLogoStyle({})
   }
 
+  // Pins the logo over index.html's pre-JS splash before the first paint.
+  // useLayoutEffect (not useEffect) is what makes this invisible: it runs
+  // after React has mounted the DOM but BEFORE the browser paints, so the
+  // very first frame the user sees already has the logo centred. React's own
+  // createRoot has cleared the static splash markup by then, so the two never
+  // overlap and there is nothing to cross-fade.
   useLayoutEffect(() => {
     if (bootStage !== 'hold') return
-    const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    const offset = centerOffset()
+    if (!offset || prefersReducedMotion()) {
+      finishBoot()
+      return
+    }
+    setLogoStyle(flightStyle(`translate(${offset.dx}px, ${offset.dy}px)`, 'none'))
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- runs once for the boot hold
+  }, [])
+
+  // Holds on the splash, then releases the logo back to `transform: none` —
+  // i.e. to wherever HomeScreen's layout actually puts it, which is the whole
+  // point (see logoStyle). Re-measuring here would be wrong as well as
+  // pointless: by now Home's text is fading in, and any measurement error
+  // would land in the final resting position rather than being absorbed by
+  // the invisible starting one.
+  useEffect(() => {
+    if (bootStage !== 'hold') return
     const t = setTimeout(() => {
-      const node = homeLogoNode.current
-      if (node && !reduceMotion) {
-        const rect = node.getBoundingClientRect()
-        const dx = rect.left + rect.width / 2 - window.innerWidth / 2
-        const dy = rect.top + rect.height / 2 - window.innerHeight / 2
-        const scale = rect.width / BOOT_LOGO_SIZE
-        setFlightStyle({
-          transform: `translate(-50%, -50%) translate(${dx}px, ${dy}px) scale(${scale})`,
-          transition: `transform ${BOOT_FLIGHT_MS}ms cubic-bezier(0.22, 1, 0.36, 1)`,
-        })
-        setBootStage('flying')
-      } else {
-        finishBoot()
-      }
+      // No `transform` key: dropping it is what sends the logo home, since
+      // its absence resolves to `none` — the element's own layout position.
+      setLogoStyle(flightStyle(undefined, `transform ${BOOT_FLIGHT_MS}ms cubic-bezier(0.22, 1, 0.36, 1)`))
+      setBootStage('flying')
     }, BOOT_HOLD_MS)
     return () => clearTimeout(t)
   }, [bootStage])
@@ -354,52 +393,31 @@ function App() {
         onAnimationEnd={() => setEntered(true)}
       >
         {renderView(displayedMode, {
-          logoHidden: booting || updating,
           // Home's text starts fading in as soon as the logo takes off
           // (rather than waiting for it to land) so the two read as one
           // continuous motion instead of a flight, then a separate fade.
           // Hidden outright while the update replay owns the logo.
           contentVisible: (!booting || bootStage === 'flying') && !updating,
           logoRef: setHomeLogoRef,
+          logoStyle,
+          // Own transition only. transitionend bubbles, so any transition
+          // added to <Logo> (or anything nested with it) would otherwise end
+          // the boot flight early — a trap worth closing rather than relying
+          // on the logo staying transition-free forever.
+          onLogoTransitionEnd: (e) => {
+            if (e.target !== e.currentTarget) return
+            if (bootStage === 'flying') finishBoot()
+            else if (updatePhase === 'toCenter') setUpdatePhase('progress')
+          },
           updating,
           onUpdateStart: beginUpdate,
         })}
       </div>
 
-      {bootStage !== 'done' && (
-        <div
-          className="pointer-events-none fixed left-1/2 top-1/2 z-50"
-          style={flightStyle}
-          // Own transition only. transitionend bubbles, so any transition
-          // added to <Logo> (or anything else nested here) would otherwise
-          // end the boot flight early — a trap worth closing rather than
-          // relying on the logo staying transition-free forever.
-          onTransitionEnd={(e) => {
-            if (e.target === e.currentTarget) finishBoot()
-          }}
-        >
-          <Logo size={BOOT_LOGO_SIZE} />
-        </div>
-      )}
-
-      {updating && (
-        <div
-          // Logo only, sized fixed (BOOT_LOGO_SIZE) — the progress bar below is a
-          // separate element on purpose. Nesting it here made this box's own
-          // height (and therefore where translate(-50%,-50%) lands) shift the
-          // instant the bar mounted/unmounted, snapping the logo mid-flight.
-          className="pointer-events-none fixed left-1/2 top-1/2 z-50"
-          style={updateFlightStyle}
-          // Own transition only — see the boot flight's handler above.
-          onTransitionEnd={(e) => {
-            if (e.target !== e.currentTarget) return
-            if (updatePhase === 'toCenter') setUpdatePhase('progress')
-          }}
-        >
-          <Logo size={BOOT_LOGO_SIZE} />
-        </div>
-      )}
-
+      {/* The progress bar is anchored to the viewport centre, NOT nested with
+          the logo: sharing a box with it made that box's height (and so where
+          the logo's own centring landed) shift the instant the bar mounted,
+          snapping the logo mid-flight. */}
       {(updatePhase === 'progress' || updatePhase === 'restarting') && (
         <div
           className="pointer-events-none fixed left-1/2 top-[calc(50%+64px)] z-50 flex w-48 -translate-x-1/2 flex-col items-center gap-2 fade-in"

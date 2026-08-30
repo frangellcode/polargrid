@@ -1,4 +1,4 @@
-import type { Ref } from 'react'
+import type { CSSProperties, Ref, TransitionEventHandler } from 'react'
 import { useEditorStore } from '../store/editorStore'
 import { useUpdateStore } from '../store/updateStore'
 import { useLanguageStore, useTranslation } from '../store/languageStore'
@@ -10,29 +10,24 @@ const INSTAGRAM_URL = 'https://instagram.com/frangellgram'
 const DONATE_URL = 'https://paypal.me/frangellgram'
 
 /**
- * Exported so App.tsx's boot/update splash renders its floating logo at the
- * EXACT same pixel size as this one. The two must never drift: the splash
- * hands off to this logo by unmounting itself the instant this one appears,
- * and the swap is only invisible if both rasterize identically. A CSS
- * `scale()` between two different nominal sizes does NOT rasterize the same —
- * the browser scales a cached bitmap during the flight and only re-rasterizes
- * the SVG crisply once it settles, so the logo went soft mid-flight and
- * snapped sharp on landing. On a mark this detailed (thin camera stripes,
- * small circles) that snap reads as the logo flickering/vibrating at each
- * handoff. Same size on both ends means scale is exactly 1, no resampling
- * anywhere, and the swaps are genuinely invisible.
- *
- * index.html's pre-JS splash SVG is hardcoded to this number too — keep them
- * in sync (it can't import).
+ * index.html's pre-JS splash SVG is hardcoded to this same number — keep the
+ * two in sync (static HTML can't import). On mount App.tsx transforms this
+ * logo onto the viewport centre before the first paint, landing it exactly
+ * where that static SVG was drawn; if the sizes drift, that handoff becomes a
+ * visible resize. Nothing scales it — the flight is pure translation — so the
+ * SVG is rasterised once, at this size, and never resampled.
  */
-export const HOME_LOGO_SIZE = 62
+const HOME_LOGO_SIZE = 62
 
 interface HomeScreenProps {
-  /** True while the boot splash's floating logo is still in flight toward this
-   *  screen's logo slot, or while the update replay (see App.tsx) has taken
-   *  it over — keeps this screen's own logo invisible (but laid out, so its
-   *  position can be measured) so the two never show at once. */
-  logoHidden?: boolean
+  /** Transform/transition driving the boot and update flights. This screen's
+   *  logo is the ONE that moves — App.tsx used to fly a fixed-position clone
+   *  and swap it for this one on landing, which hopped by a fraction of a
+   *  pixel every time (see App.tsx's `logoStyle` for the full why). At rest
+   *  this is `{}`: no transform, no transition, no compositing layer. */
+  logoStyle?: CSSProperties
+  /** Ends a flight. App.tsx decides which one just finished. */
+  onLogoTransitionEnd?: TransitionEventHandler<HTMLDivElement>
   /** Drives the fade/slide-in of everything but the logo, timed by App.tsx to
    *  start as the splash logo lands (or end as the update replay's floating
    *  logo takes over). Defaults true: plain (non-boot) visits to Home render
@@ -51,7 +46,8 @@ interface HomeScreenProps {
 }
 
 export function HomeScreen({
-  logoHidden = false,
+  logoStyle,
+  onLogoTransitionEnd,
   contentVisible = true,
   logoRef,
   updating = false,
@@ -106,12 +102,11 @@ export function HomeScreen({
           bottom of the screen rather than reading as one more menu item. */}
       <div className="flex w-full flex-1 flex-col items-center justify-center gap-10">
       <div className="flex flex-col items-center gap-4">
-        {/* No transition here: the floating splash logo (App.tsx) already
-            animates the arrival. This one just swaps in at the exact instant
-            the clone is removed — same position/size, so the cut is
-            invisible. A fade on top of that swap left a beat where neither
-            logo was fully opaque, which read as a flicker. */}
-        <div ref={logoRef} className={logoHidden ? 'opacity-0' : 'opacity-100'}>
+        {/* The only logo in the app. It is never hidden and never swapped for
+            anything — App.tsx flies THIS element via logoStyle and releases
+            it back to a bare `{}` on landing, so its resting state is plain
+            untransformed layout. */}
+        <div ref={logoRef} style={logoStyle} onTransitionEnd={onLogoTransitionEnd}>
           <Logo size={HOME_LOGO_SIZE} />
         </div>
         <h1 className={`font-display text-3xl font-bold text-white ${revealCls('delay-0')}`}>PolarGrid</h1>
