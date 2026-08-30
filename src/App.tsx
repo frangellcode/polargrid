@@ -1,10 +1,11 @@
-import { useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { CSSProperties, TransitionEventHandler } from 'react'
 import { useEditorStore } from './store/editorStore'
 import { useTranslation } from './store/languageStore'
 import { HomeScreen } from './components/HomeScreen'
 import { BorderEditor } from './components/editor/BorderEditor'
 import { CollageEditor } from './components/editor/CollageEditor'
+import { flushSync } from 'react-dom'
 import { useUpdateStore } from './store/updateStore'
 import type { AppMode } from './types'
 
@@ -12,10 +13,10 @@ const EXIT_MS = 200
 
 // Boot splash timing: index.html paints a static centered logo (HOME_LOGO_SIZE
 // px) instantly, before any JS runs, so cold starts never show a bare screen.
-// Once React mounts, HomeScreen's own logo is transformed onto that exact spot
-// before the first paint (see logoStyle), holds for BOOT_HOLD_MS so the branded
-// splash actually registers, then releases back to its resting place while the
-// rest of Home's text fades in.
+// That element stays up, untouched, for BOOT_HOLD_MS — React renders behind
+// it — and is then removed at the exact frame HomeScreen's own logo starts
+// flying to its resting place, while the rest of Home's text fades in. See the
+// boot effect below for why the handoff has to happen inside the motion.
 const BOOT_HOLD_MS = 700
 const BOOT_FLIGHT_MS = 900
 // Backstop margin for the transitionend handlers below. Every handoff in this
@@ -36,16 +37,17 @@ type BootStage = 'hold' | 'flying' | 'done'
  * Centre of the box `position: fixed` resolves against — measured with a
  * throwaway probe rather than assumed from window.innerWidth/innerHeight.
  *
- * index.html's pre-JS splash is flex-centred inside a `position: fixed;
- * inset: 0` box, so this is exactly the point its logo is painted on, and the
- * point React's logo has to be transformed onto for the handoff to be
- * invisible. window.innerWidth/innerHeight is NOT that point on iOS: it
- * reports the VISUAL viewport, which drifts from the layout viewport used for
- * fixed positioning — safe-area insets under `viewport-fit=cover`, the home
- * indicator, a collapsing address bar. On this desktop browser the two agree
- * exactly, which is why the mismatch never showed up in testing here; on a
- * phone a pixel or so of difference is enough to make the logo twitch the
- * instant React takes over from the splash.
+ * Used by the UPDATE flight, which has to send the logo to the spot the NEXT
+ * page's splash will occupy: that splash is flex-centred inside a
+ * `position: fixed; inset: 0` box, which is exactly what this probe measures.
+ * window.innerWidth/innerHeight is not that point on iOS — it reports the
+ * VISUAL viewport, which drifts from the layout viewport fixed positioning
+ * resolves against (safe-area insets under `viewport-fit=cover`, the home
+ * indicator, a collapsing address bar). The two agree exactly on desktop,
+ * which is why assuming them never showed up as wrong in testing here.
+ *
+ * The BOOT flight does not use this: it measures the splash element itself,
+ * which is still on screen at that point.
  */
 function fixedViewportCenter() {
   const probe = document.createElement('div')
@@ -331,32 +333,88 @@ function App() {
   // very first frame the user sees already has the logo centred. React's own
   // createRoot has cleared the static splash markup by then, so the two never
   // overlap and there is nothing to cross-fade.
-  useLayoutEffect(() => {
-    if (bootStage !== 'hold') return
-    const offset = centerOffset()
-    if (!offset || prefersReducedMotion()) {
-      finishBoot()
-      return
-    }
-    setLogoStyle(flightStyle(`translate(${offset.dx}px, ${offset.dy}px)`, 'none'))
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- runs once for the boot hold
-  }, [])
-
-  // Holds on the splash, then releases the logo back to `transform: none` —
-  // i.e. to wherever HomeScreen's layout actually puts it, which is the whole
-  // point (see logoStyle). Re-measuring here would be wrong as well as
-  // pointless: by now Home's text is fading in, and any measurement error
-  // would land in the final resting position rather than being absorbed by
-  // the invisible starting one.
+  /**
+   * The boot hold, and the handoff out of it.
+   *
+   * index.html's splash stays on screen untouched for the whole hold — it
+   * lives outside #root so React never clears it, and it is opaque and full
+   * screen, so HomeScreen renders completely hidden behind it. Nothing here
+   * measures anything or moves anything during that time. That matters: the
+   * splash is centred by plain CSS inside a `position: fixed` box, so it
+   * re-centres itself for whatever the viewport turns out to be — safe-area
+   * insets resolving late, the visual viewport settling after a reload — with
+   * no JS assumption that could be a pixel off.
+   *
+   * Two earlier attempts tried instead to put React's logo onto the splash's
+   * spot for the whole hold and swap the two while both were stationary: first
+   * by flying a clone and unmounting it, then by transforming the real logo
+   * onto a computed centre. Both were provably exact here (measured: splash
+   * and logo centres agreed to the decimal, 250 / 493) and both still twitched
+   * on a real phone, because "same coordinates" does not mean "same pixels" —
+   * a transformed element is composited and snapped to the device-pixel grid,
+   * a plain one is drawn at its true sub-pixel position.
+   *
+   * So this no longer tries to make the two match while they can be compared.
+   * The pin is applied while the splash is still covering it, and the splash
+   * is removed in the same frame the transition starts — the logo's first
+   * visible frame is already in motion. There is no stationary handoff left to
+   * see. flushSync on both steps is what guarantees that ordering rather than
+   * leaving it to React's scheduling.
+   */
   useEffect(() => {
     if (bootStage !== 'hold') return
+    let raf: number | undefined
+    let guard: ReturnType<typeof setTimeout> | undefined
     const t = setTimeout(() => {
-      // No `transform` key: dropping it is what sends the logo home, since
-      // its absence resolves to `none` — the element's own layout position.
-      setLogoStyle(flightStyle(undefined, `transform ${BOOT_FLIGHT_MS}ms cubic-bezier(0.22, 1, 0.36, 1)`))
-      setBootStage('flying')
+      const splash = document.getElementById('boot-splash')
+      const splashLogo = splash?.querySelector('svg')
+      const node = homeLogoNode.current
+
+      if (!splash || !splashLogo || !node || prefersReducedMotion()) {
+        splash?.remove()
+        finishBoot()
+        return
+      }
+
+      // Measured off the splash itself — the actual painted rect, not a
+      // computed idea of where the centre ought to be. Taken now, at the end
+      // of the hold, so any late layout settling is already accounted for.
+      const from = splashLogo.getBoundingClientRect()
+      const to = node.getBoundingClientRect()
+      const dx = from.left + from.width / 2 - (to.left + to.width / 2)
+      const dy = from.top + from.height / 2 - (to.top + to.height / 2)
+
+      // Frame N: logo pinned onto the splash, still hidden behind it.
+      flushSync(() => setLogoStyle(flightStyle(`translate(${dx}px, ${dy}px)`, 'none')))
+
+      // Frame N+1: uncover and set off together. Dropping the `transform` key
+      // is what sends the logo home — its absence resolves to `none`, which is
+      // the element's own layout position rather than a number we computed.
+      let released = false
+      const release = () => {
+        if (released) return
+        released = true
+        flushSync(() => {
+          setLogoStyle(flightStyle(undefined, `transform ${BOOT_FLIGHT_MS}ms cubic-bezier(0.22, 1, 0.36, 1)`))
+          setBootStage('flying')
+        })
+        splash.remove()
+      }
+      raf = requestAnimationFrame(release)
+      // The splash now covers the app and only this code takes it away, so a
+      // dropped rAF is no longer a missed animation — it strands the user
+      // behind an opaque splash for good. A suspended PWA tab drops them, and
+      // this app is installed to a home screen. The guard costs one timer and
+      // makes the worst case "the flight didn't play" instead of "the app
+      // never appeared". Whichever runs first wins; `released` makes the other
+      // a no-op.
+      guard = setTimeout(release, BOOT_FLIGHT_MS)
     }, BOOT_HOLD_MS)
-    return () => clearTimeout(t)
+    return () => {
+      clearTimeout(t)
+      if (raf !== undefined) cancelAnimationFrame(raf)
+      if (guard !== undefined) clearTimeout(guard)
+    }
   }, [bootStage])
 
   // See TRANSITION_BACKSTOP_MS. A swallowed transitionend here leaves
