@@ -2,7 +2,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import type { CSSProperties } from 'react'
 import { useEditorStore } from './store/editorStore'
 import { useTranslation } from './store/languageStore'
-import { HomeScreen } from './components/HomeScreen'
+import { HomeScreen, HOME_LOGO_SIZE } from './components/HomeScreen'
 import { BorderEditor } from './components/editor/BorderEditor'
 import { CollageEditor } from './components/editor/CollageEditor'
 import { Logo } from './components/Logo'
@@ -17,9 +17,24 @@ const EXIT_MS = 200
 // exact spot (no flash — see the `boot` state machine below), holds for
 // BOOT_HOLD_MS so the branded splash actually registers, then flies to where
 // the logo sits inside HomeScreen while the rest of Home's text fades in.
-const BOOT_LOGO_SIZE = 72
+// Tied to HomeScreen's own logo rather than a separate number, so the flight's
+// `scale` below always works out to exactly 1 and the SVG is never resampled —
+// see HOME_LOGO_SIZE's comment for why a scaled logo visibly snaps on landing.
+// index.html's pre-JS splash SVG hardcodes the same value.
+const BOOT_LOGO_SIZE = HOME_LOGO_SIZE
 const BOOT_HOLD_MS = 700
 const BOOT_FLIGHT_MS = 900
+// Backstop margin for the transitionend handlers below. Every handoff in this
+// file (boot flight -> Home, update flight -> progress bar) hangs off a single
+// transitionend, and a missed one doesn't degrade — it strands the app: boot
+// leaves bootStage on 'flying' forever, which makes beginUpdate bail on its
+// first line, silently killing the Update button for the rest of the session;
+// the update flight leaves updatePhase on 'toCenter', which keeps
+// contentVisible false and leaves a blank screen with a centred logo and no
+// way out. transitionend is not guaranteed (a backgrounded/suspended tab can
+// swallow it — this is a home-screen PWA, so that happens), so each one gets a
+// timer that reaches the same state if the event never lands.
+const TRANSITION_BACKSTOP_MS = 200
 
 type BootStage = 'hold' | 'flying' | 'done'
 
@@ -43,8 +58,24 @@ type BootStage = 'hold' | 'flying' | 'done'
 // actually safe from that race.
 const UPDATE_FLIGHT_MS = 700
 const UPDATE_PROGRESS_MS = 5000
+// The bar used to reach 100% and start disappearing in the same React commit
+// (the tick that satisfies elapsed >= UPDATE_PROGRESS_MS set the percentage
+// AND began the exit, and both batch into one render), so the finished state
+// was never actually on screen for a readable beat — it went 99% straight to
+// a vanishing 100%. Hold it there first.
+const UPDATE_HOLD_AT_100_MS = 450
+// How long to wait for the new worker to take over before forcing the reload
+// ourselves. pwaUpdate.ts's onNeedReload normally gets there first; this is
+// for iOS Safari's long-standing bug where an already-open standalone PWA
+// never receives controllerchange for an existing client. Longer than the old
+// 1200ms because a reload fired before the new worker has actually claimed
+// the page is served by the OLD one — i.e. it quietly reinstalls the same
+// build — and there's no longer any reason to rush: the bar stays on screen
+// saying "restarting" for this whole window instead of leaving a dead,
+// frozen screen the way the old fade-out did.
+const UPDATE_RELOAD_FALLBACK_MS = 2500
 
-type UpdatePhase = 'idle' | 'toCenter' | 'progress'
+type UpdatePhase = 'idle' | 'toCenter' | 'progress' | 'restarting'
 
 interface HomeRenderProps {
   logoHidden: boolean
@@ -86,7 +117,6 @@ function App() {
     transition: 'none',
   })
   const [updateProgress, setUpdateProgress] = useState(0)
-  const [barExiting, setBarExiting] = useState(false)
   // Home rect captured once at the start of the replay, reused unchanged to
   // fly the logo back out — re-measuring later would race the content fade.
   const updateHomeRect = useRef({ dx: 0, dy: 0, scale: 1 })
@@ -138,11 +168,20 @@ function App() {
   // Kicks off the actual transform transitions a frame after the phase flips,
   // so the "no transition" starting style above has time to paint first.
   useLayoutEffect(() => {
-    if (updatePhase === 'toCenter') {
-      const raf = requestAnimationFrame(() => {
-        setUpdateFlightStyle({ transform: 'translate(-50%, -50%)', transition: `transform ${UPDATE_FLIGHT_MS}ms cubic-bezier(0.22, 1, 0.36, 1)` })
-      })
-      return () => cancelAnimationFrame(raf)
+    if (updatePhase !== 'toCenter') return
+    const raf = requestAnimationFrame(() => {
+      setUpdateFlightStyle({ transform: 'translate(-50%, -50%)', transition: `transform ${UPDATE_FLIGHT_MS}ms cubic-bezier(0.22, 1, 0.36, 1)` })
+    })
+    // See TRANSITION_BACKSTOP_MS: without this a swallowed transitionend
+    // strands the app on a blank screen with a centred logo, permanently.
+    // Reaching 'progress' twice is harmless — the setState is idempotent.
+    const backstop = setTimeout(
+      () => setUpdatePhase((p) => (p === 'toCenter' ? 'progress' : p)),
+      UPDATE_FLIGHT_MS + TRANSITION_BACKSTOP_MS,
+    )
+    return () => {
+      cancelAnimationFrame(raf)
+      clearTimeout(backstop)
     }
   }, [updatePhase])
 
@@ -153,43 +192,64 @@ function App() {
   useEffect(() => {
     if (updatePhase !== 'progress') return
     setUpdateProgress(0)
-    setBarExiting(false)
     const start = performance.now()
     let frame: number
+    let hold: ReturnType<typeof setTimeout>
     const tick = (now: number) => {
       const elapsed = now - start
-      const pct = Math.min(100, Math.round((elapsed / UPDATE_PROGRESS_MS) * 100))
-      setUpdateProgress(pct)
+      // Driven off elapsed wall-clock rather than a per-frame increment, so
+      // leaving the app mid-update (rAF stops in a backgrounded tab, and an
+      // update is exactly when someone switches away) resumes at the right
+      // place instead of stalling — it just catches up in one step.
+      setUpdateProgress(Math.min(100, Math.round((elapsed / UPDATE_PROGRESS_MS) * 100)))
       if (elapsed < UPDATE_PROGRESS_MS) {
         frame = requestAnimationFrame(tick)
         return
       }
-      useUpdateStore.getState().applyUpdate()
-      // Belt-and-suspenders reload: pwaUpdate.ts's onNeedReload already
-      // reloads once the new worker's `controllerchange` fires, but iOS
-      // Safari has a long-standing WebKit bug where an already-open
-      // standalone (home-screen) PWA never gets that event for an existing
-      // client — applyUpdate() silently activates the new worker with
-      // nothing to trigger the actual reload, so the badge clears but the
-      // app keeps running the old bundle no matter how many times you tap
-      // Update. This fires independently of that event; if the primary
-      // path already reloaded by then this is a no-op (navigation is
-      // already underway).
-      setTimeout(() => window.location.reload(), 1200)
-      setBarExiting(true)
-      // Deliberately never returns updatePhase to 'idle' here. That used to
-      // fire UPDATE_HOLD_MS after 100%, which reveals Home's real logo/content
-      // again (a hard cut) well before the reload above actually lands — the
-      // reload (up to 1200ms out, sometimes sooner via controllerchange) then
-      // replays the *entire* boot splash on the fresh page, landing the logo
-      // in that exact same spot a second time. Two returns to the same resting
-      // position in quick succession read as a double snap/bounce. Since a
-      // reload is unconditionally guaranteed shortly after 100% either way,
-      // there's nothing to animate back to — just let the bar fade out and
-      // leave the logo sitting centered until the real reload takes over.
+      // Let the finished bar actually be seen before anything else moves.
+      hold = setTimeout(() => setUpdatePhase('restarting'), UPDATE_HOLD_AT_100_MS)
     }
     frame = requestAnimationFrame(tick)
-    return () => cancelAnimationFrame(frame)
+    return () => {
+      cancelAnimationFrame(frame)
+      clearTimeout(hold)
+    }
+  }, [updatePhase])
+
+  // Everything from "the bar is full" to "the new build is on screen". The bar
+  // deliberately stays put here, full, with its label switched to "restarting"
+  // — it does NOT fade out. The old version faded it over 300ms and then had
+  // nothing at all on screen until the reload landed (up to 1.2s later),
+  // followed by another 700ms of boot hold: up to ~1.9s in which not one pixel
+  // moved, on a screen whose logo is pixel-identical before and after the
+  // reload. That reads as a hang, which is what makes people force-quit or tap
+  // Update again. A full bar plus a changed label is the one honest signal
+  // that the app is still working, and it survives the reload seamlessly
+  // because whatever is on screen is simply replaced by the new document.
+  //
+  // (That old fade never actually ran, either: the bar carries `.fade-in`,
+  // whose `animation: ... both` pins opacity at 1 for the element's whole
+  // life, so the `opacity-0` class it was toggling could never win the
+  // cascade. The dead air was real; the fade was not.)
+  useEffect(() => {
+    if (updatePhase !== 'restarting') return
+    // Floating promise otherwise — updateServiceWorker is async, and a
+    // rejected registration would surface as an unhandled rejection.
+    Promise.resolve(useUpdateStore.getState().applyUpdate()).catch(() => {})
+    // pwaUpdate.ts's onNeedReload normally beats this. It can't always: the
+    // `controlling` listener that fires it is only registered by
+    // vite-plugin-pwa inside its waiting-worker prompt, so a session that
+    // never saw a waiting worker has no path to it at all — and iOS Safari
+    // can skip the event even when it does. If the primary path already
+    // reloaded, this is a no-op: navigation is underway.
+    const t = setTimeout(() => window.location.reload(), UPDATE_RELOAD_FALLBACK_MS)
+    return () => clearTimeout(t)
+    // Deliberately never returns to 'idle'. Doing so would reveal Home's real
+    // logo and content again well before the reload lands, and the fresh boot
+    // splash would then fly the logo into that exact same resting spot a
+    // second time — two arrivals in quick succession, reading as a double
+    // bounce. A reload is guaranteed either way, so there is nothing to
+    // animate back to.
   }, [updatePhase])
 
   const updating = updatePhase !== 'idle'
@@ -224,6 +284,19 @@ function App() {
       }
     }, BOOT_HOLD_MS)
     return () => clearTimeout(t)
+  }, [bootStage])
+
+  // See TRANSITION_BACKSTOP_MS. A swallowed transitionend here leaves
+  // bootStage on 'flying' forever, which looks almost fine — the floating
+  // clone has already landed in the right place — but beginUpdate bails on
+  // `bootStage !== 'done'`, so the Update button silently stops working for
+  // the rest of the session. finishBoot is idempotent, so racing the real
+  // event costs nothing.
+  useEffect(() => {
+    if (bootStage !== 'flying') return
+    const t = setTimeout(finishBoot, BOOT_FLIGHT_MS + TRANSITION_BACKSTOP_MS)
+    return () => clearTimeout(t)
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- finishBoot only sets state
   }, [bootStage])
 
   useEffect(() => {
@@ -297,7 +370,13 @@ function App() {
         <div
           className="pointer-events-none fixed left-1/2 top-1/2 z-50"
           style={flightStyle}
-          onTransitionEnd={finishBoot}
+          // Own transition only. transitionend bubbles, so any transition
+          // added to <Logo> (or anything else nested here) would otherwise
+          // end the boot flight early — a trap worth closing rather than
+          // relying on the logo staying transition-free forever.
+          onTransitionEnd={(e) => {
+            if (e.target === e.currentTarget) finishBoot()
+          }}
         >
           <Logo size={BOOT_LOGO_SIZE} />
         </div>
@@ -311,7 +390,9 @@ function App() {
           // instant the bar mounted/unmounted, snapping the logo mid-flight.
           className="pointer-events-none fixed left-1/2 top-1/2 z-50"
           style={updateFlightStyle}
-          onTransitionEnd={() => {
+          // Own transition only — see the boot flight's handler above.
+          onTransitionEnd={(e) => {
+            if (e.target !== e.currentTarget) return
             if (updatePhase === 'toCenter') setUpdatePhase('progress')
           }}
         >
@@ -319,15 +400,23 @@ function App() {
         </div>
       )}
 
-      {updatePhase === 'progress' && (
+      {(updatePhase === 'progress' || updatePhase === 'restarting') && (
         <div
-          className={`pointer-events-none fixed left-1/2 top-[calc(50%+64px)] z-50 flex w-48 -translate-x-1/2 flex-col items-center gap-2 fade-in transition-opacity duration-300 ${barExiting ? 'opacity-0' : 'opacity-100'}`}
+          className="pointer-events-none fixed left-1/2 top-[calc(50%+64px)] z-50 flex w-48 -translate-x-1/2 flex-col items-center gap-2 fade-in"
         >
           <div className="h-1 w-full overflow-hidden rounded-full bg-white/15">
-            <div className="h-full rounded-full bg-white" style={{ width: `${updateProgress}%` }} />
+            {/* Eased so the bar glides between the per-frame percentages
+                instead of stepping — at 5s over ~100 whole-number steps the
+                raw width jumps are individually visible as a stutter. Short
+                enough (one frame's worth) that it never lags behind the
+                number next to it. */}
+            <div
+              className="h-full rounded-full bg-white transition-[width] duration-100 ease-linear"
+              style={{ width: `${updateProgress}%` }}
+            />
           </div>
           <span className="font-label text-[10px] font-light uppercase tracking-[0.14em] text-white/50">
-            {tr.app.updating} {updateProgress}%
+            {updatePhase === 'restarting' ? tr.app.restarting : `${tr.app.updating} ${updateProgress}%`}
           </span>
         </div>
       )}

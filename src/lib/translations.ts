@@ -18,6 +18,7 @@ export const translations = {
     },
     app: {
       updating: 'Updating…',
+      restarting: 'Restarting…',
     },
     toolbar: {
       back: 'Back',
@@ -134,6 +135,7 @@ export const translations = {
     },
     app: {
       updating: 'Actualizando…',
+      restarting: 'Reiniciando…',
     },
     toolbar: {
       back: 'Atrás',

@@ -9,6 +9,24 @@ import { IconInstagram, IconRefresh } from './editor/icons'
 const INSTAGRAM_URL = 'https://instagram.com/frangellgram'
 const DONATE_URL = 'https://paypal.me/frangellgram'
 
+/**
+ * Exported so App.tsx's boot/update splash renders its floating logo at the
+ * EXACT same pixel size as this one. The two must never drift: the splash
+ * hands off to this logo by unmounting itself the instant this one appears,
+ * and the swap is only invisible if both rasterize identically. A CSS
+ * `scale()` between two different nominal sizes does NOT rasterize the same —
+ * the browser scales a cached bitmap during the flight and only re-rasterizes
+ * the SVG crisply once it settles, so the logo went soft mid-flight and
+ * snapped sharp on landing. On a mark this detailed (thin camera stripes,
+ * small circles) that snap reads as the logo flickering/vibrating at each
+ * handoff. Same size on both ends means scale is exactly 1, no resampling
+ * anywhere, and the swaps are genuinely invisible.
+ *
+ * index.html's pre-JS splash SVG is hardcoded to this number too — keep them
+ * in sync (it can't import).
+ */
+export const HOME_LOGO_SIZE = 62
+
 interface HomeScreenProps {
   /** True while the boot splash's floating logo is still in flight toward this
    *  screen's logo slot, or while the update replay (see App.tsx) has taken
@@ -45,8 +63,15 @@ export function HomeScreen({
   const toggleLanguage = useLanguageStore((s) => s.toggleLanguage)
   const tr = useTranslation()
 
+  // Deliberately does NOT clear updateAvailable. It used to, which meant a
+  // failed update (the new worker never took over, so the reload served the
+  // same old build) came back with the badge already gone and no way to tell
+  // anything had gone wrong. The flag is per-page-load anyway — a successful
+  // update reloads and starts clean — so leaving it alone costs nothing and
+  // makes the failure case self-correcting: the badge is simply still there.
+  // Nothing shows during the replay regardless, since the badge is gated on
+  // `!updating` below.
   const handleUpdate = () => {
-    useUpdateStore.getState().setUpdateAvailable(false)
     onUpdateStart?.()
   }
 
@@ -87,7 +112,7 @@ export function HomeScreen({
             invisible. A fade on top of that swap left a beat where neither
             logo was fully opaque, which read as a flicker. */}
         <div ref={logoRef} className={logoHidden ? 'opacity-0' : 'opacity-100'}>
-          <Logo size={62} />
+          <Logo size={HOME_LOGO_SIZE} />
         </div>
         <h1 className={`font-display text-3xl font-bold text-white ${revealCls('delay-0')}`}>PolarGrid</h1>
         <div className={`h-px w-8 bg-white/35 ${revealCls('delay-0')}`} />
