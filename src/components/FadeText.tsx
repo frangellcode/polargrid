@@ -21,6 +21,14 @@ interface FadeTextProps {
 
 const FADE_MS = 300
 const WIDTH_MS = 300
+// offsetWidth rounds to a whole pixel, but the actual rendered text (letter-
+// spacing especially compounds sub-pixel rounding across every character
+// gap) can come out a hair wider than that rounded measurement — enough to
+// clip the last character against this box's overflow-hidden edge. A small
+// fixed pad costs nothing visually (the box is otherwise invisible, no
+// border/background of its own) and removes the clip regardless of which
+// exact sub-pixel mismatch caused it.
+const WIDTH_PAD_PX = 3
 
 /** Crossfades text content whenever `trigger` changes, instead of swapping instantly. */
 export function FadeText({ value, trigger, className, animateWidth = false }: FadeTextProps) {
@@ -51,7 +59,8 @@ export function FadeText({ value, trigger, className, animateWidth = false }: Fa
   useLayoutEffect(() => {
     if (!animateWidth) return
     if (document.fonts && document.fonts.status !== 'loaded') return
-    measuredWidthRef.current = measureRef.current?.offsetWidth
+    const w = measureRef.current?.offsetWidth
+    measuredWidthRef.current = w === undefined ? undefined : w + WIDTH_PAD_PX
     setWidth((current) => (current === undefined ? measuredWidthRef.current : current))
   }, [animateWidth, value])
 
@@ -70,8 +79,8 @@ export function FadeText({ value, trigger, className, animateWidth = false }: Fa
       if (prevKey.current !== keyAtMount) return
       const w = measureRef.current?.offsetWidth
       if (w !== undefined) {
-        measuredWidthRef.current = w
-        setWidth(w)
+        measuredWidthRef.current = w + WIDTH_PAD_PX
+        setWidth(measuredWidthRef.current)
       }
     })
     // eslint-disable-next-line react-hooks/exhaustive-deps -- only ever needs to run once, right after mount

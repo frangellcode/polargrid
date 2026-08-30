@@ -54,18 +54,16 @@ export function HomeScreen({
   // reads fine on the update button below, which reuses it in place of its
   // own hover/press transition — two separate `transition*` utilities on one
   // element would just have the later one silently win.
-  // [backface-visibility:hidden] works around a real WebKit artifact: an
-  // element animating transform+opacity together gets promoted to its own
-  // compositing layer for the transition, and on iOS Safari that layer's
-  // edge can briefly rasterize as a faint rectangular seam against a solid
-  // dark background — reported as a "white box" flashing in on load, gone
-  // once the transition (and the layer) ends. Most visible on the widest
-  // elements (the menu list, the footer), but cheap enough to apply
-  // everywhere this reveal runs.
+  // Opacity only — no translate-y. This used to also animate a transform,
+  // which on real iOS Safari promotes the (wide) menu-list/footer elements
+  // to their own compositing layer for the transition; that layer's edge
+  // rasterized as a visible rectangular box against the dark background for
+  // the transition's duration. Tried backface-visibility:hidden first (the
+  // standard fix for the usual hairline version of this WebKit bug) and it
+  // didn't get rid of it, so the transform itself has to go — a plain
+  // opacity fade never needs layer promotion in the first place.
   const revealCls = (delay: string) =>
-    `transition-all duration-700 ease-out ${delay} [backface-visibility:hidden] ${
-      contentVisible ? 'translate-y-0 opacity-100' : 'pointer-events-none translate-y-2 opacity-0'
-    }`
+    `transition-opacity duration-700 ease-out ${delay} ${contentVisible ? 'opacity-100' : 'pointer-events-none opacity-0'}`
 
   return (
     <div className="relative flex h-full flex-col items-center bg-ink-900 px-6 pb-[max(1.5rem,env(safe-area-inset-bottom))] pt-[max(1.5rem,env(safe-area-inset-top))] text-center">
@@ -154,8 +152,8 @@ export function HomeScreen({
           else's 700) makes that shared arrival read softer, like it's still
           gently dissolving in after the rest has landed. */}
       <div
-        className={`flex flex-col items-center gap-3 pb-12 transition-all duration-1000 ease-out delay-300 [backface-visibility:hidden] ${
-          contentVisible ? 'translate-y-0 opacity-100' : 'pointer-events-none translate-y-2 opacity-0'
+        className={`flex flex-col items-center gap-3 pb-12 transition-opacity duration-1000 ease-out delay-300 ${
+          contentVisible ? 'opacity-100' : 'pointer-events-none opacity-0'
         }`}
       >
         <a
