@@ -25,16 +25,25 @@ export interface AspectRatioPreset {
  *  the border go asymmetric on the mismatched axis instead of cropping. */
 export type PhotoFit = 'cover' | 'contain'
 
-/** A loaded source photo, decoded once and reused across transforms */
+/** A loaded source photo. Only a capped-size bitmap is kept decoded and
+ *  resident for the whole session — see useImageBitmap.ts and exportImage.ts
+ *  for why the full-resolution decode is NOT held here. */
 export interface LoadedPhoto {
   id: string
-  /** Full native-resolution decode — export draws from this so "Maximum"
-   *  quality stays the camera's real pixels. */
-  bitmap: ImageBitmap
+  /** The original file, kept only to re-decode a full-resolution bitmap
+   *  on demand at export time (see exportImage.ts) — closed again
+   *  immediately after that draw, never held alongside every other photo's
+   *  full decode for the rest of the session. Holding N full camera-res
+   *  bitmaps at once (one per photo in a batch/collage) is exactly what was
+   *  exceeding iOS's per-tab memory budget and getting the whole app killed
+   *  and reloaded — a phone with less RAM than an iPad hits that ceiling
+   *  with fewer, lower-megapixel photos already loaded. */
+  file: File
   /** Downscaled copy for the live Konva canvas (see useImageBitmap.ts) — the
    *  on-screen preview never needs more than a couple thousand px, and
    *  redrawing a huge camera bitmap on every animation/drag frame is what
-   *  made editing sluggish on higher-megapixel phone cameras. */
+   *  made editing sluggish on higher-megapixel phone cameras. This is the
+   *  ONLY bitmap kept resident per photo. */
   previewBitmap: ImageBitmap
   width: number
   height: number

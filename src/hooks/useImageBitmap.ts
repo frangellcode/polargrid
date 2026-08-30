@@ -31,21 +31,22 @@ async function buildPreviewBitmap(bitmap: ImageBitmap): Promise<ImageBitmap> {
 export function useImageBitmap() {
   const loadFiles = useCallback(async (files: FileList | File[]): Promise<LoadedPhoto[]> => {
     const list = Array.from(files).filter((f) => f.type.startsWith('image/'))
-    const loaded = await Promise.all(
-      list.map(async (file) => {
-        const bitmap = await createImageBitmap(file, { imageOrientation: 'from-image' })
-        const previewBitmap = await buildPreviewBitmap(bitmap)
-        const photo: LoadedPhoto = {
-          id: nextId(),
-          bitmap,
-          previewBitmap,
-          width: bitmap.width,
-          height: bitmap.height,
-          name: file.name,
-        }
-        return photo
-      }),
-    )
+    // One at a time, not Promise.all — decoding every file's full-resolution
+    // bitmap in parallel means all of them are briefly resident together,
+    // the exact spike this whole file is trying to avoid for a multi-photo
+    // batch/collage upload.
+    const loaded: LoadedPhoto[] = []
+    for (const file of list) {
+      const bitmap = await createImageBitmap(file, { imageOrientation: 'from-image' })
+      const previewBitmap = await buildPreviewBitmap(bitmap)
+      const width = bitmap.width
+      const height = bitmap.height
+      // Free the full-res decode right away — only the (much smaller)
+      // preview and the original file (for export, see exportImage.ts) are
+      // kept for the rest of the session.
+      if (previewBitmap !== bitmap) bitmap.close()
+      loaded.push({ id: nextId(), file, previewBitmap, width, height, name: file.name })
+    }
     return loaded
   }, [])
 

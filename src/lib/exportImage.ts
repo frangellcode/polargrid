@@ -14,7 +14,15 @@ export function resolveRatio(aspectRatioId: string, fallbackRatio: number, orien
   return preset.orientable && orientation === 'horizontal' ? 1 / preset.ratio : preset.ratio
 }
 
-function drawPhotoInRect(
+/** Decodes the ONE photo actually being drawn right now, at full resolution,
+ *  straight from its original file — never held any longer than this single
+ *  draw call. Exporting a batch/collage this way means at most one full
+ *  camera-resolution bitmap exists at a time, no matter how many photos are
+ *  in it; holding all of them decoded at once (as every photo's LoadedPhoto
+ *  used to) is what was exceeding iOS's per-tab memory budget and getting
+ *  the whole app killed and silently reloaded on a phone with less RAM than
+ *  an iPad. */
+async function drawPhotoInRect(
   ctx: CanvasRenderingContext2D,
   photo: LoadedPhoto,
   rectX: number,
@@ -28,36 +36,41 @@ function drawPhotoInRect(
   grainIntensity = 0,
 ) {
   if (rectW <= 0 || rectH <= 0) return
-  ctx.save()
-  ctx.translate(rectX + rectW / 2, rectY + rectH / 2)
-  if (rotationDeg) ctx.rotate((rotationDeg * Math.PI) / 180)
-  ctx.translate(-rectW / 2, -rectH / 2)
-  traceShapePath(ctx, shape, rectW, rectH)
-  ctx.clip()
-  const draw = getImageDrawRect(rectW, rectH, photo.width, photo.height, transform, fit)
-  ctx.drawImage(photo.bitmap, draw.x, draw.y, draw.width, draw.height)
-  // Grain is drawn over the photo's own rect, intersected with the cell's own
-  // bounds — NOT the raw draw size. In 'contain' fit the photo can letterbox
-  // inside the cell smaller than it, which is why this isn't just rectW/rectH
-  // (grain over the full cell would speckle noise onto that empty gap). But
-  // in 'cover' fit (the common case) `draw` routinely OVERSHOOTS the cell —
-  // any time the photo's aspect ratio doesn't match the crop, or the person
-  // zoomed in — and the shape clip above trims that overflow at render time
-  // anyway, so sizing the grain canvas itself to the full uncropped draw size
-  // was pure waste at best. At worst, for a native-resolution export with a
-  // zoomed-in mismatched-aspect photo, `draw` can balloon to many times the
-  // cell size, and grain.ts allocates a same-proportioned noise canvas from
-  // whatever size it's given — large enough to blow past a canvas's real
-  // pixel-area limit and throw, silently failing the whole export.
-  const grainX = Math.max(0, draw.x)
-  const grainY = Math.max(0, draw.y)
-  const grainW = Math.max(0, Math.min(rectW, draw.x + draw.width) - grainX)
-  const grainH = Math.max(0, Math.min(rectH, draw.y + draw.height) - grainY)
-  ctx.save()
-  ctx.translate(grainX, grainY)
-  drawGrainOverlay(ctx, grainW, grainH, grainIntensity)
-  ctx.restore()
-  ctx.restore()
+  const bitmap = await createImageBitmap(photo.file, { imageOrientation: 'from-image' })
+  try {
+    ctx.save()
+    ctx.translate(rectX + rectW / 2, rectY + rectH / 2)
+    if (rotationDeg) ctx.rotate((rotationDeg * Math.PI) / 180)
+    ctx.translate(-rectW / 2, -rectH / 2)
+    traceShapePath(ctx, shape, rectW, rectH)
+    ctx.clip()
+    const draw = getImageDrawRect(rectW, rectH, photo.width, photo.height, transform, fit)
+    ctx.drawImage(bitmap, draw.x, draw.y, draw.width, draw.height)
+    // Grain is drawn over the photo's own rect, intersected with the cell's own
+    // bounds — NOT the raw draw size. In 'contain' fit the photo can letterbox
+    // inside the cell smaller than it, which is why this isn't just rectW/rectH
+    // (grain over the full cell would speckle noise onto that empty gap). But
+    // in 'cover' fit (the common case) `draw` routinely OVERSHOOTS the cell —
+    // any time the photo's aspect ratio doesn't match the crop, or the person
+    // zoomed in — and the shape clip above trims that overflow at render time
+    // anyway, so sizing the grain canvas itself to the full uncropped draw size
+    // was pure waste at best. At worst, for a native-resolution export with a
+    // zoomed-in mismatched-aspect photo, `draw` can balloon to many times the
+    // cell size, and grain.ts allocates a same-proportioned noise canvas from
+    // whatever size it's given — large enough to blow past a canvas's real
+    // pixel-area limit and throw, silently failing the whole export.
+    const grainX = Math.max(0, draw.x)
+    const grainY = Math.max(0, draw.y)
+    const grainW = Math.max(0, Math.min(rectW, draw.x + draw.width) - grainX)
+    const grainH = Math.max(0, Math.min(rectH, draw.y + draw.height) - grainY)
+    ctx.save()
+    ctx.translate(grainX, grainY)
+    drawGrainOverlay(ctx, grainW, grainH, grainIntensity)
+    ctx.restore()
+    ctx.restore()
+  } finally {
+    bitmap.close()
+  }
 }
 
 /** Resolves true once the file(s) are actually saved/shared, false if the person
@@ -111,7 +124,7 @@ async function downloadCanvas(canvas: HTMLCanvasElement, filename: string): Prom
   return saveFiles([new File([blob], filename, { type: 'image/jpeg' })])
 }
 
-function renderBorderCanvas(
+async function renderBorderCanvas(
   photo: LoadedPhoto,
   ratio: number,
   borderThicknessPct: number,
@@ -120,7 +133,7 @@ function renderBorderCanvas(
   locked: boolean,
   grainIntensity: number,
   borderColorHex: string,
-): HTMLCanvasElement {
+): Promise<HTMLCanvasElement> {
   const sizeFn = locked ? computeNativeCanvasSize : computeNativeCanvasSizeContain
   // Cap the PHOTO's own resolution to the quality tier first, then build the
   // bordered canvas around that. Capping the final (photo + border) canvas
@@ -140,7 +153,7 @@ function renderBorderCanvas(
   ctx.fillRect(0, 0, width, height)
 
   const borderPx = borderThicknessPct * Math.min(width, height)
-  drawPhotoInRect(
+  await drawPhotoInRect(
     ctx,
     photo,
     borderPx,
@@ -166,7 +179,7 @@ export async function exportBorderPhoto(
   grainIntensity = 0,
   borderColorHex = '#ffffff',
 ) {
-  const canvas = renderBorderCanvas(photo, ratio, borderThicknessPct, transform, quality, locked, grainIntensity, borderColorHex)
+  const canvas = await renderBorderCanvas(photo, ratio, borderThicknessPct, transform, quality, locked, grainIntensity, borderColorHex)
   return downloadCanvas(canvas, `polargrid-border-${Date.now()}.jpg`)
 }
 
@@ -187,7 +200,7 @@ export async function exportBorderPhotosBatch(
 ): Promise<boolean> {
   const files: File[] = []
   for (let i = 0; i < photos.length; i++) {
-    const canvas = renderBorderCanvas(photos[i], ratio, borderThicknessPct, transform, quality, locked, grainIntensity, borderColorHex)
+    const canvas = await renderBorderCanvas(photos[i], ratio, borderThicknessPct, transform, quality, locked, grainIntensity, borderColorHex)
     const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob((b) => resolve(b), 'image/jpeg', JPEG_QUALITY))
     if (!blob) throw new Error('Could not generate the image')
     files.push(new File([blob], `polargrid-border-${Date.now()}-${i + 1}.jpg`, { type: 'image/jpeg' }))
@@ -261,16 +274,19 @@ export async function exportCollageGrid(
   const cellW = (contentW - gutterPx * (template.cols - 1)) / template.cols
   const cellH = (contentH - gutterPx * (template.rows - 1)) / template.rows
 
-  template.cells.forEach((cell, i) => {
+  // Sequential (not the equivalent forEach) so each cell's full-resolution
+  // decode is closed before the next one is opened — see drawPhotoInRect.
+  for (let i = 0; i < template.cells.length; i++) {
+    const cell = template.cells[i]
     const assignment = assignments[i]
     const photo = assignment?.photoId ? photos[assignment.photoId] : null
-    if (!photo) return
+    if (!photo) continue
     const x = contentX + cell.col * (cellW + gutterPx)
     const y = contentY + cell.row * (cellH + gutterPx)
     const w = cellW * cell.colSpan + gutterPx * (cell.colSpan - 1)
     const h = cellH * cell.rowSpan + gutterPx * (cell.rowSpan - 1)
-    drawPhotoInRect(ctx, photo, x, y, w, h, assignment.transform, 0, 'cover', shape, grainIntensity)
-  })
+    await drawPhotoInRect(ctx, photo, x, y, w, h, assignment.transform, 0, 'cover', shape, grainIntensity)
+  }
 
   return downloadCanvas(canvas, `polargrid-collage-${Date.now()}.jpg`)
 }
@@ -311,7 +327,7 @@ export async function exportCollageFree(
   for (const item of freeItems) {
     const photo = photos[item.photoId]
     if (!photo) continue
-    drawPhotoInRect(
+    await drawPhotoInRect(
       ctx,
       photo,
       item.x * width,
