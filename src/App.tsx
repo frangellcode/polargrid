@@ -32,6 +32,30 @@ const TRANSITION_BACKSTOP_MS = 200
 
 type BootStage = 'hold' | 'flying' | 'done'
 
+/**
+ * Centre of the box `position: fixed` resolves against — measured with a
+ * throwaway probe rather than assumed from window.innerWidth/innerHeight.
+ *
+ * index.html's pre-JS splash is flex-centred inside a `position: fixed;
+ * inset: 0` box, so this is exactly the point its logo is painted on, and the
+ * point React's logo has to be transformed onto for the handoff to be
+ * invisible. window.innerWidth/innerHeight is NOT that point on iOS: it
+ * reports the VISUAL viewport, which drifts from the layout viewport used for
+ * fixed positioning — safe-area insets under `viewport-fit=cover`, the home
+ * indicator, a collapsing address bar. On this desktop browser the two agree
+ * exactly, which is why the mismatch never showed up in testing here; on a
+ * phone a pixel or so of difference is enough to make the logo twitch the
+ * instant React takes over from the splash.
+ */
+function fixedViewportCenter() {
+  const probe = document.createElement('div')
+  probe.style.cssText = 'position:fixed;inset:0;visibility:hidden;pointer-events:none'
+  document.body.appendChild(probe)
+  const rect = probe.getBoundingClientRect()
+  probe.remove()
+  return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 }
+}
+
 // "Update" replay: the boot flight run in reverse, on the same element.
 // Tapping "Update app" sends the home logo back to the center (text fading
 // out — the boot motion backwards) and holds there while a bar fills 0->100.
@@ -138,9 +162,10 @@ function App() {
     const node = homeLogoNode.current
     if (!node) return null
     const rect = node.getBoundingClientRect()
+    const target = fixedViewportCenter()
     return {
-      dx: window.innerWidth / 2 - (rect.left + rect.width / 2),
-      dy: window.innerHeight / 2 - (rect.top + rect.height / 2),
+      dx: target.x - (rect.left + rect.width / 2),
+      dy: target.y - (rect.top + rect.height / 2),
     }
   }
 
@@ -150,13 +175,22 @@ function App() {
    * Both flights cross Home's own text while it is fading (out on update, in
    * on boot), so the logo has to be painted above it — the fixed clone this
    * replaced was z-50 and got that for free. `position: relative` is only
-   * here to make z-index apply; it changes no layout. Both are dropped along
-   * with the transform when the flight lands, so the resting logo is a plain
-   * static box again with no stacking context of its own.
+   * here to make z-index apply; it changes no layout.
+   *
+   * `will-change` is what keeps the logo on ONE compositing layer for the
+   * whole sequence. Without it the browser promotes it only once the
+   * transition actually starts, and a layer being created mid-sequence is
+   * re-snapped to the device-pixel grid as it appears — a visible twitch
+   * right before the logo sets off. Declaring it up front means the promotion
+   * has already happened while nothing is moving.
+   *
+   * All three are dropped when the flight lands, so the resting logo is a
+   * plain static box again: no stacking context, no layer, no transform.
    */
   const flightStyle = (transform: string | undefined, transition: string): CSSProperties => ({
     position: 'relative',
     zIndex: 50,
+    willChange: 'transform',
     transform,
     transition,
   })

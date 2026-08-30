@@ -53,6 +53,17 @@
         justify-content: center;
         background-color: #141e30;
       }
+      /* React's logo takes this one's place on its first commit, transformed
+         onto this exact spot. A transformed element gets its own compositing
+         layer, which is rasterised and placed on the device-pixel grid, while
+         a plain in-flow element is drawn at its true sub-pixel position — so
+         two logos at provably identical CSS coordinates could still be
+         painted a fraction of a pixel apart, and the handoff twitched.
+         Putting this one on a layer too makes both go through the same
+         rounding. Keep in sync with flightStyle's will-change in App.tsx. */
+      .boot-splash svg {
+        will-change: transform;
+      }
     </style>
   </head>
   <body>
