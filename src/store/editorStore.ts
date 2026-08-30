@@ -21,17 +21,6 @@ import { DEFAULT_BORDER_COLOR } from '../lib/borderColors'
 export const DEFAULT_BORDER_PCT = 0.04
 export const DEFAULT_GUTTER_PCT = 0.015
 
-const WORKSPACE_BACKGROUND_STORAGE_KEY = 'polargrid:workspace-background'
-
-/** Reads the user's last-picked workspace background from the device (localStorage) —
- *  wrapped in try/catch since storage access can throw (private browsing, disabled storage). */
-function readStoredWorkspaceBackground(): string {
-  try {
-    return localStorage.getItem(WORKSPACE_BACKGROUND_STORAGE_KEY) ?? DEFAULT_WORKSPACE_BACKGROUND
-  } catch {
-    return DEFAULT_WORKSPACE_BACKGROUND
-  }
-}
 
 interface BorderState {
   photoId: string | null
@@ -175,17 +164,15 @@ export const useEditorStore = create<EditorStoreState>((set, get) => ({
   photos: {},
   border: createInitialBorderState(),
   collage: createInitialCollageState(),
-  workspaceBackground: readStoredWorkspaceBackground(),
+  // In-memory only, on purpose — every other editor adjustment (border
+  // color, grain, export quality, ...) already resets to its default via
+  // resetBorder/resetCollage, and this used to be the one exception,
+  // surviving both a reset AND a full reload via localStorage. Kept as a
+  // plain default now so the workspace always starts clean.
+  workspaceBackground: DEFAULT_WORKSPACE_BACKGROUND,
 
   setMode: (mode) => set({ mode }),
-  setWorkspaceBackground: (id) => {
-    try {
-      localStorage.setItem(WORKSPACE_BACKGROUND_STORAGE_KEY, id)
-    } catch {
-      // storage unavailable (private browsing, disabled) — keep the in-memory pick
-    }
-    set({ workspaceBackground: id })
-  },
+  setWorkspaceBackground: (id) => set({ workspaceBackground: id }),
 
   addPhotos: (newPhotos) =>
     set((state) => ({
@@ -203,8 +190,8 @@ export const useEditorStore = create<EditorStoreState>((set, get) => ({
       collage: createInitialCollageState(),
     }),
 
-  resetBorder: () => set({ border: createInitialBorderState() }),
-  resetCollage: () => set({ collage: createInitialCollageState() }),
+  resetBorder: () => set({ border: createInitialBorderState(), workspaceBackground: DEFAULT_WORKSPACE_BACKGROUND }),
+  resetCollage: () => set({ collage: createInitialCollageState(), workspaceBackground: DEFAULT_WORKSPACE_BACKGROUND }),
 
   setBorderPhoto: (photoId) =>
     set((state) => ({

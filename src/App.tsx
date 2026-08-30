@@ -96,6 +96,20 @@ function App() {
   const updateFlightEnabled = useRef(false)
 
   const beginUpdate = () => {
+    // The update button sits inside HomeScreen's own content, which starts
+    // accepting taps as soon as `bootStage` reaches 'flying' (contentVisible
+    // flips true then, ~BOOT_HOLD_MS in) — but the boot flight itself keeps
+    // running for another BOOT_FLIGHT_MS after that, fully independent of
+    // updatePhase. A tap landing in that window used to start THIS flight
+    // (toCenter, its own logo, its own transform) while the boot flight's
+    // OWN logo was still independently animating toward the exact same
+    // spot — two uncoordinated Logo elements racing/colliding, which is
+    // what read as the logo "moving erratically". Bail until the boot
+    // sequence has fully settled; a tap during that (sub-second, and only
+    // reachable by tapping the instant the app appears) window is simply
+    // ignored rather than kicking off a second animation on top of the
+    // first.
+    if (bootStage !== 'done') return
     const node = homeLogoNode.current
     const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
     updateFlightEnabled.current = Boolean(node) && !reduceMotion
