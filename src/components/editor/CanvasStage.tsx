@@ -77,7 +77,13 @@ export function CanvasStage({
       {scale > 0 && (
         <div
           className="fade-in-slow relative rounded-sm ring-1 ring-slate-900/10"
-          style={{ boxShadow: '0 4px 16px -4px rgba(15, 23, 42, 0.25)' }}
+          // touchAction 'none' so a two-finger pinch on the canvas is OURS to
+          // handle (PhotoCell's zoom) instead of the browser's page zoom, and
+          // a one-finger pan doesn't fight page scrolling. Konva never sets
+          // this itself, and touch-action intersects down the ancestor chain,
+          // so putting it on this wrapper covers the <canvas> Konva creates
+          // inside. Safe here because the editor screen never scrolls.
+          style={{ boxShadow: '0 4px 16px -4px rgba(15, 23, 42, 0.25)', touchAction: 'none' }}
         >
           <Stage width={outputWidth * scale} height={outputHeight * scale} scaleX={scale} scaleY={scale}>
             <Layer>

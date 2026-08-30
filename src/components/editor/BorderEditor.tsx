@@ -124,12 +124,26 @@ export function BorderEditor() {
   //   tracking it. A slider should track 1:1 with zero added lag anyway.
   const outputWidth = useAnimatedNumber(targetWidth)
   const outputHeight = useAnimatedNumber(targetHeight)
+  // The border's thickness is a proportion of the canvas's SHORT side, and
+  // `Math.min(outputWidth, outputHeight)` is the wrong way to get that during
+  // a transition: min() of two crossing tweens peaks at the moment the canvas
+  // passes through square, so flipping 9:16 -> 16:9 (identical short side at
+  // both ends, 506px) made the white border swell to ~139% mid-flip and
+  // deflate again — the frame visibly breathing. Tweening the short side
+  // itself instead goes 506 -> 506, i.e. a flip now holds the border
+  // perfectly steady, and any real short-side change eases monotonically.
+  // Still safe: min() of two linear ramps is concave, so it's always >= this
+  // straight interpolation between the endpoints — the border can never grow
+  // past the canvas mid-animation. Note this is the ratio's tween only; the
+  // thickness slider feeds borderThicknessPct straight through below, so it
+  // still tracks 1:1 with no added lag.
+  const shortSide = useAnimatedNumber(Math.min(targetWidth, targetHeight))
   // Animates the cover<->contain blend itself (not just a CSS transition on the
   // toggle) so the photo's crop eases smoothly instead of snapping when Locked/
   // Unlocked is switched.
   const fitMix = useAnimatedNumber(border.locked ? 0 : 1)
 
-  const borderPx = border.borderThicknessPct * Math.min(outputWidth, outputHeight)
+  const borderPx = border.borderThicknessPct * shortSide
   const borderColorHex = getBorderColor(border.borderColor).hex
   // Only the live preview eases between colors — the export just paints the
   // final picked color once, no animation needed for a static file.

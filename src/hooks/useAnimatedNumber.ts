@@ -97,11 +97,15 @@ export function useIsReflowing(trigger: string | number, duration = 320): boolea
     setReflowing(true)
   }
 
+  // `prevTrigger` is a dep, not just `reflowing`: a SECOND trigger change while
+  // the first window is still open leaves `reflowing` already true, so without
+  // it the effect wouldn't re-run and the second reflow would inherit whatever
+  // was left of the first one's timer — cutting its animation short.
   useEffect(() => {
     if (!reflowing) return
     const t = setTimeout(() => setReflowing(false), duration)
     return () => clearTimeout(t)
-  }, [reflowing, duration])
+  }, [reflowing, prevTrigger, duration])
 
   return reflowing
 }

@@ -586,52 +586,73 @@ export function CollageEditor() {
     () => computeOutputPixelSize(ratio, PREVIEW_LONG_EDGE),
     [ratio],
   )
-  // Animated only for CanvasStage's own frame size below — grid cell rects
-  // deliberately use the raw (unanimated) targetWidth/targetHeight instead
-  // (see contentW/cellW/etc. further down), fed through animateLayout on
-  // each PhotoCell instead of this tween, so a slider drag isn't stuck
-  // chasing a value that's itself still moving (see BorderEditor's history
-  // for the full writeup — same bug, same fix).
   const outputWidth = useAnimatedNumber(targetWidth)
   const outputHeight = useAnimatedNumber(targetHeight)
+  // Border/gutter thickness is a proportion of the canvas's SHORT side, and
+  // `Math.min(outputWidth, outputHeight)` is the wrong way to get that mid-
+  // transition: min() of two crossing tweens peaks as the canvas passes
+  // through square, so flipping 9:16 -> 16:9 (same 506px short side at both
+  // ends) made the white border and every gutter swell ~39% and deflate
+  // again. Tweening the short side itself holds them steady through a flip
+  // and eases monotonically otherwise. Always <= min(outputWidth,
+  // outputHeight) — min() of two linear ramps is concave, so it never
+  // exceeds the straight interpolation between its own endpoints — so the
+  // border can't overflow the canvas mid-animation. The sliders only move
+  // outerBorderPct/gutterPct, which are fed through raw below, so they still
+  // track 1:1 with no added lag.
+  const shortSide = useAnimatedNumber(Math.min(targetWidth, targetHeight))
 
   const template = useMemo(() => {
     const base = getTemplateById(collage.templateId, collage.photoCount)
     return collage.orientation === 'vertical' ? transposeTemplate(base) : base
   }, [collage.templateId, collage.photoCount, collage.orientation])
 
-  // Raw (unanimated) targetWidth/targetHeight on purpose — outputWidth stays
-  // reserved for CanvasStage's own frame size. GridCellsLayer's PhotoCells
-  // animate themselves (animateLayout), so feeding them a rect derived from
-  // an outer value that's ALSO mid-animation would double-animate (see
-  // BorderEditor's git history for that bug). Using the raw target here is
-  // what actually lets animateLayout smoothly reorganize cells on a template
-  // switch — outputWidth doesn't change for that case at all (only the
-  // template does), so without this, cells had nothing to animate from and
-  // just snapped straight to their new spot.
-  const shortSide = Math.min(targetWidth, targetHeight)
+  // Cell rects are derived from the SAME animated canvas size the frame uses,
+  // so the grid is a pure function of the frame and the two can never
+  // disagree by construction. They used to be built from the raw (un-tweened)
+  // targetWidth/targetHeight and left to PhotoCell's own animateLayout tween
+  // to catch up, which is what produced the worst glitch on this screen: a
+  // vertical<->horizontal flip changes ratioOrientation, which wasn't in
+  // reflowKey below, so animateCells stayed false and every cell SNAPPED to
+  // the landscape layout on the very first frame while the white frame spent
+  // 320ms morphing around them. Measured on a 4-up 9:16 grid: the right-hand
+  // column jumped to x=454 inside a canvas still only 506px wide, i.e. the
+  // photos shot off the right edge and slid back in as the frame caught up.
+  // Even with the key fixed it couldn't be exact — animateLayout eases
+  // linearly between the two END layouts, while the frame eases its width and
+  // height separately, and the layout isn't linear in (width, height) because
+  // of the min() above — so the two only agree when the short side never
+  // switches axis. Deriving from the animated size removes the whole class:
+  // no second tween to keep in phase.
   const outerBorderPx = collage.outerBorderPct * shortSide
   const gutterPx = collage.gutterPct * shortSide
   const contentX = outerBorderPx
   const contentY = outerBorderPx
-  const contentW = targetWidth - outerBorderPx * 2
-  const contentH = targetHeight - outerBorderPx * 2
+  const contentW = outputWidth - outerBorderPx * 2
+  const contentH = outputHeight - outerBorderPx * 2
   const cellW = (contentW - gutterPx * (template.cols - 1)) / template.cols
   const cellH = (contentH - gutterPx * (template.rows - 1)) / template.rows
 
-  // Switching template/orientation/aspect-ratio re-tiles every cell at once;
-  // each one eases to its new rect independently via animateLayout (in
-  // PhotoCell), which is the actual motion the person wants to see for THAT
-  // kind of change. But `animateLayout` shouldn't be on for outerBorderPct/
-  // gutterPct changes too — a slider drag fires a new target on every
-  // 'input' event, and animateLayout's tween restarts on every one of them
-  // before the last finishes, so the cell is perpetually chasing the live
-  // slider value instead of tracking it (the exact laggy-slider bug
-  // BorderEditor's own history warns about — it avoids animateLayout
-  // entirely for its border-thickness slider for this reason). Gating
-  // animateLayout on "is a reflow in flight" — true only right after
-  // template/orientation/aspectRatioId changes, never for outerBorderPct/
-  // gutterPct — gets both: instant 1:1 slider tracking AND smooth reflows.
+  // animateLayout is now ONLY for re-tiles that leave the canvas size alone —
+  // switching template, transposing it, adding/removing a photo. Those change
+  // every cell's rect with nothing else moving, so each cell easing to its new
+  // spot on its own is exactly the motion the person wants, and there's no
+  // second animation to stay in phase with.
+  //
+  // Everything else is deliberately NOT in this key:
+  // - aspectRatioId / ratioOrientation: the canvas size tween above already
+  //   carries that motion, and cell rects are derived from it, so the cells
+  //   follow the frame frame-for-frame. Turning animateLayout on here would
+  //   double-animate — each cell chasing a target that is itself still moving
+  //   every frame, which reads as lag and lands late.
+  // - outerBorderPct / gutterPct: a slider drag fires a new target on every
+  //   'input' event and animateLayout's tween restarts on each one before the
+  //   last finishes, so the cell perpetually chases the live slider value
+  //   instead of tracking it. A slider must track 1:1 with zero added lag.
+  //
+  // The ratio guard covers the one case where both could overlap (retiling
+  // while a ratio tween is still in flight — e.g. tapping template right
+  // after 9:16): the frame tween wins and the cells just follow it.
   //
   // No masking veil this time around: an opacity dip read as a white flash,
   // a same-shaped dark veil read as a black flash instead, and a CSS blur
@@ -640,8 +661,13 @@ export function CollageEditor() {
   // intentional (see git history). Turned out the plain slide, with nothing
   // trying to hide it, reads fine on its own — it's normal reflow motion,
   // not an error, and doesn't need a veil to sell that.
-  const reflowKey = `${collage.templateId}|${collage.orientation}|${collage.aspectRatioId}`
-  const animateCells = useIsReflowing(reflowKey, 320)
+  //
+  // Windows run slightly longer than the 320ms tweens they gate so the flag
+  // can't drop on the second-to-last frame and snap the final pixel.
+  const retileKey = `${collage.templateId}|${collage.orientation}|${collage.photoCount}`
+  const ratioKey = `${collage.aspectRatioId}|${collage.ratioOrientation}`
+  const ratioReflowing = useIsReflowing(ratioKey, 360)
+  const animateCells = useIsReflowing(retileKey, 360) && !ratioReflowing
 
   const borderColorHex = getBorderColor(collage.borderColor).hex
   // Only the live preview eases between colors — the export just paints the
