@@ -54,8 +54,16 @@ export function HomeScreen({
   // reads fine on the update button below, which reuses it in place of its
   // own hover/press transition — two separate `transition*` utilities on one
   // element would just have the later one silently win.
+  // [backface-visibility:hidden] works around a real WebKit artifact: an
+  // element animating transform+opacity together gets promoted to its own
+  // compositing layer for the transition, and on iOS Safari that layer's
+  // edge can briefly rasterize as a faint rectangular seam against a solid
+  // dark background — reported as a "white box" flashing in on load, gone
+  // once the transition (and the layer) ends. Most visible on the widest
+  // elements (the menu list, the footer), but cheap enough to apply
+  // everywhere this reveal runs.
   const revealCls = (delay: string) =>
-    `transition-all duration-700 ease-out ${delay} ${
+    `transition-all duration-700 ease-out ${delay} [backface-visibility:hidden] ${
       contentVisible ? 'translate-y-0 opacity-100' : 'pointer-events-none translate-y-2 opacity-0'
     }`
 
@@ -146,7 +154,7 @@ export function HomeScreen({
           else's 700) makes that shared arrival read softer, like it's still
           gently dissolving in after the rest has landed. */}
       <div
-        className={`flex flex-col items-center gap-3 pb-12 transition-all duration-1000 ease-out delay-300 ${
+        className={`flex flex-col items-center gap-3 pb-12 transition-all duration-1000 ease-out delay-300 [backface-visibility:hidden] ${
           contentVisible ? 'translate-y-0 opacity-100' : 'pointer-events-none translate-y-2 opacity-0'
         }`}
       >

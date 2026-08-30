@@ -36,8 +36,21 @@ export function FadeText({ value, trigger, className, animateWidth = false }: Fa
   // render, but only ever pushes it into state (triggering a resize) on first
   // mount here — later resizes are deliberately deferred to the fade-cycle
   // effect below, once the old text has actually finished fading out.
+  //
+  // Skipped entirely while the custom font isn't confirmed loaded yet: on a
+  // cold PWA launch the font hasn't necessarily swapped in by this first
+  // layout pass, so measuring now would lock in the FALLBACK font's
+  // (narrower) width. The effect below corrects that once fonts are ready,
+  // but there's a real window between this mount and that correction where
+  // the text is already painting in the real (wider) font against a
+  // too-narrow, overflow-hidden box — clipping a trailing letter. Leaving
+  // width unset for that window instead sizes the box to its content
+  // naturally (no clip risk); the moment fonts are ready, this effect's own
+  // `value`-keyed rerun (unrelated to the ready-check) locks in the correct
+  // measurement anyway.
   useLayoutEffect(() => {
     if (!animateWidth) return
+    if (document.fonts && document.fonts.status !== 'loaded') return
     measuredWidthRef.current = measureRef.current?.offsetWidth
     setWidth((current) => (current === undefined ? measuredWidthRef.current : current))
   }, [animateWidth, value])
