@@ -54,13 +54,18 @@
         background-color: #141e30;
       }
     </style>
-    <script type="module" crossorigin src="./assets/index-DUOJ_sYh.js"></script>
-    <link rel="stylesheet" crossorigin href="./assets/index-D0fTfuPs.css">
+    <script type="module" crossorigin src="./assets/index-CKe2C9cF.js"></script>
+    <link rel="stylesheet" crossorigin href="./assets/index-BdYf78zi.css">
   <link rel="manifest" href="./manifest.webmanifest"></head>
   <body>
     <div id="root">
+      <!-- 62 must match HOME_LOGO_SIZE (HomeScreen.tsx) and therefore
+           BOOT_LOGO_SIZE (App.tsx): React's floating splash logo replaces
+           this one on its first commit, and the swap is only invisible if
+           both are the same nominal size. See HOME_LOGO_SIZE's comment for
+           why a CSS scale() between two sizes is not equivalent. -->
       <div class="boot-splash" aria-hidden="true">
-        <svg width="72" height="72" viewBox="0 0 200 200" role="img" aria-label="PolarGrid">
+        <svg width="62" height="62" viewBox="0 0 200 200" role="img" aria-label="PolarGrid">
           <rect x="0" y="0" width="200" height="200" rx="46" fill="#141e30" />
           <g transform="translate(34,34) scale(0.2578)">
             <path fill="#4E5058" d="M349.867,51.2H162.133V8.533c0-4.713,3.821-8.533,8.533-8.533h170.667c4.713,0,8.533,3.821,8.533,8.533V51.2z" />
