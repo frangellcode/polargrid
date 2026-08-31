@@ -327,44 +327,45 @@ function App() {
     setLogoStyle({})
   }
 
-  // Pins the logo over index.html's pre-JS splash before the first paint.
-  // useLayoutEffect (not useEffect) is what makes this invisible: it runs
-  // after React has mounted the DOM but BEFORE the browser paints, so the
-  // very first frame the user sees already has the logo centred. React's own
-  // createRoot has cleared the static splash markup by then, so the two never
-  // overlap and there is nothing to cross-fade.
   /**
    * The boot hold, and the handoff out of it.
    *
    * index.html's splash stays on screen untouched for the whole hold — it
    * lives outside #root so React never clears it, and it is opaque and full
    * screen, so HomeScreen renders completely hidden behind it. Nothing here
-   * measures anything or moves anything during that time. That matters: the
-   * splash is centred by plain CSS inside a `position: fixed` box, so it
-   * re-centres itself for whatever the viewport turns out to be — safe-area
-   * insets resolving late, the visual viewport settling after a reload — with
-   * no JS assumption that could be a pixel off.
+   * measures or moves anything during that time. That matters: the splash is
+   * centred by plain CSS inside a `position: fixed` box, so it re-centres
+   * itself for whatever the viewport turns out to be — safe-area insets
+   * resolving late, the visual viewport settling after a reload — with no JS
+   * assumption that could be a pixel off.
    *
-   * Two earlier attempts tried instead to put React's logo onto the splash's
-   * spot for the whole hold and swap the two while both were stationary: first
-   * by flying a clone and unmounting it, then by transforming the real logo
-   * onto a computed centre. Both were provably exact here (measured: splash
-   * and logo centres agreed to the decimal, 250 / 493) and both still twitched
-   * on a real phone, because "same coordinates" does not mean "same pixels" —
-   * a transformed element is composited and snapped to the device-pixel grid,
-   * a plain one is drawn at its true sub-pixel position.
+   * Two earlier attempts instead put React's logo on the splash's spot for the
+   * whole hold and swapped the two while both were stationary: first by flying
+   * a clone and unmounting it, then by transforming the real logo onto a
+   * computed centre. Both were provably exact here (measured: splash and logo
+   * centres agreed to the decimal, 250 / 493) and both still twitched on a
+   * phone, because "same coordinates" is not "same pixels" — a transformed
+   * element is composited and snapped to the device-pixel grid, a plain one is
+   * drawn at its true sub-pixel position. So the swap is gone: the logo takes
+   * over already in motion, and there is no stationary handoff left to see.
    *
-   * So this no longer tries to make the two match while they can be compared.
-   * The pin is applied while the splash is still covering it, and the splash
-   * is removed in the same frame the transition starts — the logo's first
-   * visible frame is already in motion. There is no stationary handoff left to
-   * see. flushSync on both steps is what guarantees that ordering rather than
-   * leaving it to React's scheduling.
+   * The whole handoff is one synchronous block on purpose. It was split across
+   * a requestAnimationFrame first, and that silently killed the animation:
+   * flushSync commits the DOM but does NOT recalculate style, and rAF
+   * callbacks run BEFORE the style/layout/paint steps of their frame — so the
+   * pin and the release both landed before a single recalculation, the browser
+   * compared `transform: none` against `transform: none`, saw no change, and
+   * started no transition at all. The logo simply appeared at its resting
+   * place the moment the splash went. (Confirmed in isolation: same sequence
+   * with the reflow read below yields a live CSSTransition, without it
+   * `getAnimations()` is empty and the computed transform is already `none`.)
+   * Doing it in one task with an explicit reflow between the two writes is
+   * what makes the transition real — and it also removes the rAF that, if
+   * dropped by a suspended tab, would have stranded the user behind an opaque
+   * splash for good.
    */
   useEffect(() => {
     if (bootStage !== 'hold') return
-    let raf: number | undefined
-    let guard: ReturnType<typeof setTimeout> | undefined
     const t = setTimeout(() => {
       const splash = document.getElementById('boot-splash')
       const splashLogo = splash?.querySelector('svg')
@@ -384,37 +385,26 @@ function App() {
       const dx = from.left + from.width / 2 - (to.left + to.width / 2)
       const dy = from.top + from.height / 2 - (to.top + to.height / 2)
 
-      // Frame N: logo pinned onto the splash, still hidden behind it.
+      // 1. Pin the logo onto the splash, no transition. Still hidden behind it.
       flushSync(() => setLogoStyle(flightStyle(`translate(${dx}px, ${dy}px)`, 'none')))
 
-      // Frame N+1: uncover and set off together. Dropping the `transform` key
-      // is what sends the logo home — its absence resolves to `none`, which is
-      // the element's own layout position rather than a number we computed.
-      let released = false
-      const release = () => {
-        if (released) return
-        released = true
-        flushSync(() => {
-          setLogoStyle(flightStyle(undefined, `transform ${BOOT_FLIGHT_MS}ms cubic-bezier(0.22, 1, 0.36, 1)`))
-          setBootStage('flying')
-        })
-        splash.remove()
-      }
-      raf = requestAnimationFrame(release)
-      // The splash now covers the app and only this code takes it away, so a
-      // dropped rAF is no longer a missed animation — it strands the user
-      // behind an opaque splash for good. A suspended PWA tab drops them, and
-      // this app is installed to a home screen. The guard costs one timer and
-      // makes the worst case "the flight didn't play" instead of "the app
-      // never appeared". Whichever runs first wins; `released` makes the other
-      // a no-op.
-      guard = setTimeout(release, BOOT_FLIGHT_MS)
+      // 2. Force a style recalculation so the browser takes THIS as the
+      //    before-change style. Without this read there is no animation at all
+      //    — see the block comment above.
+      void node.offsetHeight
+
+      // 3. Release and uncover together. Dropping the `transform` key is what
+      //    sends the logo home: its absence resolves to `none`, which is the
+      //    element's own layout position rather than a number we computed. The
+      //    first painted frame is the transition's own frame zero, which is
+      //    exactly where the splash was.
+      flushSync(() => {
+        setLogoStyle(flightStyle(undefined, `transform ${BOOT_FLIGHT_MS}ms cubic-bezier(0.22, 1, 0.36, 1)`))
+        setBootStage('flying')
+      })
+      splash.remove()
     }, BOOT_HOLD_MS)
-    return () => {
-      clearTimeout(t)
-      if (raf !== undefined) cancelAnimationFrame(raf)
-      if (guard !== undefined) clearTimeout(guard)
-    }
+    return () => clearTimeout(t)
   }, [bootStage])
 
   // See TRANSITION_BACKSTOP_MS. A swallowed transitionend here leaves
