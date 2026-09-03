@@ -1,3 +1,4 @@
+// Punto de entrada de la app: orquesta splash, home y editor.
 import { useEffect, useRef, useState } from 'react'
 import type { CSSProperties, TransitionEventHandler } from 'react'
 import { useEditorStore } from './store/editorStore'
