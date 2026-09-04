@@ -171,17 +171,22 @@ export function BorderEditor() {
   // already uses for up to MAX_COLLAGE_PHOTOS photos at once) — just cap
   // and hand every id to setBorderPhotos instead of one to setBorderPhoto.
   //
-  // The cap is applied to the raw selection, BEFORE decoding. iOS's photo
-  // picker has no notion of a maximum an <input type="file"> could ask for,
-  // so someone can always hand back twenty; capping the decoded result (as
-  // this used to) meant every one of those twenty was still decoded and
-  // preview-scaled first, just to throw fifteen away — the exact memory
-  // spike the batch limit exists to avoid.
+  // iOS's photo picker has no notion of a maximum an <input type="file"> could
+  // ask for, so someone can always hand back six. An over-sized selection is
+  // rejected WHOLE rather than trimmed to the first five: silently keeping
+  // five of six and dropping the sixth reads as the app losing a photo, and
+  // there's no way for the person to tell which one went. Nothing is decoded
+  // until the count is known to be good, so an over-sized pick costs no memory
+  // at all.
   const handleBatchUpload = async (files: FileList) => {
     const images = Array.from(files).filter((f) => f.type.startsWith('image/'))
     if (images.length === 0) return
-    setBatchTooMany(images.length > MAX_BORDER_BATCH_PHOTOS)
-    const loaded = await loadFiles(images.slice(0, MAX_BORDER_BATCH_PHOTOS))
+    if (images.length > MAX_BORDER_BATCH_PHOTOS) {
+      setBatchTooMany(true)
+      return
+    }
+    setBatchTooMany(false)
+    const loaded = await loadFiles(images)
     if (loaded.length === 0) return
     swapContent(() => {
       addPhotos(loaded)
@@ -254,11 +259,11 @@ export function BorderEditor() {
         </p>
       )}
 
-      {/* The picker itself can't be limited, so this is the only place the
-          extra photos get accounted for — without it, uploading twenty and
-          silently keeping five just looks like the app lost them. */}
+      {/* The picker itself can't be limited, so rejecting an over-sized
+          selection is only half the story — this is what tells the person
+          why nothing happened when they picked six. */}
       {batchTooMany && (
-        <p className="fade-in font-label mx-4 mt-2 rounded-lg border border-amber-400/30 bg-amber-400/10 px-3 py-2 text-center text-[11px] leading-snug text-amber-200">
+        <p className="fade-in font-label mx-4 mt-2 rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-center text-[11px] leading-snug text-red-300">
           {tr.borderEditor.batchTooMany(MAX_BORDER_BATCH_PHOTOS)}
         </p>
       )}
