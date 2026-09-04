@@ -144,12 +144,32 @@ export async function saveExportedFiles(files: File[]): Promise<SaveResult> {
   return 'saved'
 }
 
+/** Encodes the canvas and then RELEASES it. WebKit caps the total canvas
+ *  backing store a tab may hold and doesn't reclaim it promptly when a canvas
+ *  merely falls out of scope — during a ten-photo batch that ceiling is hit
+ *  partway through, and past it Safari hands back canvases that silently draw
+ *  nothing. That's what turned one photo of a batch entirely black, and what
+ *  blanked the live preview mid-export. Zeroing the dimensions frees the
+ *  backing store immediately rather than whenever GC gets around to it. */
 async function canvasToFile(canvas: HTMLCanvasElement, filename: string): Promise<File> {
-  const blob = await new Promise<Blob | null>((resolve) =>
-    canvas.toBlob((b) => resolve(b), 'image/jpeg', JPEG_QUALITY),
-  )
-  if (!blob) throw new Error('Could not generate the image')
-  return new File([blob], filename, { type: 'image/jpeg' })
+  try {
+    const blob = await new Promise<Blob | null>((resolve) =>
+      canvas.toBlob((b) => resolve(b), 'image/jpeg', JPEG_QUALITY),
+    )
+    if (!blob) throw new Error('Could not generate the image')
+    return new File([blob], filename, { type: 'image/jpeg' })
+  } finally {
+    canvas.width = 0
+    canvas.height = 0
+  }
+}
+
+/** Hands the main thread back for a frame. Without this the batch loop is one
+ *  unbroken run of synchronous canvas work: Safari never gets a turn to retire
+ *  the buffers just released above, and the app shell can't repaint the
+ *  progress counter either. */
+function yieldToBrowser(): Promise<void> {
+  return new Promise((resolve) => requestAnimationFrame(() => setTimeout(resolve, 0)))
 }
 
 async function downloadCanvas(canvas: HTMLCanvasElement, filename: string): Promise<ExportOutcome> {
@@ -237,6 +257,7 @@ export async function exportBorderPhotosBatch(
     const canvas = await renderBorderCanvas(photos[i], ratio, borderThicknessPct, transform, quality, locked, grainIntensity, borderColorHex)
     files.push(await canvasToFile(canvas, `polargrid-border-${stamp}-${i + 1}.jpg`))
     onProgress?.(i + 1, photos.length)
+    await yieldToBrowser()
   }
   return { result: await saveExportedFiles(files), files }
 }

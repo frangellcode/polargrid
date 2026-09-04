@@ -106,4 +106,10 @@ export function drawGrainOverlay(ctx: CanvasRenderingContext2D, rectW: number, r
   ctx.globalAlpha = grainOverlayOpacity(intensity)
   ctx.drawImage(noise, 0, 0, rectW, rectH)
   ctx.restore()
+  // WebKit caps the TOTAL canvas backing store a tab may hold, and doesn't
+  // reclaim it just because the canvas went out of scope. Past that ceiling
+  // it hands out canvases that quietly draw nothing (an all-black export), so
+  // every scratch canvas here is released the moment it's been drawn.
+  noise.width = 0
+  noise.height = 0
 }

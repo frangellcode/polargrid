@@ -779,7 +779,11 @@ export function CollageEditor() {
               setPendingSave(null)
             }
           }}
-          className="fade-in font-label mx-4 mt-2 rounded-lg border border-white/25 bg-white/10 px-3 py-2.5 text-center text-[11px] font-semibold leading-snug text-white transition duration-200 active:scale-[0.98]"
+          // Floats above the editor instead of being inserted into the column:
+          // pushing the canvas down mid-export made the whole page lurch and
+          // the photo jump, right at the moment the person is being asked to
+          // tap something.
+          className="fade-in font-label fixed inset-x-4 bottom-[max(7rem,calc(env(safe-area-inset-bottom)+6.5rem))] z-40 rounded-2xl border border-white/25 bg-ink-900/95 px-4 py-3 text-center text-[12px] font-semibold leading-snug text-white shadow-2xl backdrop-blur transition duration-200 active:scale-[0.98]"
         >
           {tr.toolbar.saveImage}
           <span className="mt-0.5 block text-[10px] font-normal text-white/60">{tr.toolbar.readyToSaveImage}</span>
