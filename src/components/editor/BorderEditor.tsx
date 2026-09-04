@@ -5,7 +5,7 @@ import { useTranslation } from '../../store/languageStore'
 import { useImageBitmap } from '../../hooks/useImageBitmap'
 import { useAnimatedColor, useAnimatedNumber } from '../../hooks/useAnimatedNumber'
 import { computeOutputPixelSize } from '../../lib/cropMath'
-import { exportBorderPhoto, exportBorderPhotosBatch, resolveRatio } from '../../lib/exportImage'
+import { exportBorderPhoto, exportBorderPhotosBatch, resolveRatio, saveExportedFiles } from '../../lib/exportImage'
 import { Toolbar } from './Toolbar'
 import { AspectRatioPicker } from './AspectRatioPicker'
 import { BorderThicknessSlider } from './BorderThicknessSlider'
@@ -79,6 +79,10 @@ export function BorderEditor() {
   const [batchTooMany, setBatchTooMany] = useState(false)
   const [exportProgress, setExportProgress] = useState<{ done: number; total: number } | null>(null)
   const [exportError, setExportError] = useState<string | null>(null)
+  // Rendered files iOS refused to share because the Export tap had already
+  // expired (see saveExportedFiles). Held here so the retry button below can
+  // hand these exact files to the share sheet from a fresh tap — no re-render.
+  const [pendingSave, setPendingSave] = useState<File[] | null>(null)
 
   useEffect(() => {
     if (!exportError) return
@@ -178,8 +182,9 @@ export function BorderEditor() {
     setBorderExportQuality(quality)
     setExporting(true)
     setExportProgress(null)
+    setPendingSave(null)
     try {
-      const saved = isBatch
+      const outcome = isBatch
         ? await exportBorderPhotosBatch(
             border.batchPhotoIds.map((id) => photos[id]).filter((p) => !!p),
             ratio,
@@ -201,7 +206,8 @@ export function BorderEditor() {
             border.grainIntensity,
             borderColorHex,
           )
-      if (saved) setShowSuccessToast(true)
+      if (outcome.result === 'saved') setShowSuccessToast(true)
+      else if (outcome.result === 'needs-gesture') setPendingSave(outcome.files)
     } catch {
       // Nothing upstream ever surfaced a failed export — it just quietly
       // reset the button, with no way to tell a real error apart from a
@@ -234,6 +240,29 @@ export function BorderEditor() {
         <p className="font-label mx-4 mt-2 rounded-lg border border-white/15 bg-white/5 px-3 py-2 text-center text-[11px] leading-snug text-white/70">
           {tr.borderEditor.batchCount(border.batchPhotoIds.length)}
         </p>
+      )}
+
+      {pendingSave && (
+        <button
+          type="button"
+          onClick={async () => {
+            // Runs straight off this tap — no rendering in between — so the
+            // activation is still live when the share sheet is asked for.
+            const result = await saveExportedFiles(pendingSave)
+            if (result === 'saved') {
+              setPendingSave(null)
+              setShowSuccessToast(true)
+            } else if (result === 'dismissed') {
+              setPendingSave(null)
+            }
+          }}
+          className="fade-in font-label mx-4 mt-2 rounded-lg border border-white/25 bg-white/10 px-3 py-2.5 text-center text-[11px] font-semibold leading-snug text-white transition duration-200 active:scale-[0.98]"
+        >
+          {tr.borderEditor.saveNow(pendingSave.length)}
+          <span className="mt-0.5 block text-[10px] font-normal text-white/60">
+            {tr.borderEditor.readyToSave(pendingSave.length)}
+          </span>
+        </button>
       )}
 
       {exportError && (

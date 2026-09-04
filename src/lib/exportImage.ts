@@ -73,35 +73,62 @@ async function drawPhotoInRect(
   }
 }
 
-/** Resolves true once the file(s) are actually saved/shared, false if the person
- *  backed out of the share sheet. Handles one photo or a whole batch — a batch is
- *  always passed as a SINGLE array to ONE navigator.share() call (not one call per
- *  file): calling share() again per file would fire without a fresh user gesture on
- *  the 2nd+ call and get silently rejected by the browser, and would mean N separate
- *  share-sheet prompts instead of one native "save 10 images" action. */
-async function saveFiles(files: File[]): Promise<boolean> {
-  if (files.length === 0) return false
+/** What happened to an export.
+ *  - `saved`: the file(s) reached the share sheet / download.
+ *  - `dismissed`: the person backed out of the share sheet — not an error.
+ *  - `needs-gesture`: the files are rendered and ready, but the browser refused
+ *    to open the share sheet because the tap that started the export had already
+ *    expired. The caller must hand them back to saveExportedFiles() from a fresh
+ *    tap (see saveExportedFiles below for why this can't be papered over here). */
+export type SaveResult = 'saved' | 'dismissed' | 'needs-gesture'
+
+/** The outcome of an export plus the rendered files themselves, so a caller that
+ *  got `needs-gesture` can hand the very same files to saveExportedFiles() on the
+ *  next tap instead of re-rendering the whole batch. */
+export interface ExportOutcome {
+  result: SaveResult
+  files: File[]
+}
+
+/** Saves or shares the rendered file(s). A batch is always passed as a SINGLE
+ *  array to ONE navigator.share() call (not one call per file): calling share()
+ *  again per file would fire without a fresh user gesture on the 2nd+ call and get
+ *  silently rejected, and would mean N separate share-sheet prompts instead of one
+ *  native "Save 10 Images" action.
+ *
+ *  WebKit only allows share() while the tap that triggered it is still "live"
+ *  (transient activation, a few seconds). Rendering ten native-resolution photos
+ *  takes far longer than that, so by the time the batch is ready the original
+ *  Export tap is stale and iOS rejects the call with NotAllowedError. That is
+ *  what `needs-gesture` reports: the work is done and the files are in hand, they
+ *  just need a fresh tap to hand to the share sheet. */
+export async function saveExportedFiles(files: File[]): Promise<SaveResult> {
+  if (files.length === 0) return 'dismissed'
 
   // In an installed iOS PWA, an <a download> anchor can't trigger a real
   // download — Safari instead opens the image in its own full-screen blob
   // viewer (the "black screen"), and returning from it is what causes the
-  // app shell to visibly reflow. The native share sheet stays inside the
-  // app and gives "Save Image" (or "Save N Images") as one of its actions,
-  // so prefer it whenever the platform can share files.
+  // app shell to visibly reflow. Worse for a batch: each click replaces the
+  // previous one, so only the LAST photo ever reaches the viewer. The native
+  // share sheet stays inside the app and gives "Save Image" (or "Save N
+  // Images") as one action, so where sharing is possible it is the only path
+  // — never fall back to the anchor there.
   if (navigator.canShare?.({ files })) {
     try {
       await navigator.share({ files })
-      return true
+      return 'saved'
     } catch (err) {
-      // User dismissed the share sheet — not an error, just stop here.
-      if (err instanceof Error && err.name === 'AbortError') return false
-      // Any other failure falls through to the download-link fallback below.
+      if (err instanceof Error && err.name === 'AbortError') return 'dismissed'
+      // Anything else (NotAllowedError from a stale activation, most often)
+      // means the sheet never opened. Ask for a fresh tap rather than dumping
+      // the batch into the blob viewer one file at a time.
+      return 'needs-gesture'
     }
   }
 
-  // Fallback: one <a download> click per file. Desktop browsers may prompt
-  // to allow "this site is downloading multiple files" starting on the
-  // 2nd — a browser-level protection, not something to route around here.
+  // Desktop fallback: one <a download> click per file. Browsers may prompt to
+  // allow "this site is downloading multiple files" starting on the 2nd — a
+  // browser-level protection, not something to route around here.
   for (const file of files) {
     const url = URL.createObjectURL(file)
     const a = document.createElement('a')
@@ -110,18 +137,24 @@ async function saveFiles(files: File[]): Promise<boolean> {
     document.body.appendChild(a)
     a.click()
     a.remove()
-    URL.revokeObjectURL(url)
+    // Revoking synchronously can pull the blob out from under a download the
+    // browser hasn't started reading yet; one turn of the event loop is enough.
+    setTimeout(() => URL.revokeObjectURL(url), 0)
   }
-  return true
+  return 'saved'
 }
 
-/** Resolves true once the image is actually saved/shared, false if the person backed out of the share sheet. */
-async function downloadCanvas(canvas: HTMLCanvasElement, filename: string): Promise<boolean> {
+async function canvasToFile(canvas: HTMLCanvasElement, filename: string): Promise<File> {
   const blob = await new Promise<Blob | null>((resolve) =>
     canvas.toBlob((b) => resolve(b), 'image/jpeg', JPEG_QUALITY),
   )
   if (!blob) throw new Error('Could not generate the image')
-  return saveFiles([new File([blob], filename, { type: 'image/jpeg' })])
+  return new File([blob], filename, { type: 'image/jpeg' })
+}
+
+async function downloadCanvas(canvas: HTMLCanvasElement, filename: string): Promise<ExportOutcome> {
+  const files = [await canvasToFile(canvas, filename)]
+  return { result: await saveExportedFiles(files), files }
 }
 
 async function renderBorderCanvas(
@@ -197,16 +230,15 @@ export async function exportBorderPhotosBatch(
   grainIntensity: number,
   borderColorHex: string,
   onProgress?: (done: number, total: number) => void,
-): Promise<boolean> {
+): Promise<ExportOutcome> {
+  const stamp = Date.now()
   const files: File[] = []
   for (let i = 0; i < photos.length; i++) {
     const canvas = await renderBorderCanvas(photos[i], ratio, borderThicknessPct, transform, quality, locked, grainIntensity, borderColorHex)
-    const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob((b) => resolve(b), 'image/jpeg', JPEG_QUALITY))
-    if (!blob) throw new Error('Could not generate the image')
-    files.push(new File([blob], `polargrid-border-${Date.now()}-${i + 1}.jpg`, { type: 'image/jpeg' }))
+    files.push(await canvasToFile(canvas, `polargrid-border-${stamp}-${i + 1}.jpg`))
     onProgress?.(i + 1, photos.length)
   }
-  return saveFiles(files)
+  return { result: await saveExportedFiles(files), files }
 }
 
 /**

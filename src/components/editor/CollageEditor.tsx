@@ -9,7 +9,7 @@ import { easeInOutCubic, useAnimatedColor, useAnimatedNumber, useIsReflowing } f
 import { COLLAGE_ASPECT_RATIOS } from '../../lib/aspectRatios'
 import { computeOutputPixelSize, getImageDrawRect } from '../../lib/cropMath'
 import { MIN_COLLAGE_PHOTOS, getTemplateById, transposeTemplate } from '../../lib/collageTemplates'
-import { exportCollageFree, exportCollageGrid, resolveRatio } from '../../lib/exportImage'
+import { exportCollageFree, exportCollageGrid, resolveRatio, saveExportedFiles } from '../../lib/exportImage'
 import { getBorderColor } from '../../lib/borderColors'
 import { Toolbar, type ToolbarHandle } from './Toolbar'
 import { AspectRatioPicker } from './AspectRatioPicker'
@@ -564,6 +564,9 @@ export function CollageEditor() {
   const [gutterLinked, setGutterLinked] = useState(false)
   const [uploadError, setUploadError] = useState<string | null>(null)
   const [exportError, setExportError] = useState<string | null>(null)
+  // See BorderEditor's own pendingSave — the rendered file iOS wouldn't share
+  // because the Export tap had expired, kept for a fresh-tap retry.
+  const [pendingSave, setPendingSave] = useState<File[] | null>(null)
   const toolbarRef = useRef<ToolbarHandle>(null)
 
   useEffect(() => {
@@ -715,8 +718,9 @@ export function CollageEditor() {
   const handleExport = async (quality: ExportQuality) => {
     store.setCollageExportQuality(quality)
     setExporting(true)
+    setPendingSave(null)
     try {
-      const saved =
+      const outcome =
         collage.layoutMode === 'grid'
           ? await exportCollageGrid(
               template,
@@ -731,7 +735,8 @@ export function CollageEditor() {
               borderColorHex,
             )
           : await exportCollageFree(collage.freeItems, photos, ratio, quality, collage.grainIntensity, borderColorHex)
-      if (saved) setShowSuccessToast(true)
+      if (outcome.result === 'saved') setShowSuccessToast(true)
+      else if (outcome.result === 'needs-gesture') setPendingSave(outcome.files)
     } catch {
       // Nothing upstream ever surfaced a failed export — it just quietly
       // reset the button, with no way to tell a real error apart from a
@@ -761,6 +766,25 @@ export function CollageEditor() {
         uploadLabel={tr.collageEditor.addPhotos}
         multiple
       />
+
+      {pendingSave && (
+        <button
+          type="button"
+          onClick={async () => {
+            const result = await saveExportedFiles(pendingSave)
+            if (result === 'saved') {
+              setPendingSave(null)
+              setShowSuccessToast(true)
+            } else if (result === 'dismissed') {
+              setPendingSave(null)
+            }
+          }}
+          className="fade-in font-label mx-4 mt-2 rounded-lg border border-white/25 bg-white/10 px-3 py-2.5 text-center text-[11px] font-semibold leading-snug text-white transition duration-200 active:scale-[0.98]"
+        >
+          {tr.toolbar.saveImage}
+          <span className="mt-0.5 block text-[10px] font-normal text-white/60">{tr.toolbar.readyToSaveImage}</span>
+        </button>
+      )}
 
       {exportError && (
         <p className="fade-in font-label mx-4 mt-2 rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-center text-[11px] leading-snug text-red-300">
