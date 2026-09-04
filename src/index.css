@@ -150,3 +150,16 @@ textarea {
     transition-duration: 0.01ms !important;
   }
 }
+
+/* Horizontal option strips (the collage layout picker) scroll instead of
+   wrapping, so a long list of templates doesn't grow the bottom panel and
+   squeeze the canvas. The native scrollbar is hidden — the row is
+   thumb-dragged on touch, and the cut-off last thumbnail is the affordance. */
+.scroll-row {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.scroll-row::-webkit-scrollbar {
+  display: none;
+}
