@@ -170,14 +170,22 @@ export function BorderEditor() {
   // Same decode path as the single-photo upload (and the same one Collage
   // already uses for up to MAX_COLLAGE_PHOTOS photos at once) — just cap
   // and hand every id to setBorderPhotos instead of one to setBorderPhoto.
+  //
+  // The cap is applied to the raw selection, BEFORE decoding. iOS's photo
+  // picker has no notion of a maximum an <input type="file"> could ask for,
+  // so someone can always hand back twenty; capping the decoded result (as
+  // this used to) meant every one of those twenty was still decoded and
+  // preview-scaled first, just to throw fifteen away — the exact memory
+  // spike the batch limit exists to avoid.
   const handleBatchUpload = async (files: FileList) => {
-    const loaded = await loadFiles(files)
+    const images = Array.from(files).filter((f) => f.type.startsWith('image/'))
+    if (images.length === 0) return
+    setBatchTooMany(images.length > MAX_BORDER_BATCH_PHOTOS)
+    const loaded = await loadFiles(images.slice(0, MAX_BORDER_BATCH_PHOTOS))
     if (loaded.length === 0) return
-    const capped = loaded.slice(0, MAX_BORDER_BATCH_PHOTOS)
-    setBatchTooMany(loaded.length > MAX_BORDER_BATCH_PHOTOS)
     swapContent(() => {
-      addPhotos(capped)
-      setBorderPhotos(capped.map((p) => p.id))
+      addPhotos(loaded)
+      setBorderPhotos(loaded.map((p) => p.id))
     })
   }
 
@@ -243,6 +251,15 @@ export function BorderEditor() {
       {isBatch && (
         <p className="font-label mx-4 mt-2 rounded-lg border border-white/15 bg-white/5 px-3 py-2 text-center text-[11px] leading-snug text-white/70">
           {tr.borderEditor.batchCount(border.batchPhotoIds.length)}
+        </p>
+      )}
+
+      {/* The picker itself can't be limited, so this is the only place the
+          extra photos get accounted for — without it, uploading twenty and
+          silently keeping five just looks like the app lost them. */}
+      {batchTooMany && (
+        <p className="fade-in font-label mx-4 mt-2 rounded-lg border border-amber-400/30 bg-amber-400/10 px-3 py-2 text-center text-[11px] leading-snug text-amber-200">
+          {tr.borderEditor.batchTooMany(MAX_BORDER_BATCH_PHOTOS)}
         </p>
       )}
 
