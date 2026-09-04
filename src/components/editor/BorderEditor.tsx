@@ -5,7 +5,7 @@ import { useTranslation } from '../../store/languageStore'
 import { useImageBitmap } from '../../hooks/useImageBitmap'
 import { useAnimatedColor, useAnimatedNumber } from '../../hooks/useAnimatedNumber'
 import { computeOutputPixelSize } from '../../lib/cropMath'
-import { exportBorderPhoto, exportBorderPhotosBatch, resolveRatio, saveExportedFiles } from '../../lib/exportImage'
+import { exportBorderPhoto, renderBorderPhotoFiles, resolveRatio, saveExportedFiles } from '../../lib/exportImage'
 import { Toolbar } from './Toolbar'
 import { AspectRatioPicker } from './AspectRatioPicker'
 import { BorderThicknessSlider } from './BorderThicknessSlider'
@@ -14,6 +14,7 @@ import { PhotoCell } from './PhotoCell'
 import { Dropzone } from './Dropzone'
 import { EditorBottomBar, type BottomBarTool } from './EditorBottomBar'
 import { ExportSuccessToast } from './ExportSuccessToast'
+import { BatchExportModal, type BatchExportPhase } from './BatchExportModal'
 import { WorkspaceBackgroundPicker } from './WorkspaceBackgroundPicker'
 import { BorderColorPicker } from './BorderColorPicker'
 import { getBorderColor } from '../../lib/borderColors'
@@ -81,12 +82,17 @@ export function BorderEditor() {
   // so this has no effect until then.
   const [activeTool, setActiveTool] = useState<string | null>('aspecto')
   const [batchTooMany, setBatchTooMany] = useState(false)
-  const [exportProgress, setExportProgress] = useState<{ done: number; total: number } | null>(null)
+  // The batch export's own modal: its progress while rendering, then the tap
+  // that hands the finished set to the share sheet. Held here (rather than
+  // derived from `exporting`) because the modal outlives the render — it stays
+  // up, holding the files, until the person actually saves or dismisses it.
+  const [batchExport, setBatchExport] = useState<{
+    phase: BatchExportPhase
+    done: number
+    total: number
+    files: File[]
+  } | null>(null)
   const [exportError, setExportError] = useState<string | null>(null)
-  // Rendered files iOS refused to share because the Export tap had already
-  // expired (see saveExportedFiles). Held here so the retry button below can
-  // hand these exact files to the share sheet from a fresh tap — no re-render.
-  const [pendingSave, setPendingSave] = useState<File[] | null>(null)
 
   useEffect(() => {
     if (!exportError) return
@@ -194,37 +200,63 @@ export function BorderEditor() {
     })
   }
 
+  // A batch never even attempts to share off the Export tap: rendering several
+  // native-resolution photos always outlasts WebKit's activation window, so the
+  // attempt could only ever fail. It renders behind its own modal and asks for
+  // one deliberate tap at the end instead — which also makes the flow the same
+  // every time, rather than sharing straight away on a fast run and surfacing a
+  // recovery prompt on a slow one.
+  const handleBatchExport = async (quality: ExportQuality) => {
+    const batchPhotos = border.batchPhotoIds.map((id) => photos[id]).filter((p) => !!p)
+    setBatchExport({ phase: 'rendering', done: 0, total: batchPhotos.length, files: [] })
+    const files = await renderBorderPhotoFiles(
+      batchPhotos,
+      ratio,
+      border.borderThicknessPct,
+      border.transform,
+      quality,
+      border.locked,
+      border.grainIntensity,
+      borderColorHex,
+      (done, total) => setBatchExport((s) => (s ? { ...s, done, total } : s)),
+    )
+    setBatchExport({ phase: 'ready', done: files.length, total: files.length, files })
+  }
+
+  const handleSaveBatch = async () => {
+    if (!batchExport) return
+    const result = await saveExportedFiles(batchExport.files)
+    // 'dismissed' leaves the modal up: the files are still rendered and ready,
+    // and backing out of the share sheet shouldn't throw that work away.
+    if (result !== 'saved') return
+    setBatchExport(null)
+    setShowSuccessToast(true)
+  }
+
   const handleExport = async (quality: ExportQuality) => {
     if (!photo) return
     setBorderExportQuality(quality)
     setExporting(true)
-    setExportProgress(null)
-    setPendingSave(null)
     try {
-      const outcome = isBatch
-        ? await exportBorderPhotosBatch(
-            border.batchPhotoIds.map((id) => photos[id]).filter((p) => !!p),
-            ratio,
-            border.borderThicknessPct,
-            border.transform,
-            quality,
-            border.locked,
-            border.grainIntensity,
-            borderColorHex,
-            (done, total) => setExportProgress({ done, total }),
-          )
-        : await exportBorderPhoto(
-            photo,
-            ratio,
-            border.borderThicknessPct,
-            border.transform,
-            quality,
-            border.locked,
-            border.grainIntensity,
-            borderColorHex,
-          )
+      if (isBatch) {
+        await handleBatchExport(quality)
+        return
+      }
+      const outcome = await exportBorderPhoto(
+        photo,
+        ratio,
+        border.borderThicknessPct,
+        border.transform,
+        quality,
+        border.locked,
+        border.grainIntensity,
+        borderColorHex,
+      )
       if (outcome.result === 'saved') setShowSuccessToast(true)
-      else if (outcome.result === 'needs-gesture') setPendingSave(outcome.files)
+      // Even a single photo can outlive the activation window on a slow phone
+      // at native resolution — same modal, same one deliberate tap.
+      else if (outcome.result === 'needs-gesture')
+        setBatchExport({ phase: 'ready', done: 1, total: 1, files: outcome.files })
     } catch {
       // Nothing upstream ever surfaced a failed export — it just quietly
       // reset the button, with no way to tell a real error apart from a
@@ -232,9 +264,11 @@ export function BorderEditor() {
       // this device to render, an out-of-memory decode, ...), the person
       // needs SOME signal instead of silence.
       setExportError(tr.toolbar.exportFailed)
+      // A batch that threw mid-render has no files to offer — take its modal
+      // down so the error banner isn't hidden behind a stalled progress card.
+      setBatchExport(null)
     } finally {
       setExporting(false)
-      setExportProgress(null)
     }
   }
 
@@ -247,7 +281,6 @@ export function BorderEditor() {
         onExport={handleExport}
         exportQuality={border.exportQuality}
         exporting={exporting}
-        exportingLabel={exportProgress ? tr.borderEditor.exportingBatch(exportProgress.done, exportProgress.total) : undefined}
         canExport={!!photo}
         uploadLabel={photo ? tr.borderEditor.changePhoto : tr.borderEditor.uploadPhoto}
         multiple={isBatch}
@@ -266,33 +299,6 @@ export function BorderEditor() {
         <p className="fade-in font-label mx-4 mt-2 rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-center text-[11px] leading-snug text-red-300">
           {tr.borderEditor.batchTooMany(MAX_BORDER_BATCH_PHOTOS)}
         </p>
-      )}
-
-      {pendingSave && (
-        <button
-          type="button"
-          onClick={async () => {
-            // Runs straight off this tap — no rendering in between — so the
-            // activation is still live when the share sheet is asked for.
-            const result = await saveExportedFiles(pendingSave)
-            if (result === 'saved') {
-              setPendingSave(null)
-              setShowSuccessToast(true)
-            } else if (result === 'dismissed') {
-              setPendingSave(null)
-            }
-          }}
-          // Floats above the editor instead of being inserted into the column:
-          // pushing the canvas down mid-export made the whole page lurch and
-          // the photo jump, right at the moment the person is being asked to
-          // tap something.
-          className="fade-in font-label fixed inset-x-4 bottom-[max(7rem,calc(env(safe-area-inset-bottom)+6.5rem))] z-40 rounded-2xl border border-white/25 bg-ink-900/95 px-4 py-3 text-center text-[12px] font-semibold leading-snug text-white shadow-2xl backdrop-blur transition duration-200 active:scale-[0.98]"
-        >
-          {tr.borderEditor.saveNow(pendingSave.length)}
-          <span className="mt-0.5 block text-[10px] font-normal text-white/60">
-            {tr.borderEditor.readyToSave(pendingSave.length)}
-          </span>
-        </button>
       )}
 
       {exportError && (
@@ -410,6 +416,15 @@ export function BorderEditor() {
         </EditorBottomBar>
         </div>
       )}
+
+      <BatchExportModal
+        open={!!batchExport}
+        phase={batchExport?.phase ?? 'rendering'}
+        done={batchExport?.done ?? 0}
+        total={batchExport?.total ?? 0}
+        onSave={handleSaveBatch}
+        onClose={() => setBatchExport(null)}
+      />
 
       <ExportSuccessToast
         open={showSuccessToast}

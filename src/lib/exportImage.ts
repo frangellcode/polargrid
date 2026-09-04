@@ -237,10 +237,13 @@ export async function exportBorderPhoto(
 }
 
 /** Same shared adjustment (ratio/border/transform/etc.) rendered against every
- *  photo in `photos`, saved as one batch — see saveFiles' own comment for why
- *  this collects every File first and shares them in a single call, rather than
- *  one exportBorderPhoto()-style call (and share-sheet prompt) per photo. */
-export async function exportBorderPhotosBatch(
+ *  photo in `photos`, returned as files — WITHOUT saving them. A batch can never
+ *  reach the share sheet off the tap that started it (rendering five
+ *  native-resolution photos always outlives WebKit's activation window), so
+ *  rather than try, fail, and recover, the batch flow renders here and lets the
+ *  caller ask for one deliberate tap to hand the whole set to
+ *  saveExportedFiles(). */
+export async function renderBorderPhotoFiles(
   photos: LoadedPhoto[],
   ratio: number,
   borderThicknessPct: number,
@@ -250,7 +253,7 @@ export async function exportBorderPhotosBatch(
   grainIntensity: number,
   borderColorHex: string,
   onProgress?: (done: number, total: number) => void,
-): Promise<ExportOutcome> {
+): Promise<File[]> {
   const stamp = Date.now()
   const files: File[] = []
   for (let i = 0; i < photos.length; i++) {
@@ -259,7 +262,7 @@ export async function exportBorderPhotosBatch(
     onProgress?.(i + 1, photos.length)
     await yieldToBrowser()
   }
-  return { result: await saveExportedFiles(files), files }
+  return files
 }
 
 /**

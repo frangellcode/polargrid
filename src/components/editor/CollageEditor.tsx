@@ -20,6 +20,7 @@ import { PhotoCell } from './PhotoCell'
 import { Dropzone } from './Dropzone'
 import { EditorBottomBar, type BottomBarTool } from './EditorBottomBar'
 import { ExportSuccessToast } from './ExportSuccessToast'
+import { BatchExportModal } from './BatchExportModal'
 import { WorkspaceBackgroundPicker } from './WorkspaceBackgroundPicker'
 import { BorderColorPicker } from './BorderColorPicker'
 import { IconCrop, IconDrop, IconFrame, IconGrain, IconGrid } from './icons'
@@ -564,8 +565,9 @@ export function CollageEditor() {
   const [gutterLinked, setGutterLinked] = useState(false)
   const [uploadError, setUploadError] = useState<string | null>(null)
   const [exportError, setExportError] = useState<string | null>(null)
-  // See BorderEditor's own pendingSave — the rendered file iOS wouldn't share
-  // because the Export tap had expired, kept for a fresh-tap retry.
+  // The rendered collage iOS wouldn't share because the Export tap had already
+  // expired (see saveExportedFiles). Kept so the modal can hand this exact file
+  // to the share sheet from a fresh tap, with no re-render.
   const [pendingSave, setPendingSave] = useState<File[] | null>(null)
   const toolbarRef = useRef<ToolbarHandle>(null)
 
@@ -766,29 +768,6 @@ export function CollageEditor() {
         uploadLabel={tr.collageEditor.addPhotos}
         multiple
       />
-
-      {pendingSave && (
-        <button
-          type="button"
-          onClick={async () => {
-            const result = await saveExportedFiles(pendingSave)
-            if (result === 'saved') {
-              setPendingSave(null)
-              setShowSuccessToast(true)
-            } else if (result === 'dismissed') {
-              setPendingSave(null)
-            }
-          }}
-          // Floats above the editor instead of being inserted into the column:
-          // pushing the canvas down mid-export made the whole page lurch and
-          // the photo jump, right at the moment the person is being asked to
-          // tap something.
-          className="fade-in font-label fixed inset-x-4 bottom-[max(7rem,calc(env(safe-area-inset-bottom)+6.5rem))] z-40 rounded-2xl border border-white/25 bg-ink-900/95 px-4 py-3 text-center text-[12px] font-semibold leading-snug text-white shadow-2xl backdrop-blur transition duration-200 active:scale-[0.98]"
-        >
-          {tr.toolbar.saveImage}
-          <span className="mt-0.5 block text-[10px] font-normal text-white/60">{tr.toolbar.readyToSaveImage}</span>
-        </button>
-      )}
 
       {exportError && (
         <p className="fade-in font-label mx-4 mt-2 rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-center text-[11px] leading-snug text-red-300">
@@ -1022,6 +1001,25 @@ export function CollageEditor() {
         </EditorBottomBar>
         </div>
       )}
+
+      {/* Same centered, dimmed prompt the border batch uses — an edge banner
+          for this was easy to miss, and the export just looked stalled. */}
+      <BatchExportModal
+        open={!!pendingSave}
+        phase="ready"
+        done={1}
+        total={1}
+        onSave={async () => {
+          if (!pendingSave) return
+          const result = await saveExportedFiles(pendingSave)
+          // Backing out of the share sheet keeps the rendered file — only a
+          // real save retires it.
+          if (result !== 'saved') return
+          setPendingSave(null)
+          setShowSuccessToast(true)
+        }}
+        onClose={() => setPendingSave(null)}
+      />
 
       <ExportSuccessToast
         open={showSuccessToast}

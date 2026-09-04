@@ -34,8 +34,9 @@ export const translations = {
       exporting: 'Exporting…',
       addPhoto: 'Add photo',
       exportFailed: 'Could not export — try a lower quality or fewer photos.',
-      saveImage: 'Save image',
-      readyToSaveImage: 'Your image is ready — tap to save it',
+      readyToSave: (n: number) =>
+        n === 1 ? 'Your image is ready — tap to save it' : `All ${n} are ready — tap to save them in one go`,
+      saveNow: (n: number) => (n === 1 ? 'Save image' : `Save ${n} photos`),
     },
     borderEditor: {
       toolColor: 'Color',
@@ -52,8 +53,6 @@ export const translations = {
       batchCount: (n: number) => `${n} photos selected — this adjustment will be applied to all of them on export`,
       batchTooMany: (n: number) => `${n} photos max — nothing was added, select ${n} or fewer`,
       exportingBatch: (done: number, total: number) => `Exporting ${done}/${total}…`,
-      readyToSave: (n: number) => `${n} photos are ready — tap to save them all at once`,
-      saveNow: (n: number) => `Save ${n} photos`,
       cropHeading: 'Aspect',
       locked: 'Locked',
       unlocked: 'Unlocked',
@@ -156,8 +155,9 @@ export const translations = {
       exporting: 'Exportando…',
       addPhoto: 'Agregar foto',
       exportFailed: 'No se pudo exportar — prueba con menos calidad o menos fotos.',
-      saveImage: 'Guardar imagen',
-      readyToSaveImage: 'Tu imagen está lista — toca para guardarla',
+      readyToSave: (n: number) =>
+        n === 1 ? 'Tu imagen está lista — toca para guardarla' : `Las ${n} están listas — toca para guardarlas de una vez`,
+      saveNow: (n: number) => (n === 1 ? 'Guardar imagen' : `Guardar ${n} fotos`),
     },
     borderEditor: {
       toolColor: 'Color',
@@ -174,8 +174,6 @@ export const translations = {
       batchCount: (n: number) => `${n} fotos seleccionadas — este ajuste se aplicará a todas al exportar`,
       batchTooMany: (n: number) => `Máximo ${n} fotos — no se agregó ninguna, selecciona ${n} o menos`,
       exportingBatch: (done: number, total: number) => `Exportando ${done}/${total}…`,
-      readyToSave: (n: number) => `${n} fotos listas — toca para guardarlas todas de una vez`,
-      saveNow: (n: number) => `Guardar ${n} fotos`,
       cropHeading: 'Aspecto',
       locked: 'Bloqueada',
       unlocked: 'Desbloqueada',
