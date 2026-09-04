@@ -32,6 +32,7 @@ export const translations = {
       back: 'Back',
       export: 'Export',
       exporting: 'Exporting…',
+      saving: 'Saving…',
       addPhoto: 'Add photo',
       exportFailed: 'Could not export — try a lower quality or fewer photos.',
       readyToSave: (n: number) =>
@@ -153,6 +154,7 @@ export const translations = {
       back: 'Atrás',
       export: 'Exportar',
       exporting: 'Exportando…',
+      saving: 'Guardando…',
       addPhoto: 'Agregar foto',
       exportFailed: 'No se pudo exportar — prueba con menos calidad o menos fotos.',
       readyToSave: (n: number) =>

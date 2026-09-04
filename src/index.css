@@ -140,7 +140,7 @@ textarea {
 /* Same motion as .fade-in but slower — for a bigger content swap (e.g. the
    whole canvas being replaced by the upload dropzone) where the quick
    220ms pop reads as an abrupt snap instead of a smooth entrance. The
-   swap itself is delayed at the call site (see ExportSuccessToast's
+   swap itself is delayed at the call site (see ExportFlowModal's
    CLOSE_MS) so this animation only starts once the closing modal is fully
    gone — adding the delay here instead would hold the dropzone at
    opacity 0 while still mounted, exposing the bare empty canvas behind

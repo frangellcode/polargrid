@@ -19,8 +19,7 @@ import { CanvasStage } from './CanvasStage'
 import { PhotoCell } from './PhotoCell'
 import { Dropzone } from './Dropzone'
 import { EditorBottomBar, type BottomBarTool } from './EditorBottomBar'
-import { ExportSuccessToast } from './ExportSuccessToast'
-import { BatchExportModal } from './BatchExportModal'
+import { ExportFlowModal, type ExportFlowPhase } from './ExportFlowModal'
 import { WorkspaceBackgroundPicker } from './WorkspaceBackgroundPicker'
 import { BorderColorPicker } from './BorderColorPicker'
 import { IconCrop, IconDrop, IconFrame, IconGrain, IconGrid } from './icons'
@@ -545,7 +544,6 @@ export function CollageEditor() {
   const { photos, collage } = store
   const { loadFiles } = useImageBitmap()
   const [exporting, setExporting] = useState(false)
-  const [showSuccessToast, setShowSuccessToast] = useState(false)
   // Drives the content area's crossfade for a full content swap (the very
   // first photo turning the empty Dropzone into a collage, or "create
   // another" clearing it back out): 'exiting' plays view-exit on the
@@ -565,10 +563,10 @@ export function CollageEditor() {
   const [gutterLinked, setGutterLinked] = useState(false)
   const [uploadError, setUploadError] = useState<string | null>(null)
   const [exportError, setExportError] = useState<string | null>(null)
-  // The rendered collage iOS wouldn't share because the Export tap had already
-  // expired (see saveExportedFiles). Kept so the modal can hand this exact file
-  // to the share sheet from a fresh tap, with no re-render.
-  const [pendingSave, setPendingSave] = useState<File[] | null>(null)
+  // The export's own modal — the confirmation, or, when iOS wouldn't open the
+  // share sheet because the Export tap had already expired, the tap that hands
+  // this exact file to it with no re-render. See BorderEditor's own exportFlow.
+  const [exportFlow, setExportFlow] = useState<{ phase: ExportFlowPhase; files: File[] } | null>(null)
   const toolbarRef = useRef<ToolbarHandle>(null)
 
   useEffect(() => {
@@ -720,7 +718,7 @@ export function CollageEditor() {
   const handleExport = async (quality: ExportQuality) => {
     store.setCollageExportQuality(quality)
     setExporting(true)
-    setPendingSave(null)
+    setExportFlow(null)
     try {
       const outcome =
         collage.layoutMode === 'grid'
@@ -737,8 +735,8 @@ export function CollageEditor() {
               borderColorHex,
             )
           : await exportCollageFree(collage.freeItems, photos, ratio, quality, collage.grainIntensity, borderColorHex)
-      if (outcome.result === 'saved') setShowSuccessToast(true)
-      else if (outcome.result === 'needs-gesture') setPendingSave(outcome.files)
+      if (outcome.result === 'saved') setExportFlow({ phase: 'saved', files: outcome.files })
+      else if (outcome.result === 'needs-gesture') setExportFlow({ phase: 'ready', files: outcome.files })
     } catch {
       // Nothing upstream ever surfaced a failed export — it just quietly
       // reset the button, with no way to tell a real error apart from a
@@ -1002,34 +1000,26 @@ export function CollageEditor() {
         </div>
       )}
 
-      {/* Same centered, dimmed prompt the border batch uses — an edge banner
-          for this was easy to miss, and the export just looked stalled. */}
-      <BatchExportModal
-        open={!!pendingSave}
-        phase="ready"
+      <ExportFlowModal
+        open={!!exportFlow}
+        phase={exportFlow?.phase ?? 'ready'}
         done={1}
         total={1}
         onSave={async () => {
-          if (!pendingSave) return
-          const result = await saveExportedFiles(pendingSave)
-          // Backing out of the share sheet keeps the rendered file — only a
-          // real save retires it.
-          if (result !== 'saved') return
-          setPendingSave(null)
-          setShowSuccessToast(true)
+          if (!exportFlow) return
+          setExportFlow((f) => (f ? { ...f, phase: 'saving' } : f))
+          const result = await saveExportedFiles(exportFlow.files)
+          // Anything but a save keeps the rendered file and the button — only a
+          // real save moves the card on to the confirmation.
+          setExportFlow((f) => (f ? { ...f, phase: result === 'saved' ? 'saved' : 'ready' } : f))
         }}
-        onClose={() => setPendingSave(null)}
-      />
-
-      <ExportSuccessToast
-        open={showSuccessToast}
-        onClose={() => setShowSuccessToast(false)}
+        onClose={() => setExportFlow(null)}
         onCreateAnother={() => {
-          setShowSuccessToast(false)
+          setExportFlow(null)
           swapContent(() => store.resetCollage())
         }}
         onGoHome={() => {
-          setShowSuccessToast(false)
+          setExportFlow(null)
           store.setMode('home')
         }}
       />

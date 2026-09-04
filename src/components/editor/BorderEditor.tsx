@@ -13,8 +13,7 @@ import { CanvasStage } from './CanvasStage'
 import { PhotoCell } from './PhotoCell'
 import { Dropzone } from './Dropzone'
 import { EditorBottomBar, type BottomBarTool } from './EditorBottomBar'
-import { ExportSuccessToast } from './ExportSuccessToast'
-import { BatchExportModal, type BatchExportPhase } from './BatchExportModal'
+import { ExportFlowModal, type ExportFlowPhase } from './ExportFlowModal'
 import { WorkspaceBackgroundPicker } from './WorkspaceBackgroundPicker'
 import { BorderColorPicker } from './BorderColorPicker'
 import { getBorderColor } from '../../lib/borderColors'
@@ -64,7 +63,6 @@ export function BorderEditor() {
   } = useEditorStore()
   const { loadFiles } = useImageBitmap()
   const [exporting, setExporting] = useState(false)
-  const [showSuccessToast, setShowSuccessToast] = useState(false)
   // Drives the content area's crossfade for every photo swap (first upload,
   // batch upload, "create another"): 'exiting' plays view-exit on the
   // always-mounted wrapper, then the timeout below applies the actual state
@@ -82,12 +80,12 @@ export function BorderEditor() {
   // so this has no effect until then.
   const [activeTool, setActiveTool] = useState<string | null>('aspecto')
   const [batchTooMany, setBatchTooMany] = useState(false)
-  // The batch export's own modal: its progress while rendering, then the tap
-  // that hands the finished set to the share sheet. Held here (rather than
-  // derived from `exporting`) because the modal outlives the render — it stays
-  // up, holding the files, until the person actually saves or dismisses it.
-  const [batchExport, setBatchExport] = useState<{
-    phase: BatchExportPhase
+  // The export's own modal, from render progress through to the confirmation.
+  // Held here (rather than derived from `exporting`) because the modal outlives
+  // the render — it stays up, holding the files, until the person actually
+  // saves or dismisses it.
+  const [exportFlow, setExportFlow] = useState<{
+    phase: ExportFlowPhase
     done: number
     total: number
     files: File[]
@@ -208,7 +206,7 @@ export function BorderEditor() {
   // recovery prompt on a slow one.
   const handleBatchExport = async (quality: ExportQuality) => {
     const batchPhotos = border.batchPhotoIds.map((id) => photos[id]).filter((p) => !!p)
-    setBatchExport({ phase: 'rendering', done: 0, total: batchPhotos.length, files: [] })
+    setExportFlow({ phase: 'rendering', done: 0, total: batchPhotos.length, files: [] })
     const files = await renderBorderPhotoFiles(
       batchPhotos,
       ratio,
@@ -218,19 +216,21 @@ export function BorderEditor() {
       border.locked,
       border.grainIntensity,
       borderColorHex,
-      (done, total) => setBatchExport((s) => (s ? { ...s, done, total } : s)),
+      (done, total) => setExportFlow((s) => (s ? { ...s, done, total } : s)),
     )
-    setBatchExport({ phase: 'ready', done: files.length, total: files.length, files })
+    setExportFlow({ phase: 'ready', done: files.length, total: files.length, files })
   }
 
   const handleSaveBatch = async () => {
-    if (!batchExport) return
-    const result = await saveExportedFiles(batchExport.files)
-    // 'dismissed' leaves the modal up: the files are still rendered and ready,
-    // and backing out of the share sheet shouldn't throw that work away.
-    if (result !== 'saved') return
-    setBatchExport(null)
-    setShowSuccessToast(true)
+    if (!exportFlow) return
+    // iOS spends a few seconds writing several photos to the library, and the
+    // share promise doesn't settle until it's done — without this the card sat
+    // on "Save 5 photos" the whole time, looking like the tap hadn't landed.
+    setExportFlow((s) => (s ? { ...s, phase: 'saving' } : s))
+    const result = await saveExportedFiles(exportFlow.files)
+    // Anything but a save leaves the files in hand and the card back on its
+    // button — backing out of the share sheet shouldn't throw the render away.
+    setExportFlow((s) => (s ? { ...s, phase: result === 'saved' ? 'saved' : 'ready' } : s))
   }
 
   const handleExport = async (quality: ExportQuality) => {
@@ -252,11 +252,14 @@ export function BorderEditor() {
         border.grainIntensity,
         borderColorHex,
       )
-      if (outcome.result === 'saved') setShowSuccessToast(true)
-      // Even a single photo can outlive the activation window on a slow phone
-      // at native resolution — same modal, same one deliberate tap.
+      // A single photo usually shares straight off the Export tap and lands on
+      // the confirmation directly; on a slow phone at native resolution it can
+      // still outlive the activation window, and then it takes the same one
+      // deliberate tap the batch does.
+      if (outcome.result === 'saved')
+        setExportFlow({ phase: 'saved', done: 1, total: 1, files: outcome.files })
       else if (outcome.result === 'needs-gesture')
-        setBatchExport({ phase: 'ready', done: 1, total: 1, files: outcome.files })
+        setExportFlow({ phase: 'ready', done: 1, total: 1, files: outcome.files })
     } catch {
       // Nothing upstream ever surfaced a failed export — it just quietly
       // reset the button, with no way to tell a real error apart from a
@@ -266,7 +269,7 @@ export function BorderEditor() {
       setExportError(tr.toolbar.exportFailed)
       // A batch that threw mid-render has no files to offer — take its modal
       // down so the error banner isn't hidden behind a stalled progress card.
-      setBatchExport(null)
+      setExportFlow(null)
     } finally {
       setExporting(false)
     }
@@ -417,24 +420,19 @@ export function BorderEditor() {
         </div>
       )}
 
-      <BatchExportModal
-        open={!!batchExport}
-        phase={batchExport?.phase ?? 'rendering'}
-        done={batchExport?.done ?? 0}
-        total={batchExport?.total ?? 0}
+      <ExportFlowModal
+        open={!!exportFlow}
+        phase={exportFlow?.phase ?? 'rendering'}
+        done={exportFlow?.done ?? 0}
+        total={exportFlow?.total ?? 0}
         onSave={handleSaveBatch}
-        onClose={() => setBatchExport(null)}
-      />
-
-      <ExportSuccessToast
-        open={showSuccessToast}
-        onClose={() => setShowSuccessToast(false)}
+        onClose={() => setExportFlow(null)}
         onCreateAnother={() => {
-          setShowSuccessToast(false)
+          setExportFlow(null)
           swapContent(() => resetBorder())
         }}
         onGoHome={() => {
-          setShowSuccessToast(false)
+          setExportFlow(null)
           setMode('home')
         }}
       />
