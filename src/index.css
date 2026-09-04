@@ -125,7 +125,16 @@ textarea {
 }
 
 .fade-in {
-  animation: fade-in-up 220ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  /* `backwards`, NOT `both`. A transform still applied after the animation
+     ends pins the element on its own compositing layer for good — the note
+     above view-fade-in explains why that breaks iOS. .view-enter gets away
+     with `both` only because App.tsx strips the class once it finishes;
+     nothing ever strips this one, so the Dropzone sat on a pinned layer for
+     the rest of its life and tapping its upload button flashed the whole box
+     black. Since fade-in-up ENDS at the element's natural state (opacity 1,
+     no transform), only the `from` side needs holding — `backwards` does
+     that and leaves nothing applied afterwards. */
+  animation: fade-in-up 220ms cubic-bezier(0.22, 1, 0.36, 1) backwards;
 }
 
 /* Same motion as .fade-in but slower — for a bigger content swap (e.g. the
@@ -137,7 +146,7 @@ textarea {
    opacity 0 while still mounted, exposing the bare empty canvas behind
    the closing modal. */
 .fade-in-slow {
-  animation: fade-in-up 450ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation: fade-in-up 450ms cubic-bezier(0.22, 1, 0.36, 1) backwards;
 }
 
 @media (prefers-reduced-motion: reduce) {
