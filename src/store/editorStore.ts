@@ -117,6 +117,50 @@ interface EditorStoreState {
   removeFreeItem: (id: string) => void
 }
 
+/**
+ * Drops every photo neither editor still points at, closing its preview bitmap.
+ *
+ * `photos` is shared by both editors and used to only ever grow: resetting an
+ * editor ("create another", or exporting and starting over) replaced its own
+ * state but left every photo ever loaded in here, each holding a decoded
+ * ImageBitmap of up to 1600px on its long edge — several MB apiece that the GC
+ * cannot reclaim on its own, since an ImageBitmap's pixels live outside the JS
+ * heap until it is explicitly closed. A few rounds of five-photo batches was
+ * enough to walk a phone into its per-tab memory limit and have the app killed
+ * and reloaded mid-session.
+ */
+function prunePhotos(
+  photos: Record<string, LoadedPhoto>,
+  border: BorderState,
+  collage: CollageState,
+): Record<string, LoadedPhoto> {
+  const keep = new Set<string>()
+  if (border.photoId) keep.add(border.photoId)
+  border.batchPhotoIds.forEach((id) => keep.add(id))
+  collage.assignments.forEach((a) => a.photoId && keep.add(a.photoId))
+  collage.freeItems.forEach((f) => keep.add(f.photoId))
+
+  const next: Record<string, LoadedPhoto> = {}
+  let dropped = false
+  for (const [id, photo] of Object.entries(photos)) {
+    if (keep.has(id)) {
+      next[id] = photo
+      continue
+    }
+    // Throws if it was somehow closed already; a double close is harmless and
+    // must not take a state update down with it.
+    try {
+      photo.previewBitmap.close()
+    } catch {
+      // already released
+    }
+    dropped = true
+  }
+  // Same object back when nothing changed, so subscribers don't re-render for a
+  // prune that freed nothing.
+  return dropped ? next : photos
+}
+
 function buildAssignmentsForCount(count: number): CellAssignment[] {
   return Array.from({ length: count }, (_, i) => ({
     cellId: `cell-${i}`,
@@ -183,30 +227,55 @@ export const useEditorStore = create<EditorStoreState>((set, get) => ({
     })),
 
   reset: () =>
-    set({
-      mode: 'home',
-      photos: {},
-      border: createInitialBorderState(),
-      collage: createInitialCollageState(),
+    set((state) => {
+      const border = createInitialBorderState()
+      const collage = createInitialCollageState()
+      return {
+        mode: 'home',
+        photos: prunePhotos(state.photos, border, collage),
+        border,
+        collage,
+      }
     }),
 
-  resetBorder: () => set({ border: createInitialBorderState(), workspaceBackground: DEFAULT_WORKSPACE_BACKGROUND }),
-  resetCollage: () => set({ collage: createInitialCollageState(), workspaceBackground: DEFAULT_WORKSPACE_BACKGROUND }),
+  resetBorder: () =>
+    set((state) => {
+      const border = createInitialBorderState()
+      return {
+        border,
+        photos: prunePhotos(state.photos, border, state.collage),
+        workspaceBackground: DEFAULT_WORKSPACE_BACKGROUND,
+      }
+    }),
 
+  resetCollage: () =>
+    set((state) => {
+      const collage = createInitialCollageState()
+      return {
+        collage,
+        photos: prunePhotos(state.photos, state.border, collage),
+        workspaceBackground: DEFAULT_WORKSPACE_BACKGROUND,
+      }
+    }),
+
+  // "Change photo" orphans whatever was loaded before, so both setters prune
+  // as they swap — otherwise every photo you ever previewed stays resident.
   setBorderPhoto: (photoId) =>
-    set((state) => ({
-      border: { ...state.border, photoId, batchPhotoIds: [], transform: { ...DEFAULT_TRANSFORM } },
-    })),
+    set((state) => {
+      const border = { ...state.border, photoId, batchPhotoIds: [], transform: { ...DEFAULT_TRANSFORM } }
+      return { border, photos: prunePhotos(state.photos, border, state.collage) }
+    }),
 
   setBorderPhotos: (photoIds) =>
-    set((state) => ({
-      border: {
+    set((state) => {
+      const border = {
         ...state.border,
         photoId: photoIds[0] ?? null,
         batchPhotoIds: photoIds,
         transform: { ...DEFAULT_TRANSFORM },
-      },
-    })),
+      }
+      return { border, photos: prunePhotos(state.photos, border, state.collage) }
+    }),
 
   setBorderAspectRatio: (id) =>
     set((state) => ({ border: { ...state.border, aspectRatioId: id } })),
@@ -340,15 +409,18 @@ export const useEditorStore = create<EditorStoreState>((set, get) => ({
   },
 
   removeCollagePhoto: (photoId) =>
-    set((state) => ({
-      collage: {
+    set((state) => {
+      const collage = {
         ...state.collage,
         assignments: state.collage.assignments.map((a) =>
           a.photoId === photoId ? { ...a, photoId: null, transform: { ...DEFAULT_TRANSFORM } } : a,
         ),
         freeItems: state.collage.freeItems.filter((f) => f.photoId !== photoId),
-      },
-    })),
+      }
+      // Taking a photo out of the collage is the one moment it's certain to be
+      // unwanted — its bitmap goes with it.
+      return { collage, photos: prunePhotos(state.photos, state.border, collage) }
+    }),
 
   setCollageAspectRatio: (id) =>
     set((state) => ({ collage: { ...state.collage, aspectRatioId: id } })),
@@ -415,7 +487,8 @@ export const useEditorStore = create<EditorStoreState>((set, get) => ({
     })),
 
   removeFreeItem: (id) =>
-    set((state) => ({
-      collage: { ...state.collage, freeItems: state.collage.freeItems.filter((f) => f.id !== id) },
-    })),
+    set((state) => {
+      const collage = { ...state.collage, freeItems: state.collage.freeItems.filter((f) => f.id !== id) }
+      return { collage, photos: prunePhotos(state.photos, state.border, collage) }
+    }),
 }))
