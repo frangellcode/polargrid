@@ -102,18 +102,34 @@ export interface ExportOutcome {
  *  Export tap is stale and iOS rejects the call with NotAllowedError. That is
  *  what `needs-gesture` reports: the work is done and the files are in hand, they
  *  just need a fresh tap to hand to the share sheet. */
+/** Whether saving should go through the share sheet rather than a download.
+ *
+ *  On a phone or tablet the sheet is the right answer: an installed iOS PWA
+ *  can't download through an <a download> anchor at all (Safari opens its own
+ *  full-screen blob viewer instead — the "black screen"), and on Android the
+ *  sheet hands a whole batch to Photos or Files in one action.
+ *
+ *  On a desktop it is the WRONG answer, and this check exists because it was
+ *  being used there: Chrome on Windows and Safari on macOS both implement
+ *  navigator.share, so the export opened the OS share dialog — which offers
+ *  Mail and AirDrop and nearby devices, but no way to simply save the file to
+ *  the machine you're sitting at. A desktop download is not broken and needs no
+ *  workaround, so it doesn't get one.
+ *
+ *  Pointer type, not the user agent string: what actually matters is whether
+ *  this is a touch device, and `hover: none` + `pointer: coarse` is the honest
+ *  question to ask. */
+function prefersShareSheet(): boolean {
+  return window.matchMedia?.('(hover: none) and (pointer: coarse)').matches ?? false
+}
+
 export async function saveExportedFiles(files: File[]): Promise<SaveResult> {
   if (files.length === 0) return 'dismissed'
 
-  // In an installed iOS PWA, an <a download> anchor can't trigger a real
-  // download — Safari instead opens the image in its own full-screen blob
-  // viewer (the "black screen"), and returning from it is what causes the
-  // app shell to visibly reflow. Worse for a batch: each click replaces the
-  // previous one, so only the LAST photo ever reaches the viewer. The native
-  // share sheet stays inside the app and gives "Save Image" (or "Save N
-  // Images") as one action, so where sharing is possible it is the only path
-  // — never fall back to the anchor there.
-  if (navigator.canShare?.({ files })) {
+  // Where the sheet is the right path it is the ONLY path — never fall back to
+  // the anchor there. In an iOS PWA each anchor click replaces the previous
+  // one, so a batch would put only its LAST photo into the blob viewer.
+  if (prefersShareSheet() && navigator.canShare?.({ files })) {
     try {
       await navigator.share({ files })
       return 'saved'
@@ -126,9 +142,10 @@ export async function saveExportedFiles(files: File[]): Promise<SaveResult> {
     }
   }
 
-  // Desktop fallback: one <a download> click per file. Browsers may prompt to
-  // allow "this site is downloading multiple files" starting on the 2nd — a
-  // browser-level protection, not something to route around here.
+  // Desktop (and any touch device without file sharing): one <a download>
+  // click per file. Browsers may prompt to allow "this site is downloading
+  // multiple files" starting on the 2nd — a browser-level protection, not
+  // something to route around here.
   for (const file of files) {
     const url = URL.createObjectURL(file)
     const a = document.createElement('a')
