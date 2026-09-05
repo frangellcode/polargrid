@@ -30,14 +30,24 @@ async function buildPreviewBitmap(bitmap: ImageBitmap): Promise<ImageBitmap> {
 /** Decodes File objects into ImageBitmaps, respecting EXIF orientation. */
 export function useImageBitmap() {
   const loadFiles = useCallback(async (files: FileList | File[]): Promise<LoadedPhoto[]> => {
-    const list = Array.from(files).filter((f) => f.type.startsWith('image/'))
+    const list = Array.from(files)
     // One at a time, not Promise.all — decoding every file's full-resolution
     // bitmap in parallel means all of them are briefly resident together,
     // the exact spike this whole file is trying to avoid for a multi-photo
     // batch/collage upload.
     const loaded: LoadedPhoto[] = []
     for (const file of list) {
-      const bitmap = await createImageBitmap(file, { imageOrientation: 'from-image' })
+      // A file can pass every check the caller can make and still fail here —
+      // a truncated download, a format this browser doesn't have a decoder
+      // for. Skipping it keeps the rest of the selection: letting the throw
+      // escape rejected the whole upload, and since no caller caught it, the
+      // screen simply never changed.
+      let bitmap: ImageBitmap
+      try {
+        bitmap = await createImageBitmap(file, { imageOrientation: 'from-image' })
+      } catch {
+        continue
+      }
       const previewBitmap = await buildPreviewBitmap(bitmap)
       const width = bitmap.width
       const height = bitmap.height

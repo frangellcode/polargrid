@@ -33,6 +33,8 @@ export const translations = {
       export: 'Export',
       exporting: 'Exporting…',
       saving: 'Saving…',
+      unsupportedFormat: 'Only JPEG, PNG and HEIC — RAW files (DNG, CR2, ARW) cannot be opened',
+      tooHeavy: (mb: number) => `Each photo must be under ${mb} MB — the heavier ones were skipped`,
       addPhoto: 'Add photo',
       exportFailed: 'Could not export — try a lower quality or fewer photos.',
       readyToSave: (n: number) =>
@@ -155,6 +157,8 @@ export const translations = {
       export: 'Exportar',
       exporting: 'Exportando…',
       saving: 'Guardando…',
+      unsupportedFormat: 'Solo JPEG, PNG y HEIC — los archivos RAW (DNG, CR2, ARW) no se pueden abrir',
+      tooHeavy: (mb: number) => `Cada foto debe pesar menos de ${mb} MB — las más pesadas se omitieron`,
       addPhoto: 'Agregar foto',
       exportFailed: 'No se pudo exportar — prueba con menos calidad o menos fotos.',
       readyToSave: (n: number) =>

@@ -1,5 +1,6 @@
 import { useRef, useState } from 'react'
 import type { ChangeEvent, DragEvent } from 'react'
+import { PHOTO_ACCEPT_ATTR } from '../../lib/photoInput'
 
 interface DropzoneProps {
   label: string
@@ -46,7 +47,7 @@ export function Dropzone({ label, hint, error, onFiles, multiple = true }: Dropz
         isDragOver ? 'border-white bg-white/10' : 'border-white/20 bg-white/5'
       }`}
     >
-      <input ref={inputRef} type="file" accept="image/*" multiple={multiple} className="hidden" onChange={handleChange} />
+      <input ref={inputRef} type="file" accept={PHOTO_ACCEPT_ATTR} multiple={multiple} className="hidden" onChange={handleChange} />
       <button
         type="button"
         onClick={openPicker}

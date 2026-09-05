@@ -3,6 +3,7 @@ import type { ChangeEvent } from 'react'
 import type { ExportQuality } from '../../types'
 import { useTranslation } from '../../store/languageStore'
 import { CLOSE_MS, ExportQualitySheet } from './ExportQualitySheet'
+import { PHOTO_ACCEPT_ATTR } from '../../lib/photoInput'
 
 interface ToolbarProps {
   title: string
@@ -108,7 +109,7 @@ export const Toolbar = forwardRef<ToolbarHandle, ToolbarProps>(function Toolbar(
         <input
           ref={inputRef}
           type="file"
-          accept="image/*"
+          accept={PHOTO_ACCEPT_ATTR}
           multiple={multiple}
           className="hidden"
           onChange={handleChange}

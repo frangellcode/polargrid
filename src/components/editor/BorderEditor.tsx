@@ -5,6 +5,7 @@ import { useTranslation } from '../../store/languageStore'
 import { useImageBitmap } from '../../hooks/useImageBitmap'
 import { useAnimatedColor, useAnimatedNumber } from '../../hooks/useAnimatedNumber'
 import { computeOutputPixelSize } from '../../lib/cropMath'
+import { MAX_PHOTO_MB, screenPhotoFiles } from '../../lib/photoInput'
 import { exportBorderPhoto, renderBorderPhotoFiles, resolveRatio, saveExportedFiles } from '../../lib/exportImage'
 import { Toolbar } from './Toolbar'
 import { AspectRatioPicker } from './AspectRatioPicker'
@@ -79,7 +80,20 @@ export function BorderEditor() {
   // moment a photo lands — the bottom bar itself is gated on `photo` below,
   // so this has no effect until then.
   const [activeTool, setActiveTool] = useState<string | null>('aspecto')
-  const [batchTooMany, setBatchTooMany] = useState(false)
+  // Why the last selection was (partly) refused: too many, an unsupported
+  // format, or a file over the size ceiling. One slot, since a person fixes one
+  // reason at a time and stacking three banners over the canvas helps nobody.
+  const [uploadError, setUploadError] = useState<string | null>(null)
+
+  // Screens a raw selection and reports whatever was dropped. Returns null when
+  // there's nothing usable left, so callers can just bail.
+  const screen = (files: FileList): File[] | null => {
+    const { accepted, rejectedType, rejectedSize } = screenPhotoFiles(files)
+    setUploadError(
+      rejectedType > 0 ? tr.toolbar.unsupportedFormat : rejectedSize > 0 ? tr.toolbar.tooHeavy(MAX_PHOTO_MB) : null,
+    )
+    return accepted.length > 0 ? accepted : null
+  }
   // The export's own modal, from render progress through to the confirmation.
   // Held here (rather than derived from `exporting`) because the modal outlives
   // the render — it stays up, holding the files, until the person actually
@@ -91,6 +105,12 @@ export function BorderEditor() {
     files: File[]
   } | null>(null)
   const [exportError, setExportError] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (!uploadError) return
+    const t = setTimeout(() => setUploadError(null), 4000)
+    return () => clearTimeout(t)
+  }, [uploadError])
 
   useEffect(() => {
     if (!exportError) return
@@ -162,9 +182,10 @@ export function BorderEditor() {
   const animatedBorderColorHex = useAnimatedColor(borderColorHex)
 
   const handleUpload = async (files: FileList) => {
-    const loaded = await loadFiles(files)
+    const images = screen(files)
+    if (!images) return
+    const loaded = await loadFiles(images)
     if (loaded.length === 0) return
-    setBatchTooMany(false)
     swapContent(() => {
       addPhotos(loaded)
       setBorderPhoto(loaded[0].id)
@@ -183,13 +204,12 @@ export function BorderEditor() {
   // until the count is known to be good, so an over-sized pick costs no memory
   // at all.
   const handleBatchUpload = async (files: FileList) => {
-    const images = Array.from(files).filter((f) => f.type.startsWith('image/'))
-    if (images.length === 0) return
+    const images = screen(files)
+    if (!images) return
     if (images.length > MAX_BORDER_BATCH_PHOTOS) {
-      setBatchTooMany(true)
+      setUploadError(tr.borderEditor.batchTooMany(MAX_BORDER_BATCH_PHOTOS))
       return
     }
-    setBatchTooMany(false)
     const loaded = await loadFiles(images)
     if (loaded.length === 0) return
     swapContent(() => {
@@ -295,12 +315,13 @@ export function BorderEditor() {
         </p>
       )}
 
-      {/* The picker itself can't be limited, so rejecting an over-sized
-          selection is only half the story — this is what tells the person
-          why nothing happened when they picked six. */}
-      {batchTooMany && (
+      {/* Neither the picker's limits nor its accept list are enforceable, so
+          this is the only place a refused selection gets accounted for —
+          without it, picking six (or a RAW file) just looks like the app
+          ignoring you. */}
+      {uploadError && (
         <p className="fade-in font-label mx-4 mt-2 rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-center text-[11px] leading-snug text-red-300">
-          {tr.borderEditor.batchTooMany(MAX_BORDER_BATCH_PHOTOS)}
+          {uploadError}
         </p>
       )}
 
@@ -341,7 +362,7 @@ export function BorderEditor() {
               <Dropzone
                 label={tr.borderEditor.dropBatchLabel}
                 hint={tr.borderEditor.dropBatchHint(MAX_BORDER_BATCH_PHOTOS)}
-                error={batchTooMany ? tr.borderEditor.batchTooMany(MAX_BORDER_BATCH_PHOTOS) : null}
+                error={uploadError}
                 onFiles={handleBatchUpload}
                 multiple
               />

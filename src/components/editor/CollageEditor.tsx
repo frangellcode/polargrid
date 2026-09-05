@@ -8,6 +8,7 @@ import { useImageBitmap } from '../../hooks/useImageBitmap'
 import { easeInOutCubic, useAnimatedColor, useAnimatedNumber, useIsReflowing } from '../../hooks/useAnimatedNumber'
 import { COLLAGE_ASPECT_RATIOS } from '../../lib/aspectRatios'
 import { computeOutputPixelSize, getImageDrawRect } from '../../lib/cropMath'
+import { MAX_PHOTO_MB, screenPhotoFiles } from '../../lib/photoInput'
 import { MIN_COLLAGE_PHOTOS, getTemplateById, transposeTemplate } from '../../lib/collageTemplates'
 import { exportCollageFree, exportCollageGrid, resolveRatio, saveExportedFiles } from '../../lib/exportImage'
 import { getBorderColor } from '../../lib/borderColors'
@@ -690,7 +691,14 @@ export function CollageEditor() {
   }
 
   const handleUpload = async (files: FileList) => {
-    const loaded = await loadFiles(files)
+    // RAW and over-sized files are dropped before anything is decoded — see
+    // photoInput.ts. Saying which of the two happened matters: silently
+    // ignoring a selection reads as the app losing the photos.
+    const { accepted, rejectedType, rejectedSize } = screenPhotoFiles(files)
+    if (rejectedType > 0) setUploadError(tr.toolbar.unsupportedFormat)
+    else if (rejectedSize > 0) setUploadError(tr.toolbar.tooHeavy(MAX_PHOTO_MB))
+    if (accepted.length === 0) return
+    const loaded = await loadFiles(accepted)
     if (loaded.length === 0) return
     if (pendingCellId) {
       store.addPhotos(loaded)
