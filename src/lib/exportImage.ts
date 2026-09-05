@@ -288,6 +288,24 @@ export async function renderBorderPhotoFiles(
  */
 const REF_LONG_EDGE = 10000
 
+/**
+ * How far a single photo may be enlarged inside its own cell before it starts
+ * holding the canvas back.
+ *
+ * Canvas size is a MINIMUM across every cell — the size at which no photo has
+ * to be enlarged — so without this one weak photo drags the whole export down
+ * with it. Three camera photos and one 1080px save in a 2x2 exported the entire
+ * collage at ~2200px instead of the 6000px the camera photos could carry: the
+ * good photos were thrown away to keep the small one pixel-exact.
+ *
+ * At 2x that photo is slightly soft where it already had the least detail to
+ * lose, and everything else in the frame gains its full resolution. This can
+ * only ever raise the result toward the existing MAX_SAFE_LONG_EDGE ceiling,
+ * never past it, so the peak memory of an export is unchanged — the cap, not
+ * this, is what keeps a nine-photo collage inside what Safari will render.
+ */
+const MAX_CELL_UPSCALE = 2
+
 export async function exportCollageGrid(
   template: GridTemplate,
   assignments: CellAssignment[],
@@ -319,7 +337,8 @@ export async function exportCollageGrid(
     const w = refCellW * cell.colSpan + refGutterPx * (cell.colSpan - 1)
     const h = refCellH * cell.rowSpan + refGutterPx * (cell.rowSpan - 1)
     const zoom = Math.max(1, assignment.transform.zoom)
-    maxScale = Math.min(maxScale, photo.width / zoom / w, photo.height / zoom / h)
+    const usable = MAX_CELL_UPSCALE / zoom
+    maxScale = Math.min(maxScale, (photo.width * usable) / w, (photo.height * usable) / h)
   })
   const nativeLongEdge = Number.isFinite(maxScale) && maxScale > 0 ? REF_LONG_EDGE * maxScale : 2000
 
@@ -381,7 +400,8 @@ export async function exportCollageFree(
     const w = item.width * refSize.width
     const h = item.height * refSize.height
     const zoom = Math.max(1, item.transform.zoom)
-    maxScale = Math.min(maxScale, photo.width / zoom / w, photo.height / zoom / h)
+    const usable = MAX_CELL_UPSCALE / zoom
+    maxScale = Math.min(maxScale, (photo.width * usable) / w, (photo.height * usable) / h)
   })
   const nativeLongEdge = Number.isFinite(maxScale) && maxScale > 0 ? REF_LONG_EDGE * maxScale : 2000
 
