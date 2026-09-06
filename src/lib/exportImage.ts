@@ -257,7 +257,19 @@ async function renderBorderCanvas(
  *  for one deliberate tap to hand the result to saveExportedFiles(). */
 export async function renderBorderPhotoFiles(
   photos: LoadedPhoto[],
-  ratio: number,
+  /**
+   * The output ratio for ONE photo, asked per photo rather than fixed for the
+   * whole batch.
+   *
+   * "Original" is the whole reason: it means "keep this photo's own shape",
+   * and a batch resolved it once — against whichever photo happened to be
+   * first — and then forced that shape on the rest. Pick a horizontal photo
+   * first and every vertical one in the batch came out horizontal, cropped to
+   * a shape it never had. A numeric preset (1:1, 4:5, ...) ignores the photo
+   * it's handed and returns the same number every time, so those still come
+   * out uniform, which is what picking an exact ratio asks for.
+   */
+  ratioFor: (photo: LoadedPhoto) => number,
   borderThicknessPct: number,
   transform: PhotoTransform,
   quality: ExportQuality,
@@ -269,7 +281,7 @@ export async function renderBorderPhotoFiles(
   const stamp = Date.now()
   const files: File[] = []
   for (let i = 0; i < photos.length; i++) {
-    const canvas = await renderBorderCanvas(photos[i], ratio, borderThicknessPct, transform, quality, locked, grainIntensity, borderColorHex)
+    const canvas = await renderBorderCanvas(photos[i], ratioFor(photos[i]), borderThicknessPct, transform, quality, locked, grainIntensity, borderColorHex)
     files.push(await canvasToFile(canvas, `polargrid-border-${stamp}-${i + 1}.jpg`))
     onProgress?.(i + 1, photos.length)
     await yieldToBrowser()

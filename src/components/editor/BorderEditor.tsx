@@ -276,7 +276,12 @@ export function BorderEditor() {
     setExportFlow({ phase: 'rendering', done: 0, total: exportPhotos.length, files: [] })
     const files = await renderBorderPhotoFiles(
       exportPhotos,
-      ratio,
+      // Resolved against each photo's OWN dimensions: with "Original" that
+      // keeps every photo its own shape (the live preview can only ever show
+      // the first one, so a batch of mixed orientations was quietly being
+      // flattened to whatever the first photo was), and with a numeric preset
+      // the fallback is ignored and they all come out identical anyway.
+      (p) => resolveRatio(border.aspectRatioId, p.width / p.height, border.ratioOrientation),
       border.borderThicknessPct,
       border.transform,
       quality,
@@ -360,10 +365,11 @@ export function BorderEditor() {
       />
 
       {isBatch && (
-        // mt-4, matching the p-4 of the canvas area below it: at mt-2 the banner
-        // sat twice as close to the toolbar's rule above as to the canvas
-        // below, which reads as stuck to the toolbar rather than as its own row.
-        <p className="font-label mx-4 mt-4 rounded-lg border border-white/15 bg-white/5 px-3 py-2 text-center text-[11px] leading-snug text-white/70">
+        // mt-2 here is matched by the pt-2 the canvas area takes on while this
+        // banner is up (see below), so the two gaps stay equal — the banner
+        // reads as its own row rather than as something stuck to the toolbar —
+        // while both are tight enough to hand the extra height to the photo.
+        <p className="font-label mx-4 mt-2 rounded-lg border border-white/15 bg-white/5 px-3 py-2 text-center text-[11px] leading-snug text-white/70">
           {tr.borderEditor.batchCount(border.batchPhotoIds.length)}
         </p>
       )}
@@ -384,7 +390,14 @@ export function BorderEditor() {
         </p>
       )}
 
-      <div className={`min-h-0 flex-1 p-4 ${swapPhase === 'exiting' ? 'view-exit' : ''}`}>
+      {/* Tighter above the canvas whenever the batch banner is up: that row
+          costs height the photo would otherwise have, and its own margin is
+          matched to this so the banner stays centred between the two rules. */}
+      <div
+        className={`min-h-0 flex-1 px-4 pb-4 ${isBatch ? 'pt-2' : 'pt-4'} ${
+          swapPhase === 'exiting' ? 'view-exit' : ''
+        }`}
+      >
         <div
           key={swapKey}
           className={`h-full ${swapPhase === 'entering' ? 'view-enter' : ''}`}
