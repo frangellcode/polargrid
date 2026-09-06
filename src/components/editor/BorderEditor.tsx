@@ -115,7 +115,7 @@ export function BorderEditor() {
       // One photo lands almost instantly; without this the card flickers in
       // and out rather than reading as the same step a five-photo import
       // shows.
-      await holdImportCard(startedAt)
+      await holdImportCard(startedAt, images.length)
       setImporting(null)
     }
   }

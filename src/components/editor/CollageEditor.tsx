@@ -1084,7 +1084,7 @@ export function CollageEditor() {
       loaded = await loadFiles(selection, (done, total) => setImporting({ done, total }))
     } finally {
       // Held for a beat even when the decode was instant — see holdImportCard.
-      await holdImportCard(startedAt)
+      await holdImportCard(startedAt, selection.length)
       setImporting(null)
     }
     // Whatever the decoder itself refused (a truncated file, a format this
