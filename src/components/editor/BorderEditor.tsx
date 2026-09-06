@@ -292,6 +292,10 @@ export function BorderEditor() {
     if (!photo) return
     setBorderExportQuality(quality)
     setExporting(true)
+    // The modal goes up BEFORE the preview comes down, so the two swap in the
+    // same frame — set the other way round, the export screen was blank, with
+    // nothing to say why, for as long as the render took.
+    setExportFlow({ phase: 'rendering', done: 0, total: isBatch ? border.batchPhotoIds.length : 1, files: [] })
     setPreviewSuspended(true)
     // One frame with the preview already gone before the first decode starts —
     // without it React's re-render is queued behind the whole synchronous
@@ -321,6 +325,10 @@ export function BorderEditor() {
         setExportFlow({ phase: 'saved', done: 1, total: 1, files: outcome.files })
       else if (outcome.result === 'needs-gesture')
         setExportFlow({ phase: 'ready', done: 1, total: 1, files: outcome.files })
+      // Dismissed the share sheet: nothing was saved and there's nothing left
+      // to offer, so the modal comes down rather than sitting forever on a
+      // progress card that will never advance.
+      else setExportFlow(null)
     } catch {
       // Nothing upstream ever surfaced a failed export — it just quietly
       // reset the button, with no way to tell a real error apart from a
