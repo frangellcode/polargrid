@@ -360,7 +360,10 @@ export function BorderEditor() {
       />
 
       {isBatch && (
-        <p className="font-label mx-4 mt-2 rounded-lg border border-white/15 bg-white/5 px-3 py-2 text-center text-[11px] leading-snug text-white/70">
+        // mt-4, matching the p-4 of the canvas area below it: at mt-2 the banner
+        // sat twice as close to the toolbar's rule above as to the canvas
+        // below, which reads as stuck to the toolbar rather than as its own row.
+        <p className="font-label mx-4 mt-4 rounded-lg border border-white/15 bg-white/5 px-3 py-2 text-center text-[11px] leading-snug text-white/70">
           {tr.borderEditor.batchCount(border.batchPhotoIds.length)}
         </p>
       )}
