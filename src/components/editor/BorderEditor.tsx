@@ -364,14 +364,29 @@ export function BorderEditor() {
         multiple={isBatch}
       />
 
+      {/* Carried by the SAME swap as the canvas and the bottom bar below —
+          keyed and classed identically. Left outside it, this row simply
+          blinked out of existence the instant "create another" applied its
+          state change, while everything around it was still easing: the one
+          element on screen not taking part in the transition. */}
       {isBatch && (
-        // mt-2 here is matched by the pt-2 the canvas area takes on while this
-        // banner is up (see below), so the two gaps stay equal — the banner
-        // reads as its own row rather than as something stuck to the toolbar —
-        // while both are tight enough to hand the extra height to the photo.
-        <p className="font-label mx-4 mt-2 rounded-lg border border-white/15 bg-white/5 px-3 py-2 text-center text-[11px] leading-snug text-white/70">
-          {tr.borderEditor.batchCount(border.batchPhotoIds.length)}
-        </p>
+        <div
+          // Namespaced: this wrapper and the bottom bar's are siblings under
+          // the same parent, so a bare swapKey made two children share a key —
+          // React then reuses the wrong one and the banner sticks mid-exit
+          // instead of unmounting.
+          key={`banner-${swapKey}`}
+          className={swapPhase === 'exiting' ? 'view-exit' : swapPhase === 'entering' ? 'view-enter' : ''}
+        >
+          {/* mt-2 here is matched by the pt-2 the canvas area takes on while
+              this banner is up (see below), so the two gaps stay equal — the
+              banner reads as its own row rather than as something stuck to the
+              toolbar — while both are tight enough to hand the extra height to
+              the photo. */}
+          <p className="font-label mx-4 mt-2 rounded-lg border border-white/15 bg-white/5 px-3 py-2 text-center text-[11px] leading-snug text-white/70">
+            {tr.borderEditor.batchCount(border.batchPhotoIds.length)}
+          </p>
+        </div>
       )}
 
       {/* Neither the picker's limits nor its accept list are enforceable, so
@@ -399,7 +414,7 @@ export function BorderEditor() {
         }`}
       >
         <div
-          key={swapKey}
+          key={`canvas-${swapKey}`}
           className={`h-full ${swapPhase === 'entering' ? 'view-enter' : ''}`}
           onAnimationEnd={() => setSwapPhase((p) => (p === 'entering' ? 'idle' : p))}
         >
@@ -445,7 +460,7 @@ export function BorderEditor() {
 
       {photo && (
         <div
-          key={swapKey}
+          key={`bar-${swapKey}`}
           className={swapPhase === 'exiting' ? 'view-exit' : swapPhase === 'entering' ? 'view-enter' : ''}
         >
         <EditorBottomBar tools={TOOLS} activeId={activeTool} onSelect={setActiveTool}>
