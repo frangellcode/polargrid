@@ -6,7 +6,8 @@ import { useImageBitmap } from '../../hooks/useImageBitmap'
 import { useAnimatedColor, useAnimatedNumber } from '../../hooks/useAnimatedNumber'
 import { computeOutputPixelSize } from '../../lib/cropMath'
 import { MAX_PHOTO_MB, screenPhotoFiles } from '../../lib/photoInput'
-import { exportBorderPhoto, renderBorderPhotoFiles, resolveRatio, saveExportedFiles, yieldToBrowser } from '../../lib/exportImage'
+import { holdImportCard } from '../../lib/uiTiming'
+import { renderBorderPhotoFiles, resolveRatio, saveExportedFiles, yieldToBrowser } from '../../lib/exportImage'
 import { Toolbar } from './Toolbar'
 import { AspectRatioPicker } from './AspectRatioPicker'
 import { BorderThicknessSlider } from './BorderThicknessSlider'
@@ -104,12 +105,17 @@ export function BorderEditor() {
   // for). Those used to vanish without a word: the batch simply came back
   // shorter than the selection.
   const decode = async (images: File[]) => {
+    const startedAt = performance.now()
     setImporting({ done: 0, total: images.length })
     try {
       const loaded = await loadFiles(images, (done, total) => setImporting({ done, total }))
       if (loaded.length < images.length) setUploadError(tr.toolbar.someFailed(images.length - loaded.length))
       return loaded
     } finally {
+      // One photo lands almost instantly; without this the card flickers in
+      // and out rather than reading as the same step a five-photo import
+      // shows.
+      await holdImportCard(startedAt)
       setImporting(null)
     }
   }
@@ -257,17 +263,19 @@ export function BorderEditor() {
     })
   }
 
-  // A batch never even attempts to share off the Export tap: rendering several
-  // native-resolution photos always outlasts WebKit's activation window, so the
-  // attempt could only ever fail. It renders behind its own modal and asks for
-  // one deliberate tap at the end instead — which also makes the flow the same
-  // every time, rather than sharing straight away on a fast run and surfacing a
-  // recovery prompt on a slow one.
-  const handleBatchExport = async (quality: ExportQuality) => {
-    const batchPhotos = border.batchPhotoIds.map((id) => photos[id]).filter((p) => !!p)
-    setExportFlow({ phase: 'rendering', done: 0, total: batchPhotos.length, files: [] })
+  // ONE export path, whether there's one photo or five. Nothing here attempts
+  // to share off the Export tap: a native-resolution render routinely outlasts
+  // WebKit's activation window, and it does so for a single photo on a slow
+  // phone just as surely as for a batch. A single photo used to try anyway and
+  // fall back to asking for a tap only when that failed — so the same action
+  // was a one-tap flow on a fast run and a two-tap flow on a slow one, and
+  // neither looked like the batch. Everything renders behind the modal and
+  // ends on the same deliberate Save tap.
+  const renderExport = async (quality: ExportQuality) => {
+    const exportPhotos = exportPhotoList()
+    setExportFlow({ phase: 'rendering', done: 0, total: exportPhotos.length, files: [] })
     const files = await renderBorderPhotoFiles(
-      batchPhotos,
+      exportPhotos,
       ratio,
       border.borderThicknessPct,
       border.transform,
@@ -280,7 +288,7 @@ export function BorderEditor() {
     setExportFlow({ phase: 'ready', done: files.length, total: files.length, files })
   }
 
-  const handleSaveBatch = async () => {
+  const handleSave = async () => {
     if (!exportFlow) return
     // iOS spends a few seconds writing several photos to the library, and the
     // share promise doesn't settle until it's done — without this the card sat
@@ -292,6 +300,10 @@ export function BorderEditor() {
     setExportFlow((s) => (s ? { ...s, phase: result === 'saved' ? 'saved' : 'ready' } : s))
   }
 
+  /** Every photo this export covers: the whole batch, or the single one. */
+  const exportPhotoList = () =>
+    isBatch ? border.batchPhotoIds.map((id) => photos[id]).filter((p) => !!p) : photo ? [photo] : []
+
   const handleExport = async (quality: ExportQuality) => {
     if (!photo) return
     setBorderExportQuality(quality)
@@ -299,7 +311,7 @@ export function BorderEditor() {
     // The modal goes up BEFORE the preview comes down, so the two swap in the
     // same frame — set the other way round, the export screen was blank, with
     // nothing to say why, for as long as the render took.
-    setExportFlow({ phase: 'rendering', done: 0, total: isBatch ? border.batchPhotoIds.length : 1, files: [] })
+    setExportFlow({ phase: 'rendering', done: 0, total: exportPhotoList().length, files: [] })
     setFrozenPreview(stageRef.current?.snapshot() ?? null)
     setPreviewSuspended(true)
     // One frame with the preview already swapped for its still before the
@@ -311,32 +323,7 @@ export function BorderEditor() {
     // photo.
     await yieldToBrowser()
     try {
-      if (isBatch) {
-        await handleBatchExport(quality)
-        return
-      }
-      const outcome = await exportBorderPhoto(
-        photo,
-        ratio,
-        border.borderThicknessPct,
-        border.transform,
-        quality,
-        border.locked,
-        border.grainIntensity,
-        borderColorHex,
-      )
-      // A single photo usually shares straight off the Export tap and lands on
-      // the confirmation directly; on a slow phone at native resolution it can
-      // still outlive the activation window, and then it takes the same one
-      // deliberate tap the batch does.
-      if (outcome.result === 'saved')
-        setExportFlow({ phase: 'saved', done: 1, total: 1, files: outcome.files })
-      else if (outcome.result === 'needs-gesture')
-        setExportFlow({ phase: 'ready', done: 1, total: 1, files: outcome.files })
-      // Dismissed the share sheet: nothing was saved and there's nothing left
-      // to offer, so the modal comes down rather than sitting forever on a
-      // progress card that will never advance.
-      else setExportFlow(null)
+      await renderExport(quality)
     } catch {
       // Nothing upstream ever surfaced a failed export — it just quietly
       // reset the button, with no way to tell a real error apart from a
@@ -517,7 +504,7 @@ export function BorderEditor() {
         phase={exportFlow?.phase ?? 'rendering'}
         done={exportFlow?.done ?? 0}
         total={exportFlow?.total ?? 0}
-        onSave={handleSaveBatch}
+        onSave={handleSave}
         onClose={() => setExportFlow(null)}
         onCreateAnother={() => {
           setExportFlow(null)

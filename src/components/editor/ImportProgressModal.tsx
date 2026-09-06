@@ -2,9 +2,9 @@ import { useEffect, useState } from 'react'
 import { useTranslation } from '../../store/languageStore'
 
 const EASE = 'ease-[cubic-bezier(0.22,1,0.36,1)]'
-/** Matches the closing transition below, so a caller can unmount this after
- *  the fade rather than mid-way through it. */
-export const IMPORT_CLOSE_MS = 250
+/** Matches the closing transition below, so the card unmounts after its fade
+ *  rather than mid-way through it. */
+const IMPORT_CLOSE_MS = 250
 
 interface ImportProgressModalProps {
   open: boolean

@@ -9,8 +9,9 @@ import { easeInOutCubic, useAnimatedColor, useAnimatedNumber, useIsReflowing } f
 import { COLLAGE_ASPECT_RATIOS } from '../../lib/aspectRatios'
 import { computeOutputPixelSize, getImageDrawRect } from '../../lib/cropMath'
 import { MAX_PHOTO_MB, screenPhotoFiles } from '../../lib/photoInput'
+import { holdImportCard } from '../../lib/uiTiming'
 import { MAX_COLLAGE_PHOTOS, MIN_COLLAGE_PHOTOS, getTemplateById, transposeTemplate } from '../../lib/collageTemplates'
-import { exportCollageFree, exportCollageGrid, resolveRatio, saveExportedFiles, yieldToBrowser } from '../../lib/exportImage'
+import { renderCollageFree, renderCollageGrid, resolveRatio, saveExportedFiles, yieldToBrowser } from '../../lib/exportImage'
 import { getBorderColor } from '../../lib/borderColors'
 import { Toolbar, type ToolbarHandle } from './Toolbar'
 import { AspectRatioPicker } from './AspectRatioPicker'
@@ -1076,11 +1077,14 @@ export function CollageEditor() {
       )
       return
     }
+    const startedAt = performance.now()
     setImporting({ done: 0, total: selection.length })
     let loaded
     try {
       loaded = await loadFiles(selection, (done, total) => setImporting({ done, total }))
     } finally {
+      // Held for a beat even when the decode was instant — see holdImportCard.
+      await holdImportCard(startedAt)
       setImporting(null)
     }
     // Whatever the decoder itself refused (a truncated file, a format this
@@ -1129,9 +1133,14 @@ export function CollageEditor() {
     // the export before it had rendered a single photo.
     await yieldToBrowser()
     try {
-      const outcome =
+      // Rendered here, saved on a deliberate tap — never shared off the Export
+      // tap itself. A collage is the heaviest render in the app and routinely
+      // outlives WebKit's activation window, so trying first and recovering
+      // afterwards made a fast run and a slow run two different flows; this is
+      // now the same three steps the border editor shows, every time.
+      const file =
         collage.layoutMode === 'grid'
-          ? await exportCollageGrid(
+          ? await renderCollageGrid(
               template,
               collage.assignments,
               photos,
@@ -1143,13 +1152,8 @@ export function CollageEditor() {
               collage.grainIntensity,
               borderColorHex,
             )
-          : await exportCollageFree(collage.freeItems, photos, ratio, quality, collage.grainIntensity, borderColorHex)
-      if (outcome.result === 'saved') setExportFlow({ phase: 'saved', files: outcome.files })
-      else if (outcome.result === 'needs-gesture') setExportFlow({ phase: 'ready', files: outcome.files })
-      // Dismissed the share sheet: nothing was saved and there's nothing left
-      // to offer, so the modal comes down rather than sitting on a progress
-      // card that will never advance.
-      else setExportFlow(null)
+          : await renderCollageFree(collage.freeItems, photos, ratio, quality, collage.grainIntensity, borderColorHex)
+      setExportFlow({ phase: 'ready', files: [file] })
     } catch {
       // Nothing upstream ever surfaced a failed export — it just quietly
       // reset the button, with no way to tell a real error apart from a

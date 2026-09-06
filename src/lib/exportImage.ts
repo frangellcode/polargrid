@@ -82,26 +82,16 @@ async function drawPhotoInRect(
  *    tap (see saveExportedFiles below for why this can't be papered over here). */
 export type SaveResult = 'saved' | 'dismissed' | 'needs-gesture'
 
-/** The outcome of an export plus the rendered files themselves, so a caller that
- *  got `needs-gesture` can hand the very same files to saveExportedFiles() on the
- *  next tap instead of re-rendering the whole batch. */
-export interface ExportOutcome {
-  result: SaveResult
-  files: File[]
-}
-
 /** Saves or shares the rendered file(s). A batch is always passed as a SINGLE
  *  array to ONE navigator.share() call (not one call per file): calling share()
  *  again per file would fire without a fresh user gesture on the 2nd+ call and get
  *  silently rejected, and would mean N separate share-sheet prompts instead of one
  *  native "Save 10 Images" action.
  *
- *  WebKit only allows share() while the tap that triggered it is still "live"
- *  (transient activation, a few seconds). Rendering ten native-resolution photos
- *  takes far longer than that, so by the time the batch is ready the original
- *  Export tap is stale and iOS rejects the call with NotAllowedError. That is
- *  what `needs-gesture` reports: the work is done and the files are in hand, they
- *  just need a fresh tap to hand to the share sheet. */
+ *  Every caller reaches this from a deliberate tap on the export modal's own
+ *  Save button, so the activation is always fresh — `needs-gesture` is the
+ *  safety net for the cases where WebKit rejects it anyway (a tap it decided
+ *  had expired), not the normal course of events it used to be. */
 /** Whether saving should go through the share sheet rather than a download.
  *
  *  On a phone or tablet the sheet is the right answer: an installed iOS PWA
@@ -210,11 +200,6 @@ export function yieldToBrowser(): Promise<void> {
   })
 }
 
-async function downloadCanvas(canvas: HTMLCanvasElement, filename: string): Promise<ExportOutcome> {
-  const files = [await canvasToFile(canvas, filename)]
-  return { result: await saveExportedFiles(files), files }
-}
-
 async function renderBorderCanvas(
   photo: LoadedPhoto,
   ratio: number,
@@ -260,27 +245,16 @@ async function renderBorderCanvas(
   return canvas
 }
 
-export async function exportBorderPhoto(
-  photo: LoadedPhoto,
-  ratio: number,
-  borderThicknessPct: number,
-  transform: PhotoTransform,
-  quality: ExportQuality = 'native',
-  locked = true,
-  grainIntensity = 0,
-  borderColorHex = '#ffffff',
-) {
-  const canvas = await renderBorderCanvas(photo, ratio, borderThicknessPct, transform, quality, locked, grainIntensity, borderColorHex)
-  return downloadCanvas(canvas, `polargrid-border-${Date.now()}.jpg`)
-}
-
 /** Same shared adjustment (ratio/border/transform/etc.) rendered against every
- *  photo in `photos`, returned as files — WITHOUT saving them. A batch can never
- *  reach the share sheet off the tap that started it (rendering five
- *  native-resolution photos always outlives WebKit's activation window), so
- *  rather than try, fail, and recover, the batch flow renders here and lets the
- *  caller ask for one deliberate tap to hand the whole set to
- *  saveExportedFiles(). */
+ *  photo in `photos`, returned as files — WITHOUT saving them. This is the only
+ *  border export path, for one photo as much as for five.
+ *
+ *  Nothing here can reach the share sheet off the tap that started it: a
+ *  native-resolution render routinely outlives WebKit's activation window, and
+ *  a single photo on a slow phone outlives it just as surely as a batch does.
+ *  Rather than try, fail, and recover — which made a fast run and a slow run
+ *  two visibly different flows — every export renders here and the caller asks
+ *  for one deliberate tap to hand the result to saveExportedFiles(). */
 export async function renderBorderPhotoFiles(
   photos: LoadedPhoto[],
   ratio: number,
@@ -327,7 +301,7 @@ const REF_LONG_EDGE = 10000
  */
 const MAX_CELL_UPSCALE = 2
 
-export async function exportCollageGrid(
+export async function renderCollageGrid(
   template: GridTemplate,
   assignments: CellAssignment[],
   photos: Record<string, LoadedPhoto>,
@@ -401,10 +375,10 @@ export async function exportCollageGrid(
     await drawPhotoInRect(ctx, photo, x, y, w, h, assignment.transform, 0, 'cover', shape, grainIntensity)
   }
 
-  return downloadCanvas(canvas, `polargrid-collage-${Date.now()}.jpg`)
+  return canvasToFile(canvas, `polargrid-collage-${Date.now()}.jpg`)
 }
 
-export async function exportCollageFree(
+export async function renderCollageFree(
   freeItems: FreeItem[],
   photos: Record<string, LoadedPhoto>,
   ratio: number,
@@ -456,5 +430,5 @@ export async function exportCollageFree(
     )
   }
 
-  return downloadCanvas(canvas, `polargrid-collage-${Date.now()}.jpg`)
+  return canvasToFile(canvas, `polargrid-collage-${Date.now()}.jpg`)
 }
