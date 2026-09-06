@@ -178,12 +178,22 @@ export function ExportFlowModal({
                   <p className="font-display text-3xl font-semibold tabular-nums text-white">
                     {done}/{total}
                   </p>
+                ) : rendering ? (
+                  // A single image has no counter to show, and a tick would be
+                  // claiming it is already done — a collage render is the
+                  // slowest thing in the app, so this is exactly the phase
+                  // that needs something visibly still working.
+                  <div className="h-10 w-10 animate-spin rounded-full border-2 border-white/15 border-t-white" />
                 ) : (
                   <div className="flex h-12 w-12 items-center justify-center rounded-full bg-white/10 text-2xl">✓</div>
                 )}
 
                 <p className="font-label text-xs text-white/50">
-                  {rendering ? tr.borderEditor.exportingBatch(done, total) : tr.toolbar.readyToSave(total)}
+                  {rendering
+                    ? total > 1
+                      ? tr.borderEditor.exportingBatch(done, total)
+                      : tr.toolbar.exporting
+                    : tr.toolbar.readyToSave(total)}
                 </p>
 
                 {total > 1 && (

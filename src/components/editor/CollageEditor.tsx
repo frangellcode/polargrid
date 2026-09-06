@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Group, Image as KonvaImage, Rect, Transformer } from 'react-konva'
+import { Circle, Group, Image as KonvaImage, Rect } from 'react-konva'
 import type Konva from 'konva'
-import type { CellAssignment, CellShape, ExportQuality, GridTemplate, LoadedPhoto, PhotoTransform } from '../../types'
+import type { CellAssignment, CellShape, ExportQuality, FreeItem, GridTemplate, LoadedPhoto, PhotoTransform } from '../../types'
 import { useEditorStore } from '../../store/editorStore'
 import { useTranslation } from '../../store/languageStore'
 import { useImageBitmap } from '../../hooks/useImageBitmap'
@@ -46,75 +46,340 @@ interface FreeItemsLayerProps {
   grain: number
 }
 
+/** How small and how large a free item may be made, as a fraction of the
+ *  canvas. The upper bound is deliberately above 1: using one photo as a
+ *  backdrop the others sit on top of is a normal thing to want, and the stage
+ *  clips whatever spills past the canvas edge anyway. */
+const MIN_ITEM_FRACTION = 0.08
+const MAX_ITEM_FRACTION = 3
+
+/** Handles are authored in virtual canvas units (long edge 900), which the
+ *  stage scales down to roughly 0.4x on a phone — so this draws as a ~11px
+ *  dot. HANDLE_HIT_PADDING is what actually gets tapped: it widens the hit
+ *  region to comfortably past the 44px of real screen a fingertip needs,
+ *  without making the dot itself big enough to cover the photo. */
+const HANDLE_RADIUS = 26
+const HANDLE_HIT_PADDING = 80
+
+interface HandleDrag {
+  id: string
+  kind: 'resize' | 'rotate'
+  /** The item's center, which both gestures pivot around and neither moves. */
+  cx: number
+  cy: number
+  startW: number
+  startH: number
+  startRotation: number
+  /** Pointer distance from the center at grab time (resize), so the photo
+   *  scales by the RATIO the finger travels rather than jumping to put the
+   *  corner exactly under a fingertip that grabbed slightly off-center. */
+  startDist: number
+  /** Pointer angle at grab time (rotate), same reasoning. */
+  startAngle: number
+}
+
+/**
+ * The free-layout canvas: photos that move, resize and rotate independently.
+ *
+ * This used to be a Konva Transformer — the eight little square anchors and a
+ * rotate stalk you'd find in a desktop editor. On a phone that is close to
+ * unusable: each anchor is a handful of real pixels once the stage is scaled
+ * down to fit a phone screen, none of them are where a finger lands, and the
+ * two gestures a touch device actually has (drag, pinch) did nothing but move
+ * the photo. Hence: pinch to resize and rotate, drag to move, and exactly two
+ * finger-sized handles for anyone doing it one-handed or with a mouse.
+ *
+ * Geometry note: the store keeps each item as a top-left origin plus a size,
+ * both as canvas fractions, but everything here is drawn around the item's
+ * CENTER (Konva `offset`). That is the only origin under which a pinch grows
+ * the photo where the fingers are holding it and a rotation turns it about
+ * its middle. It also settles a disagreement with the exporter, which has
+ * always rotated each item about its own center (see drawPhotoInRect) while
+ * the preview rotated about the top-left corner — the same collage came out
+ * of the export differently from how it looked on screen.
+ */
 function FreeItemsLayer({ outputWidth, outputHeight, selectedId, onSelect, grain }: FreeItemsLayerProps) {
   const { collage, photos, updateFreeItem } = useEditorStore()
-  const shapeRefs = useRef<Record<string, Konva.Group>>({})
-  const trRef = useRef<Konva.Transformer>(null)
+  const nodeRefs = useRef<Record<string, Konva.Group>>({})
+  // Non-null for the whole life of a two-finger gesture on one item. Scale is
+  // derived from the CURRENT finger spread against the spread at pick-up (an
+  // absolute ratio) rather than accumulated per frame, for the same reason
+  // PhotoCell's own pinch is: a running total has to be clamped at every
+  // step, so pinching past the limit throws the overshoot away and the
+  // gesture feels stuck coming back.
+  const pinch = useRef<
+    | {
+        id: string
+        startDist: number
+        startAngle: number
+        startRotation: number
+        startW: number
+        startH: number
+        cx: number
+        cy: number
+        scale: number
+        rotation: number
+      }
+    | null
+  >(null)
+  const pinchCleanup = useRef<(() => void) | null>(null)
+  // While set, that item's Group stops being `draggable`, so the finger that
+  // started the pinch can't also be panning it underneath — Konva rewrites
+  // the node's x/y on every drag move and would fight the live scale for the
+  // same frames.
+  const [pinchingId, setPinchingId] = useState<string | null>(null)
+  // Set for the length of a plain move. A drag never touches the store until
+  // it ends (Konva moves the node itself), so the outline and handles below —
+  // which are positioned from the STORE — would otherwise hang behind at the
+  // photo's old spot for the whole gesture.
+  const [draggingId, setDraggingId] = useState<string | null>(null)
 
+  // A gesture still attached when this layer goes away (mode switched, photo
+  // removed mid-pinch) would keep firing against a detached node.
   useEffect(() => {
-    if (!trRef.current) return
-    const node = selectedId ? shapeRefs.current[selectedId] : null
-    trRef.current.nodes(node ? [node] : [])
-    trRef.current.getLayer()?.batchDraw()
-  }, [selectedId, collage.freeItems.length])
+    return () => {
+      pinchCleanup.current?.()
+      pinchCleanup.current = null
+    }
+  }, [])
+
+  const geom = (item: FreeItem) => {
+    const w = item.width * outputWidth
+    const h = item.height * outputHeight
+    return { w, h, cx: item.x * outputWidth + w / 2, cy: item.y * outputHeight + h / 2 }
+  }
+
+  /** Keeps a scale factor inside the size bounds on BOTH axes. */
+  const clampScale = (item: FreeItem, scale: number) => {
+    const minScale = Math.max(MIN_ITEM_FRACTION / item.width, MIN_ITEM_FRACTION / item.height)
+    const maxScale = Math.min(MAX_ITEM_FRACTION / item.width, MAX_ITEM_FRACTION / item.height)
+    return Math.min(maxScale, Math.max(minScale, scale))
+  }
+
+  /** Resizes about the center: the item keeps its middle exactly where it is,
+   *  so growing a photo doesn't also walk it across the canvas. */
+  const commitSize = (id: string, cx: number, cy: number, w: number, h: number, rotation: number) => {
+    updateFreeItem(id, {
+      x: (cx - w / 2) / outputWidth,
+      y: (cy - h / 2) / outputHeight,
+      width: w / outputWidth,
+      height: h / outputHeight,
+      rotation,
+    })
+  }
+
+  const touchGeometry = (touches: TouchList) => ({
+    dist: Math.hypot(touches[0].clientX - touches[1].clientX, touches[0].clientY - touches[1].clientY),
+    angle: Math.atan2(touches[1].clientY - touches[0].clientY, touches[1].clientX - touches[0].clientX),
+  })
+
+  const endPinch = (commit: boolean) => {
+    const active = pinch.current
+    pinch.current = null
+    pinchCleanup.current?.()
+    pinchCleanup.current = null
+    setPinchingId(null)
+    if (!active) return
+    const node = nodeRefs.current[active.id]
+    // Scale was applied straight to the node (never through the store, so the
+    // gesture doesn't re-render the whole editor on every frame) and react-
+    // konva doesn't manage what it never rendered — so it has to be put back
+    // by hand before the committed width/height take over.
+    node?.scaleX(1)
+    node?.scaleY(1)
+    if (!commit) return
+    commitSize(active.id, active.cx, active.cy, active.startW * active.scale, active.startH * active.scale, active.rotation)
+  }
+
+  /**
+   * Two-finger resize + rotate, wired to the stage's DOM element rather than
+   * to Konva's own onTouchMove, because Konva will not deliver touchmove to
+   * ANY shape while a drag is running (Stage._pointermove bails on
+   * Konva.isDragging()) — and the Group below is draggable, so the first
+   * finger is already dragging before the second one lands. This is the same
+   * workaround, for the same reason, as PhotoCell.beginPinch.
+   */
+  const beginPinch = (item: FreeItem, e: Konva.KonvaEventObject<TouchEvent>) => {
+    const container = e.target.getStage()?.content
+    if (!container || pinch.current) return
+    const { dist, angle } = touchGeometry(e.evt.touches)
+    if (!(dist > 0)) return
+    // End the one-finger pan already underway before taking the node off
+    // `draggable`, so it can't keep rewriting x/y for the rest of the gesture.
+    nodeRefs.current[item.id]?.stopDrag()
+    const { w, h, cx, cy } = geom(item)
+    pinch.current = {
+      id: item.id,
+      startDist: dist,
+      startAngle: angle,
+      startRotation: item.rotation,
+      startW: w,
+      startH: h,
+      cx,
+      cy,
+      scale: 1,
+      rotation: item.rotation,
+    }
+    setPinchingId(item.id)
+
+    const onMove = (evt: TouchEvent) => {
+      const active = pinch.current
+      if (!active || evt.touches.length < 2) return
+      // The page must not pan or zoom underneath us. CanvasStage sets
+      // touch-action: none too; this covers browsers that have already begun
+      // the gesture by the time that applies.
+      if (evt.cancelable) evt.preventDefault()
+      const next = touchGeometry(evt.touches)
+      if (!(next.dist > 0)) return
+      active.scale = clampScale(item, next.dist / active.startDist)
+      // Rotation follows the angle BETWEEN the fingers, so the photo turns
+      // exactly as much as the hand does.
+      active.rotation = active.startRotation + ((next.angle - active.startAngle) * 180) / Math.PI
+      const node = nodeRefs.current[active.id]
+      if (!node) return
+      // Uniform on both axes, so the photo can never be squashed by a pinch —
+      // and since the Group is drawn around its center, scaling it grows the
+      // photo where the fingers are rather than dragging its top-left corner
+      // around.
+      node.scaleX(active.scale)
+      node.scaleY(active.scale)
+      node.rotation(active.rotation)
+      node.getLayer()?.batchDraw()
+    }
+    // Only finish once EVERY finger is up: lifting one of two used to end the
+    // gesture while the remaining finger carried straight on into a pan.
+    const onEnd = (evt: TouchEvent) => {
+      if (evt.touches.length > 0) return
+      endPinch(true)
+    }
+    const onCancel = () => endPinch(true)
+
+    container.addEventListener('touchmove', onMove, { passive: false })
+    container.addEventListener('touchend', onEnd)
+    container.addEventListener('touchcancel', onCancel)
+    pinchCleanup.current = () => {
+      container.removeEventListener('touchmove', onMove)
+      container.removeEventListener('touchend', onEnd)
+      container.removeEventListener('touchcancel', onCancel)
+    }
+  }
+
+  /**
+   * The one-finger (or mouse) path for the same two operations: drag the
+   * corner handle to resize, the opposite one to rotate.
+   *
+   * Tracked through the stage's own event bus rather than Konva's `draggable`
+   * on the handle itself: a draggable handle moves where the finger goes,
+   * while these two have to stay pinned to a corner that is being recomputed
+   * from the item's live size on every frame — the two would fight over the
+   * node's position for the whole gesture.
+   */
+  const beginHandleDrag = (
+    kind: HandleDrag['kind'],
+    item: FreeItem,
+    e: Konva.KonvaEventObject<MouseEvent | TouchEvent>,
+  ) => {
+    const stage = e.target.getStage()
+    const pos = stage?.getPointerPosition()
+    if (!stage || !pos) return
+    e.cancelBubble = true
+    const scale = stage.scaleX() || 1
+    const { w, h, cx, cy } = geom(item)
+    const px = pos.x / scale
+    const py = pos.y / scale
+    const drag: HandleDrag = {
+      id: item.id,
+      kind,
+      cx,
+      cy,
+      startW: w,
+      startH: h,
+      startRotation: item.rotation,
+      startDist: Math.hypot(px - cx, py - cy),
+      startAngle: Math.atan2(py - cy, px - cx),
+    }
+    if (!(drag.startDist > 0)) return
+
+    const handleMove = () => {
+      const p = stage.getPointerPosition()
+      if (!p) return
+      const s = stage.scaleX() || 1
+      const lx = p.x / s - drag.cx
+      const ly = p.y / s - drag.cy
+      if (drag.kind === 'resize') {
+        const factor = clampScale(item, Math.hypot(lx, ly) / drag.startDist)
+        commitSize(drag.id, drag.cx, drag.cy, drag.startW * factor, drag.startH * factor, drag.startRotation)
+      } else {
+        const delta = ((Math.atan2(ly, lx) - drag.startAngle) * 180) / Math.PI
+        updateFreeItem(drag.id, { rotation: drag.startRotation + delta })
+      }
+    }
+    const handleRelease = () => {
+      stage.off('mousemove.freehandle touchmove.freehandle')
+      stage.off('mouseup.freehandle touchend.freehandle touchcancel.freehandle')
+    }
+    stage.on('mousemove.freehandle touchmove.freehandle', handleMove)
+    stage.on('mouseup.freehandle touchend.freehandle touchcancel.freehandle', handleRelease)
+  }
+
+  const selected = collage.freeItems.find((i) => i.id === selectedId) ?? null
 
   return (
     <>
+      {/* Tapping bare canvas clears the selection, so the outline and handles
+          aren't left sitting over a collage you've finished arranging. Needs
+          an explicit hitFunc: an unfilled Rect draws nothing into Konva's hit
+          graph and would never receive the tap. */}
+      <Rect
+        x={0}
+        y={0}
+        width={outputWidth}
+        height={outputHeight}
+        hitFunc={(ctx, shape) => {
+          ctx.beginPath()
+          ctx.rect(0, 0, outputWidth, outputHeight)
+          ctx.closePath()
+          ctx.fillStrokeShape(shape)
+        }}
+        onMouseDown={() => onSelect(null)}
+        onTouchStart={() => onSelect(null)}
+      />
+
       {collage.freeItems.map((item) => {
         const photo = photos[item.photoId]
         if (!photo) return null
-        const x = item.x * outputWidth
-        const y = item.y * outputHeight
-        const w = item.width * outputWidth
-        const h = item.height * outputHeight
+        const { w, h, cx, cy } = geom(item)
         const draw = getImageDrawRect(w, h, photo.width, photo.height, item.transform)
         return (
           <Group
             key={item.id}
             ref={(node) => {
-              if (node) shapeRefs.current[item.id] = node
+              if (node) nodeRefs.current[item.id] = node
             }}
-            x={x}
-            y={y}
+            x={cx}
+            y={cy}
+            offsetX={w / 2}
+            offsetY={h / 2}
             rotation={item.rotation}
-            draggable
+            draggable={pinchingId !== item.id}
             clipX={0}
             clipY={0}
             clipWidth={w}
             clipHeight={h}
-            onClick={() => onSelect(item.id)}
-            onTap={() => onSelect(item.id)}
-            onDragEnd={(e) => {
-              updateFreeItem(item.id, {
-                x: e.target.x() / outputWidth,
-                y: e.target.y() / outputHeight,
-              })
+            onMouseDown={() => onSelect(item.id)}
+            onTouchStart={(e) => {
+              onSelect(item.id)
+              if (e.evt.touches.length >= 2) beginPinch(item, e)
             }}
-            // Fires continuously while a Transformer handle is being dragged
-            // (not just once at the end). Konva's Transformer works by
-            // applying scaleX/scaleY to this whole Group live, which stretches
-            // the KonvaImage below — it was already cropped to `w`/`h` at its
-            // OLD size — uniformly with it, distorting the photo for the
-            // entire drag; only on release did the crop get recomputed
-            // against the real new size. Committing width/height to the store
-            // (and resetting scale back to 1) on every tick instead means
-            // `draw` below re-crops against the CURRENT size each frame, so
-            // the photo tracks the handle properly instead of visibly
-            // stretching then snapping straight at the end.
-            onTransform={(e) => {
-              const node = e.target
-              const scaleX = node.scaleX()
-              const scaleY = node.scaleY()
-              const newW = Math.max(30, w * scaleX)
-              const newH = Math.max(30, h * scaleY)
-              node.scaleX(1)
-              node.scaleY(1)
+            onDragStart={() => setDraggingId(item.id)}
+            onDragEnd={(e) => {
+              setDraggingId(null)
+              // Back from center coordinates to the top-left origin the store
+              // keeps (the node carries offsetX/offsetY, so its position IS
+              // the center).
               updateFreeItem(item.id, {
-                x: node.x() / outputWidth,
-                y: node.y() / outputHeight,
-                width: newW / outputWidth,
-                height: newH / outputHeight,
-                rotation: node.rotation(),
+                x: (e.target.x() - w / 2) / outputWidth,
+                y: (e.target.y() - h / 2) / outputHeight,
               })
             }}
           >
@@ -130,12 +395,80 @@ function FreeItemsLayer({ outputWidth, outputHeight, selectedId, onSelect, grain
           </Group>
         )
       })}
-      <Transformer
-        ref={trRef}
-        rotateEnabled
-        keepRatio={false}
-        boundBoxFunc={(oldBox, newBox) => (newBox.width < 30 || newBox.height < 30 ? oldBox : newBox)}
-      />
+
+      {/* Selection outline and handles, drawn last so they sit above every
+          photo. Hidden for the duration of a pinch: the item they'd frame is
+          being scaled straight on its node, so they would be a frame behind
+          it the whole way — and both hands are already on the photo. */}
+      {selected &&
+        pinchingId !== selected.id &&
+        draggingId !== selected.id &&
+        (() => {
+          const { w, h, cx, cy } = geom(selected)
+          const rad = (selected.rotation * Math.PI) / 180
+          // A corner of the (rotated) item, in canvas coordinates.
+          const corner = (dx: number, dy: number) => ({
+            x: cx + dx * Math.cos(rad) - dy * Math.sin(rad),
+            y: cy + dx * Math.sin(rad) + dy * Math.cos(rad),
+          })
+          // Kept inside the canvas: a photo pushed against an edge (or simply
+          // made bigger than the canvas, which is allowed) puts its corners
+          // outside the stage, and anything drawn there is clipped away —
+          // leaving a selected photo with no reachable handles at all. Both
+          // gestures measure the pointer against the item's CENTER, so a
+          // handle that has been pulled back from its corner still behaves
+          // exactly the same when grabbed.
+          const onCanvas = (p: { x: number; y: number }) => ({
+            x: Math.min(outputWidth - HANDLE_RADIUS, Math.max(HANDLE_RADIUS, p.x)),
+            y: Math.min(outputHeight - HANDLE_RADIUS, Math.max(HANDLE_RADIUS, p.y)),
+          })
+          const resizeAt = onCanvas(corner(w / 2, h / 2))
+          const rotateAt = onCanvas(corner(-w / 2, -h / 2))
+          return (
+            <>
+              <Rect
+                x={cx}
+                y={cy}
+                offsetX={w / 2}
+                offsetY={h / 2}
+                width={w}
+                height={h}
+                rotation={selected.rotation}
+                stroke="#ffffff"
+                strokeWidth={3}
+                dash={[14, 10]}
+                shadowColor="#0f172a"
+                shadowBlur={8}
+                shadowOpacity={0.6}
+                listening={false}
+              />
+              {/* Bottom-right: resize. Top-left: rotate — kept diagonally
+                  opposite so a thumb on one is never near the other. */}
+              <Circle
+                x={resizeAt.x}
+                y={resizeAt.y}
+                radius={HANDLE_RADIUS}
+                fill="#ffffff"
+                stroke="#0f172a"
+                strokeWidth={3}
+                hitStrokeWidth={HANDLE_HIT_PADDING}
+                onMouseDown={(e) => beginHandleDrag('resize', selected, e)}
+                onTouchStart={(e) => beginHandleDrag('resize', selected, e)}
+              />
+              <Circle
+                x={rotateAt.x}
+                y={rotateAt.y}
+                radius={HANDLE_RADIUS}
+                fill="#0f172a"
+                stroke="#ffffff"
+                strokeWidth={4}
+                hitStrokeWidth={HANDLE_HIT_PADDING}
+                onMouseDown={(e) => beginHandleDrag('rotate', selected, e)}
+                onTouchStart={(e) => beginHandleDrag('rotate', selected, e)}
+              />
+            </>
+          )
+        })()}
     </>
   )
 }
@@ -777,7 +1110,11 @@ export function CollageEditor() {
   const handleExport = async (quality: ExportQuality) => {
     store.setCollageExportQuality(quality)
     setExporting(true)
-    setExportFlow(null)
+    // Straight into the modal's rendering phase rather than waiting for the
+    // render to finish: with the preview suspended below, the export screen
+    // would otherwise be blank for however many seconds a nine-photo
+    // native-resolution collage takes.
+    setExportFlow({ phase: 'rendering', files: [] })
     setPreviewSuspended(true)
     // One frame with the preview already gone before the first decode starts —
     // otherwise React's re-render is queued behind the whole synchronous
@@ -801,6 +1138,10 @@ export function CollageEditor() {
           : await exportCollageFree(collage.freeItems, photos, ratio, quality, collage.grainIntensity, borderColorHex)
       if (outcome.result === 'saved') setExportFlow({ phase: 'saved', files: outcome.files })
       else if (outcome.result === 'needs-gesture') setExportFlow({ phase: 'ready', files: outcome.files })
+      // Dismissed the share sheet: nothing was saved and there's nothing left
+      // to offer, so the modal comes down rather than sitting on a progress
+      // card that will never advance.
+      else setExportFlow(null)
     } catch {
       // Nothing upstream ever surfaced a failed export — it just quietly
       // reset the button, with no way to tell a real error apart from a
@@ -808,6 +1149,9 @@ export function CollageEditor() {
       // this device to render, an out-of-memory decode, ...), the person
       // needs SOME signal instead of silence.
       setExportError(tr.toolbar.exportFailed)
+      // A render that threw has no file to offer — take its modal down so the
+      // error banner isn't hidden behind a stalled progress card.
+      setExportFlow(null)
     } finally {
       setExporting(false)
       // Remount rather than merely re-show: see previewSuspended above.
@@ -924,8 +1268,14 @@ export function CollageEditor() {
         </div>
       </div>
 
-      {collage.layoutMode === 'free' && selectedFreeId && (
-        <div className="fade-in flex items-center justify-end border-t border-white/10 bg-ink-900 px-4 py-2">
+      {/* The gestures are invisible until someone tries them, so the hint sits
+          here permanently in free mode rather than only alongside a selection
+          — it's the answer to "how do I make this photo bigger", which is
+          exactly the question asked before anything is selected. */}
+      {collage.layoutMode === 'free' && hasContent && (
+        <div className="fade-in flex items-center justify-between gap-3 border-t border-white/10 bg-ink-900 px-4 py-2">
+          <p className="font-label text-[11px] leading-snug text-white/40">{tr.collageEditor.freeHint}</p>
+          {selectedFreeId && (
           <button
             type="button"
             onClick={() => {
@@ -936,6 +1286,7 @@ export function CollageEditor() {
           >
             {tr.collageEditor.removePhoto}
           </button>
+          )}
         </div>
       )}
 
