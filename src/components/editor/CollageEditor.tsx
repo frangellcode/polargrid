@@ -9,7 +9,7 @@ import { easeInOutCubic, useAnimatedColor, useAnimatedNumber, useIsReflowing } f
 import { COLLAGE_ASPECT_RATIOS } from '../../lib/aspectRatios'
 import { computeOutputPixelSize, getImageDrawRect } from '../../lib/cropMath'
 import { MAX_PHOTO_MB, screenPhotoFiles } from '../../lib/photoInput'
-import { MIN_COLLAGE_PHOTOS, getTemplateById, transposeTemplate } from '../../lib/collageTemplates'
+import { MAX_COLLAGE_PHOTOS, MIN_COLLAGE_PHOTOS, getTemplateById, transposeTemplate } from '../../lib/collageTemplates'
 import { exportCollageFree, exportCollageGrid, resolveRatio, saveExportedFiles } from '../../lib/exportImage'
 import { getBorderColor } from '../../lib/borderColors'
 import { Toolbar, type ToolbarHandle } from './Toolbar'
@@ -21,6 +21,7 @@ import { PhotoCell } from './PhotoCell'
 import { Dropzone } from './Dropzone'
 import { EditorBottomBar, type BottomBarTool } from './EditorBottomBar'
 import { ExportFlowModal, type ExportFlowPhase } from './ExportFlowModal'
+import { ImportProgressModal } from './ImportProgressModal'
 import { WorkspaceBackgroundPicker } from './WorkspaceBackgroundPicker'
 import { BorderColorPicker } from './BorderColorPicker'
 import { IconCrop, IconDrop, IconFrame, IconGrain, IconGrid } from './icons'
@@ -564,10 +565,21 @@ export function CollageEditor() {
   const [gutterLinked, setGutterLinked] = useState(false)
   const [uploadError, setUploadError] = useState<string | null>(null)
   const [exportError, setExportError] = useState<string | null>(null)
+  // Non-null for exactly as long as a selection is being decoded — see
+  // ImportProgressModal for why that window needs something on screen.
+  const [importing, setImporting] = useState<{ done: number; total: number } | null>(null)
   // The export's own modal — the confirmation, or, when iOS wouldn't open the
   // share sheet because the Export tap had already expired, the tap that hands
   // this exact file to it with no re-render. See BorderEditor's own exportFlow.
   const [exportFlow, setExportFlow] = useState<{ phase: ExportFlowPhase; files: File[] } | null>(null)
+  // The live preview is taken down for the render and rebuilt afterwards —
+  // same reasoning as BorderEditor's own previewSuspended: WebKit blanks the
+  // preview's canvas to stay inside its per-tab canvas budget while a
+  // full-resolution collage is being rendered, and a blanked canvas never
+  // recovers on its own. A nine-photo collage is the heaviest render in the
+  // app, so this matters more here, not less.
+  const [previewSuspended, setPreviewSuspended] = useState(false)
+  const [stageEpoch, setStageEpoch] = useState(0)
   const toolbarRef = useRef<ToolbarHandle>(null)
 
   useEffect(() => {
@@ -690,6 +702,13 @@ export function CollageEditor() {
     }, EXIT_MS)
   }
 
+  /** How many more photos this collage can hold right now. */
+  const freeSlots = () =>
+    MAX_COLLAGE_PHOTOS -
+    (collage.layoutMode === 'free'
+      ? collage.freeItems.length
+      : collage.assignments.filter((a) => a.photoId).length)
+
   const handleUpload = async (files: FileList) => {
     // RAW and over-sized files are dropped before anything is decoded — see
     // photoInput.ts. Saying which of the two happened matters: silently
@@ -698,7 +717,39 @@ export function CollageEditor() {
     if (rejectedType > 0) setUploadError(tr.toolbar.unsupportedFormat)
     else if (rejectedSize > 0) setUploadError(tr.toolbar.tooHeavy(MAX_PHOTO_MB))
     if (accepted.length === 0) return
-    const loaded = await loadFiles(accepted)
+    // The picker has no notion of a maximum, so an over-sized selection has to
+    // be caught here — and it is rejected WHOLE rather than trimmed to what
+    // fits. Silently keeping the first nine of fifteen is what produced a
+    // collage laid out for more photos than it actually got: cells built for
+    // files that were never placed, and no way to tell which ones went.
+    // Nothing is decoded until the count is known to be good, so an
+    // over-sized pick costs no memory at all.
+    // Filling ONE empty cell: the picker still hands back everything that was
+    // selected, but only the first photo has anywhere to go. Trimming here
+    // (rather than refusing the selection) means the rest are never decoded.
+    const selection = pendingCellId ? accepted.slice(0, 1) : accepted
+    const slots = pendingCellId ? 1 : freeSlots()
+    if (slots <= 0) {
+      setUploadError(tr.collageEditor.full(MAX_COLLAGE_PHOTOS))
+      return
+    }
+    if (selection.length > slots) {
+      setUploadError(
+        slots === MAX_COLLAGE_PHOTOS ? tr.collageEditor.tooMany(MAX_COLLAGE_PHOTOS) : tr.collageEditor.onlyRoomFor(slots),
+      )
+      return
+    }
+    setImporting({ done: 0, total: selection.length })
+    let loaded
+    try {
+      loaded = await loadFiles(selection, (done, total) => setImporting({ done, total }))
+    } finally {
+      setImporting(null)
+    }
+    // Whatever the decoder itself refused (a truncated file, a format this
+    // browser has no decoder for) is reported rather than left to look like
+    // the app having dropped photos on its own.
+    if (loaded.length < selection.length) setUploadError(tr.toolbar.someFailed(selection.length - loaded.length))
     if (loaded.length === 0) return
     if (pendingCellId) {
       store.addPhotos(loaded)
@@ -727,6 +778,11 @@ export function CollageEditor() {
     store.setCollageExportQuality(quality)
     setExporting(true)
     setExportFlow(null)
+    setPreviewSuspended(true)
+    // One frame with the preview already gone before the first decode starts —
+    // otherwise React's re-render is queued behind the whole synchronous
+    // render and the canvas stays up for exactly the window it must not.
+    await new Promise((resolve) => requestAnimationFrame(() => setTimeout(resolve, 0)))
     try {
       const outcome =
         collage.layoutMode === 'grid'
@@ -754,6 +810,9 @@ export function CollageEditor() {
       setExportError(tr.toolbar.exportFailed)
     } finally {
       setExporting(false)
+      // Remount rather than merely re-show: see previewSuspended above.
+      setStageEpoch((e) => e + 1)
+      setPreviewSuspended(false)
     }
   }
 
@@ -774,6 +833,16 @@ export function CollageEditor() {
         uploadLabel={tr.collageEditor.addPhotos}
         multiple
       />
+
+      {/* Only the empty Dropzone shows its own error inline, so once a collage
+          exists this banner is the ONLY place a refused selection is
+          accounted for — without it, adding ten photos to a collage that has
+          room for two just looked like the app ignoring the tap. */}
+      {uploadError && hasContent && (
+        <p className="fade-in font-label mx-4 mt-2 rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-center text-[11px] leading-snug text-red-300">
+          {uploadError}
+        </p>
+      )}
 
       {exportError && (
         <p className="fade-in font-label mx-4 mt-2 rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-center text-[11px] leading-snug text-red-300">
@@ -802,8 +871,13 @@ export function CollageEditor() {
           className={`h-full ${swapPhase === 'entering' ? 'view-enter' : ''}`}
           onAnimationEnd={() => setSwapPhase((p) => (p === 'entering' ? 'idle' : p))}
         >
-        {hasContent ? (
+        {hasContent && previewSuspended ? (
+          // Deliberately empty, not a spinner: the export modal is already up
+          // over this area reporting the progress.
+          <div className="h-full w-full" />
+        ) : hasContent ? (
           <CanvasStage
+            key={stageEpoch}
             outputWidth={outputWidth}
             outputHeight={outputHeight}
             background={animatedBorderColorHex}
@@ -842,7 +916,7 @@ export function CollageEditor() {
         ) : (
           <Dropzone
             label={tr.collageEditor.dropLabel}
-            hint={tr.collageEditor.dropHint}
+            hint={tr.collageEditor.dropHint(MIN_COLLAGE_PHOTOS, MAX_COLLAGE_PHOTOS, MAX_PHOTO_MB)}
             error={uploadError}
             onFiles={handleUpload}
           />
@@ -1007,6 +1081,8 @@ export function CollageEditor() {
         </EditorBottomBar>
         </div>
       )}
+
+      <ImportProgressModal open={!!importing} done={importing?.done ?? 0} total={importing?.total ?? 0} />
 
       <ExportFlowModal
         open={!!exportFlow}

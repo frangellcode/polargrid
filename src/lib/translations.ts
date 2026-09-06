@@ -33,6 +33,9 @@ export const translations = {
       export: 'Export',
       exporting: 'Exporting…',
       saving: 'Saving…',
+      importing: 'Importing your photos…',
+      someFailed: (n: number) =>
+        n === 1 ? 'One photo could not be read and was skipped' : `${n} photos could not be read and were skipped`,
       unsupportedFormat: 'Only JPEG, PNG and HEIC — RAW files (DNG, CR2, ARW) cannot be opened',
       tooHeavy: (mb: number) => `Each photo must be under ${mb} MB — the heavier ones were skipped`,
       addPhoto: 'Add photo',
@@ -50,9 +53,10 @@ export const translations = {
       changePhoto: 'Change photo',
       uploadPhoto: 'Upload photo',
       dropLabel: 'Tap to upload a photo',
-      dropHint: 'or drag it here',
+      dropHint: (mb: number) => `or drag it here — under ${mb} MB`,
       dropBatchLabel: 'Tap to upload a batch',
-      dropBatchHint: (n: number) => `up to ${n} photos, same adjustment applied to all`,
+      dropBatchHint: (n: number, mb: number) =>
+        `up to ${n} photos under ${mb} MB, same adjustment applied to all`,
       batchCount: (n: number) => `${n} photos selected — this adjustment will be applied to all of them on export`,
       batchTooMany: (n: number) => `${n} photos max — nothing was added, select ${n} or fewer`,
       exportingBatch: (done: number, total: number) => `Exporting ${done}/${total}…`,
@@ -73,7 +77,15 @@ export const translations = {
       modeTemplate: 'Template',
       modeFree: 'Free',
       dropLabel: 'Tap to upload your photos',
-      dropHint: 'or drag them here (several at once)',
+      dropHint: (min: number, max: number, mb: number) =>
+        `from ${min} to ${max} photos, each under ${mb} MB`,
+      tooMany: (n: number) => `${n} photos max — nothing was added, select ${n} or fewer`,
+      full: (n: number) => `The collage already holds ${n} photos — remove one to add another`,
+      onlyRoomFor: (n: number) =>
+        n === 1
+          ? 'There is room for 1 more photo — nothing was added, select just one'
+          : `There is room for ${n} more photos — nothing was added, select ${n} or fewer`,
+      freeHint: 'Drag to move · pinch to resize and rotate',
       removePhoto: 'Remove photo',
       canvasFormat: 'Canvas format',
       orientation: 'Orientation',
@@ -157,6 +169,9 @@ export const translations = {
       export: 'Exportar',
       exporting: 'Exportando…',
       saving: 'Guardando…',
+      importing: 'Importando tus fotos…',
+      someFailed: (n: number) =>
+        n === 1 ? 'Una foto no se pudo leer y se omitió' : `${n} fotos no se pudieron leer y se omitieron`,
       unsupportedFormat: 'Solo JPEG, PNG y HEIC — los archivos RAW (DNG, CR2, ARW) no se pueden abrir',
       tooHeavy: (mb: number) => `Cada foto debe pesar menos de ${mb} MB — las más pesadas se omitieron`,
       addPhoto: 'Agregar foto',
@@ -174,9 +189,10 @@ export const translations = {
       changePhoto: 'Cambiar foto',
       uploadPhoto: 'Subir foto',
       dropLabel: 'Toca para subir una foto',
-      dropHint: 'o arrástrala aquí',
+      dropHint: (mb: number) => `o arrástrala aquí — menos de ${mb} MB`,
       dropBatchLabel: 'Toca para subir por lotes',
-      dropBatchHint: (n: number) => `hasta ${n} fotos, mismo ajuste para todas`,
+      dropBatchHint: (n: number, mb: number) =>
+        `hasta ${n} fotos de menos de ${mb} MB, mismo ajuste para todas`,
       batchCount: (n: number) => `${n} fotos seleccionadas — este ajuste se aplicará a todas al exportar`,
       batchTooMany: (n: number) => `Máximo ${n} fotos — no se agregó ninguna, selecciona ${n} o menos`,
       exportingBatch: (done: number, total: number) => `Exportando ${done}/${total}…`,
@@ -197,7 +213,15 @@ export const translations = {
       modeTemplate: 'Plantilla',
       modeFree: 'Libre',
       dropLabel: 'Toca para subir tus fotos',
-      dropHint: 'o arrástralas aquí (varias a la vez)',
+      dropHint: (min: number, max: number, mb: number) =>
+        `de ${min} a ${max} fotos, cada una de menos de ${mb} MB`,
+      tooMany: (n: number) => `Máximo ${n} fotos — no se agregó ninguna, selecciona ${n} o menos`,
+      full: (n: number) => `El collage ya tiene ${n} fotos — quita una para agregar otra`,
+      onlyRoomFor: (n: number) =>
+        n === 1
+          ? 'Queda espacio para 1 foto más — no se agregó ninguna, selecciona solo una'
+          : `Queda espacio para ${n} fotos más — no se agregó ninguna, selecciona ${n} o menos`,
+      freeHint: 'Arrastra para mover · pellizca para agrandar y girar',
       removePhoto: 'Eliminar foto',
       canvasFormat: 'Formato del lienzo',
       orientation: 'Orientación',

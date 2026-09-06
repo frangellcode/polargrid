@@ -15,6 +15,7 @@ import { PhotoCell } from './PhotoCell'
 import { Dropzone } from './Dropzone'
 import { EditorBottomBar, type BottomBarTool } from './EditorBottomBar'
 import { ExportFlowModal, type ExportFlowPhase } from './ExportFlowModal'
+import { ImportProgressModal } from './ImportProgressModal'
 import { WorkspaceBackgroundPicker } from './WorkspaceBackgroundPicker'
 import { BorderColorPicker } from './BorderColorPicker'
 import { getBorderColor } from '../../lib/borderColors'
@@ -84,6 +85,9 @@ export function BorderEditor() {
   // format, or a file over the size ceiling. One slot, since a person fixes one
   // reason at a time and stacking three banners over the canvas helps nobody.
   const [uploadError, setUploadError] = useState<string | null>(null)
+  // Non-null for exactly as long as a selection is being decoded — see
+  // ImportProgressModal for why that window needs something on screen.
+  const [importing, setImporting] = useState<{ done: number; total: number } | null>(null)
 
   // Screens a raw selection and reports whatever was dropped. Returns null when
   // there's nothing usable left, so callers can just bail.
@@ -93,6 +97,21 @@ export function BorderEditor() {
       rejectedType > 0 ? tr.toolbar.unsupportedFormat : rejectedSize > 0 ? tr.toolbar.tooHeavy(MAX_PHOTO_MB) : null,
     )
     return accepted.length > 0 ? accepted : null
+  }
+
+  // Decodes behind the progress card, and accounts for whatever the decoder
+  // itself refused (a truncated file, a HEIC this browser has no decoder
+  // for). Those used to vanish without a word: the batch simply came back
+  // shorter than the selection.
+  const decode = async (images: File[]) => {
+    setImporting({ done: 0, total: images.length })
+    try {
+      const loaded = await loadFiles(images, (done, total) => setImporting({ done, total }))
+      if (loaded.length < images.length) setUploadError(tr.toolbar.someFailed(images.length - loaded.length))
+      return loaded
+    } finally {
+      setImporting(null)
+    }
   }
   // The export's own modal, from render progress through to the confirmation.
   // Held here (rather than derived from `exporting`) because the modal outlives
@@ -105,6 +124,22 @@ export function BorderEditor() {
     files: File[]
   } | null>(null)
   const [exportError, setExportError] = useState<string | null>(null)
+  // The live preview is taken down for the whole render and rebuilt from
+  // scratch afterwards (the epoch below is the Stage's key).
+  //
+  // WebKit caps the total canvas backing store one tab may hold, and a
+  // native-resolution batch spends the entire render sitting against that
+  // ceiling. The preview's own canvas is just another claim on it, and the
+  // one WebKit picks to blank: the photo behind the export modal turned into
+  // a flat grey rectangle mid-batch and STAYED that way afterwards, because a
+  // canvas WebKit has dropped doesn't come back on its own — Konva happily
+  // redraws into a surface that no longer paints anything. Unmounting hands
+  // that memory to the export while it needs it most, and remounting builds a
+  // brand-new canvas that draws normally again. (canvasToFile already zeroes
+  // each EXPORT canvas as it goes; this is the same problem from the
+  // preview's side.)
+  const [previewSuspended, setPreviewSuspended] = useState(false)
+  const [stageEpoch, setStageEpoch] = useState(0)
 
   useEffect(() => {
     if (!uploadError) return
@@ -184,7 +219,7 @@ export function BorderEditor() {
   const handleUpload = async (files: FileList) => {
     const images = screen(files)
     if (!images) return
-    const loaded = await loadFiles(images)
+    const loaded = await decode(images)
     if (loaded.length === 0) return
     swapContent(() => {
       addPhotos(loaded)
@@ -210,7 +245,7 @@ export function BorderEditor() {
       setUploadError(tr.borderEditor.batchTooMany(MAX_BORDER_BATCH_PHOTOS))
       return
     }
-    const loaded = await loadFiles(images)
+    const loaded = await decode(images)
     if (loaded.length === 0) return
     swapContent(() => {
       addPhotos(loaded)
@@ -257,6 +292,12 @@ export function BorderEditor() {
     if (!photo) return
     setBorderExportQuality(quality)
     setExporting(true)
+    setPreviewSuspended(true)
+    // One frame with the preview already gone before the first decode starts —
+    // without it React's re-render is queued behind the whole synchronous
+    // render loop, so the canvas would still be up for exactly the window it
+    // needed to be out of.
+    await new Promise((resolve) => requestAnimationFrame(() => setTimeout(resolve, 0)))
     try {
       if (isBatch) {
         await handleBatchExport(quality)
@@ -292,6 +333,9 @@ export function BorderEditor() {
       setExportFlow(null)
     } finally {
       setExporting(false)
+      // Remount rather than merely re-show: see previewSuspended above.
+      setStageEpoch((e) => e + 1)
+      setPreviewSuspended(false)
     }
   }
 
@@ -337,8 +381,17 @@ export function BorderEditor() {
           className={`h-full ${swapPhase === 'entering' ? 'view-enter' : ''}`}
           onAnimationEnd={() => setSwapPhase((p) => (p === 'entering' ? 'idle' : p))}
         >
-          {photo ? (
-            <CanvasStage outputWidth={outputWidth} outputHeight={outputHeight} background={animatedBorderColorHex}>
+          {photo && previewSuspended ? (
+            // Deliberately empty, not a spinner: the export modal is already
+            // up over this area reporting the progress.
+            <div className="h-full w-full" />
+          ) : photo ? (
+            <CanvasStage
+              key={stageEpoch}
+              outputWidth={outputWidth}
+              outputHeight={outputHeight}
+              background={animatedBorderColorHex}
+            >
               <PhotoCell
                 x={borderPx}
                 y={borderPx}
@@ -355,13 +408,13 @@ export function BorderEditor() {
             <div className="flex h-full w-full flex-col gap-3 sm:flex-row">
               <Dropzone
                 label={tr.borderEditor.dropLabel}
-                hint={tr.borderEditor.dropHint}
+                hint={tr.borderEditor.dropHint(MAX_PHOTO_MB)}
                 onFiles={handleUpload}
                 multiple={false}
               />
               <Dropzone
                 label={tr.borderEditor.dropBatchLabel}
-                hint={tr.borderEditor.dropBatchHint(MAX_BORDER_BATCH_PHOTOS)}
+                hint={tr.borderEditor.dropBatchHint(MAX_BORDER_BATCH_PHOTOS, MAX_PHOTO_MB)}
                 error={uploadError}
                 onFiles={handleBatchUpload}
                 multiple
@@ -440,6 +493,8 @@ export function BorderEditor() {
         </EditorBottomBar>
         </div>
       )}
+
+      <ImportProgressModal open={!!importing} done={importing?.done ?? 0} total={importing?.total ?? 0} />
 
       <ExportFlowModal
         open={!!exportFlow}

@@ -27,10 +27,20 @@ async function buildPreviewBitmap(bitmap: ImageBitmap): Promise<ImageBitmap> {
   })
 }
 
-/** Decodes File objects into ImageBitmaps, respecting EXIF orientation. */
+/** Decodes File objects into ImageBitmaps, respecting EXIF orientation.
+ *
+ *  `onProgress` fires after each file is decoded (done, total). Decoding a
+ *  five-photo batch takes seconds on a phone, and until this existed the
+ *  screen simply sat on the upload prompt for all of it — indistinguishable
+ *  from the tap not having landed. Every caller now puts a progress card up
+ *  for the duration. */
 export function useImageBitmap() {
-  const loadFiles = useCallback(async (files: FileList | File[]): Promise<LoadedPhoto[]> => {
+  const loadFiles = useCallback(async (
+    files: FileList | File[],
+    onProgress?: (done: number, total: number) => void,
+  ): Promise<LoadedPhoto[]> => {
     const list = Array.from(files)
+    onProgress?.(0, list.length)
     // One at a time, not Promise.all — decoding every file's full-resolution
     // bitmap in parallel means all of them are briefly resident together,
     // the exact spike this whole file is trying to avoid for a multi-photo
@@ -42,20 +52,39 @@ export function useImageBitmap() {
       // for. Skipping it keeps the rest of the selection: letting the throw
       // escape rejected the whole upload, and since no caller caught it, the
       // screen simply never changed.
-      let bitmap: ImageBitmap
+      let bitmap: ImageBitmap | null = null
       try {
         bitmap = await createImageBitmap(file, { imageOrientation: 'from-image' })
+        // Inside the same try as the decode: downscaling allocates a second
+        // bitmap and can fail on its own (it is the tail end of a big
+        // selection that runs closest to the memory ceiling). Letting that
+        // throw escape rejected the WHOLE selection — which is how a
+        // 15-photo pick could end up half-placed, with cells built for
+        // photos that never arrived.
+        const previewBitmap = await buildPreviewBitmap(bitmap)
+        const width = bitmap.width
+        const height = bitmap.height
+        // Free the full-res decode right away — only the (much smaller)
+        // preview and the original file (for export, see exportImage.ts) are
+        // kept for the rest of the session.
+        if (previewBitmap !== bitmap) bitmap.close()
+        loaded.push({ id: nextId(), file, previewBitmap, width, height, name: file.name })
       } catch {
+        // Don't leave the full-res decode resident just because the resize
+        // after it failed — that is exactly the memory this path is short of.
+        try {
+          bitmap?.close()
+        } catch {
+          // already released
+        }
         continue
       }
-      const previewBitmap = await buildPreviewBitmap(bitmap)
-      const width = bitmap.width
-      const height = bitmap.height
-      // Free the full-res decode right away — only the (much smaller)
-      // preview and the original file (for export, see exportImage.ts) are
-      // kept for the rest of the session.
-      if (previewBitmap !== bitmap) bitmap.close()
-      loaded.push({ id: nextId(), file, previewBitmap, width, height, name: file.name })
+      onProgress?.(loaded.length, list.length)
+      // A turn of the event loop between decodes, so the progress card above
+      // actually repaints — createImageBitmap resolves in a microtask and the
+      // loop would otherwise run to completion without ever yielding a frame,
+      // leaving the counter frozen at 0/N until everything was done.
+      await new Promise((resolve) => setTimeout(resolve, 0))
     }
     return loaded
   }, [])
