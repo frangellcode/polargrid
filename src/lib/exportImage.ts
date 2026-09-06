@@ -181,12 +181,33 @@ async function canvasToFile(canvas: HTMLCanvasElement, filename: string): Promis
   }
 }
 
+/** How long the batch waits for a frame that may never come before carrying on
+ *  anyway. Long enough that a visible tab always paints first (a frame is
+ *  ~16ms), short enough that a hidden one doesn't crawl. */
+const YIELD_FALLBACK_MS = 200
+
 /** Hands the main thread back for a frame. Without this the batch loop is one
  *  unbroken run of synchronous canvas work: Safari never gets a turn to retire
  *  the buffers just released above, and the app shell can't repaint the
- *  progress counter either. */
-function yieldToBrowser(): Promise<void> {
-  return new Promise((resolve) => requestAnimationFrame(() => setTimeout(resolve, 0)))
+ *  progress counter either.
+ *
+ *  The timer is not belt-and-braces: a hidden tab gets NO animation frames at
+ *  all, so waiting on rAF alone stops the batch dead the moment the phone
+ *  locks or the person switches apps — it then sits at "2/5" until they come
+ *  back, which is indistinguishable from a hang. Whichever of the two arrives
+ *  first wins, so a visible tab still yields a real frame and an invisible one
+ *  keeps working through its (throttled, but live) timers. */
+export function yieldToBrowser(): Promise<void> {
+  return new Promise((resolve) => {
+    let settled = false
+    const finish = () => {
+      if (settled) return
+      settled = true
+      resolve()
+    }
+    requestAnimationFrame(() => setTimeout(finish, 0))
+    setTimeout(finish, YIELD_FALLBACK_MS)
+  })
 }
 
 async function downloadCanvas(canvas: HTMLCanvasElement, filename: string): Promise<ExportOutcome> {

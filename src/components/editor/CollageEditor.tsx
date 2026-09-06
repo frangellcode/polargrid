@@ -10,13 +10,13 @@ import { COLLAGE_ASPECT_RATIOS } from '../../lib/aspectRatios'
 import { computeOutputPixelSize, getImageDrawRect } from '../../lib/cropMath'
 import { MAX_PHOTO_MB, screenPhotoFiles } from '../../lib/photoInput'
 import { MAX_COLLAGE_PHOTOS, MIN_COLLAGE_PHOTOS, getTemplateById, transposeTemplate } from '../../lib/collageTemplates'
-import { exportCollageFree, exportCollageGrid, resolveRatio, saveExportedFiles } from '../../lib/exportImage'
+import { exportCollageFree, exportCollageGrid, resolveRatio, saveExportedFiles, yieldToBrowser } from '../../lib/exportImage'
 import { getBorderColor } from '../../lib/borderColors'
 import { Toolbar, type ToolbarHandle } from './Toolbar'
 import { AspectRatioPicker } from './AspectRatioPicker'
 import { BorderThicknessSlider } from './BorderThicknessSlider'
 import { GridTemplatePicker } from './GridTemplatePicker'
-import { CanvasStage } from './CanvasStage'
+import { CanvasStage, type CanvasStageHandle } from './CanvasStage'
 import { PhotoCell } from './PhotoCell'
 import { Dropzone } from './Dropzone'
 import { EditorBottomBar, type BottomBarTool } from './EditorBottomBar'
@@ -912,7 +912,11 @@ export function CollageEditor() {
   // recovers on its own. A nine-photo collage is the heaviest render in the
   // app, so this matters more here, not less.
   const [previewSuspended, setPreviewSuspended] = useState(false)
-  const [stageEpoch, setStageEpoch] = useState(0)
+  // The still shown in the preview's place while it is suspended, captured off
+  // the live canvas the instant before it comes down — so the export screen
+  // looks exactly as it did rather than opening a hole where the photo was.
+  const [frozenPreview, setFrozenPreview] = useState<string | null>(null)
+  const stageRef = useRef<CanvasStageHandle>(null)
   const toolbarRef = useRef<ToolbarHandle>(null)
 
   useEffect(() => {
@@ -1115,11 +1119,15 @@ export function CollageEditor() {
     // would otherwise be blank for however many seconds a nine-photo
     // native-resolution collage takes.
     setExportFlow({ phase: 'rendering', files: [] })
+    setFrozenPreview(stageRef.current?.snapshot() ?? null)
     setPreviewSuspended(true)
-    // One frame with the preview already gone before the first decode starts —
-    // otherwise React's re-render is queued behind the whole synchronous
-    // render and the canvas stays up for exactly the window it must not.
-    await new Promise((resolve) => requestAnimationFrame(() => setTimeout(resolve, 0)))
+    // One frame with the preview already swapped for its still before the
+    // first decode starts — otherwise React's re-render is queued behind the
+    // whole synchronous render and the canvas stays up for exactly the window
+    // it must not. yieldToBrowser, not a bare requestAnimationFrame: a
+    // backgrounded tab gets no frames at all, and waiting on one there stalled
+    // the export before it had rendered a single photo.
+    await yieldToBrowser()
     try {
       const outcome =
         collage.layoutMode === 'grid'
@@ -1154,9 +1162,12 @@ export function CollageEditor() {
       setExportFlow(null)
     } finally {
       setExporting(false)
-      // Remount rather than merely re-show: see previewSuspended above.
-      setStageEpoch((e) => e + 1)
+      // Dropping frozenSrc remounts the Stage outright (CanvasStage renders
+      // one or the other, never both), which is the point: a canvas WebKit
+      // blanked during the render is gone for good, and only a brand-new one
+      // draws again.
       setPreviewSuspended(false)
+      setFrozenPreview(null)
     }
   }
 
@@ -1215,13 +1226,10 @@ export function CollageEditor() {
           className={`h-full ${swapPhase === 'entering' ? 'view-enter' : ''}`}
           onAnimationEnd={() => setSwapPhase((p) => (p === 'entering' ? 'idle' : p))}
         >
-        {hasContent && previewSuspended ? (
-          // Deliberately empty, not a spinner: the export modal is already up
-          // over this area reporting the progress.
-          <div className="h-full w-full" />
-        ) : hasContent ? (
+        {hasContent ? (
           <CanvasStage
-            key={stageEpoch}
+            ref={stageRef}
+            frozenSrc={previewSuspended ? frozenPreview : null}
             outputWidth={outputWidth}
             outputHeight={outputHeight}
             background={animatedBorderColorHex}

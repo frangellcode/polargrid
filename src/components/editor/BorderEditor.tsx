@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import type { ExportQuality } from '../../types'
 import { useEditorStore } from '../../store/editorStore'
 import { useTranslation } from '../../store/languageStore'
@@ -6,11 +6,11 @@ import { useImageBitmap } from '../../hooks/useImageBitmap'
 import { useAnimatedColor, useAnimatedNumber } from '../../hooks/useAnimatedNumber'
 import { computeOutputPixelSize } from '../../lib/cropMath'
 import { MAX_PHOTO_MB, screenPhotoFiles } from '../../lib/photoInput'
-import { exportBorderPhoto, renderBorderPhotoFiles, resolveRatio, saveExportedFiles } from '../../lib/exportImage'
+import { exportBorderPhoto, renderBorderPhotoFiles, resolveRatio, saveExportedFiles, yieldToBrowser } from '../../lib/exportImage'
 import { Toolbar } from './Toolbar'
 import { AspectRatioPicker } from './AspectRatioPicker'
 import { BorderThicknessSlider } from './BorderThicknessSlider'
-import { CanvasStage } from './CanvasStage'
+import { CanvasStage, type CanvasStageHandle } from './CanvasStage'
 import { PhotoCell } from './PhotoCell'
 import { Dropzone } from './Dropzone'
 import { EditorBottomBar, type BottomBarTool } from './EditorBottomBar'
@@ -139,7 +139,11 @@ export function BorderEditor() {
   // each EXPORT canvas as it goes; this is the same problem from the
   // preview's side.)
   const [previewSuspended, setPreviewSuspended] = useState(false)
-  const [stageEpoch, setStageEpoch] = useState(0)
+  // The still shown in the preview's place while it is suspended, captured off
+  // the live canvas the instant before it comes down — so the export screen
+  // looks exactly as it did rather than opening a hole where the photo was.
+  const [frozenPreview, setFrozenPreview] = useState<string | null>(null)
+  const stageRef = useRef<CanvasStageHandle>(null)
 
   useEffect(() => {
     if (!uploadError) return
@@ -296,12 +300,16 @@ export function BorderEditor() {
     // same frame — set the other way round, the export screen was blank, with
     // nothing to say why, for as long as the render took.
     setExportFlow({ phase: 'rendering', done: 0, total: isBatch ? border.batchPhotoIds.length : 1, files: [] })
+    setFrozenPreview(stageRef.current?.snapshot() ?? null)
     setPreviewSuspended(true)
-    // One frame with the preview already gone before the first decode starts —
-    // without it React's re-render is queued behind the whole synchronous
-    // render loop, so the canvas would still be up for exactly the window it
-    // needed to be out of.
-    await new Promise((resolve) => requestAnimationFrame(() => setTimeout(resolve, 0)))
+    // One frame with the preview already swapped for its still before the
+    // first decode starts — without it React's re-render is queued behind the
+    // whole synchronous render loop, so the canvas would still be up for
+    // exactly the window it needed to be out of. yieldToBrowser, not a bare
+    // requestAnimationFrame: a backgrounded tab gets no frames at all, and
+    // waiting on one there stalled the export before it had rendered a single
+    // photo.
+    await yieldToBrowser()
     try {
       if (isBatch) {
         await handleBatchExport(quality)
@@ -341,9 +349,12 @@ export function BorderEditor() {
       setExportFlow(null)
     } finally {
       setExporting(false)
-      // Remount rather than merely re-show: see previewSuspended above.
-      setStageEpoch((e) => e + 1)
+      // Dropping frozenSrc remounts the Stage outright (CanvasStage renders
+      // one or the other, never both), which is the point: a canvas WebKit
+      // blanked during the render is gone for good, and only a brand-new one
+      // draws again.
       setPreviewSuspended(false)
+      setFrozenPreview(null)
     }
   }
 
@@ -389,13 +400,10 @@ export function BorderEditor() {
           className={`h-full ${swapPhase === 'entering' ? 'view-enter' : ''}`}
           onAnimationEnd={() => setSwapPhase((p) => (p === 'entering' ? 'idle' : p))}
         >
-          {photo && previewSuspended ? (
-            // Deliberately empty, not a spinner: the export modal is already
-            // up over this area reporting the progress.
-            <div className="h-full w-full" />
-          ) : photo ? (
+          {photo ? (
             <CanvasStage
-              key={stageEpoch}
+              ref={stageRef}
+              frozenSrc={previewSuspended ? frozenPreview : null}
               outputWidth={outputWidth}
               outputHeight={outputHeight}
               background={animatedBorderColorHex}
