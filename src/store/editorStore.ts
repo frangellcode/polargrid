@@ -174,6 +174,40 @@ const FREE_ITEM_WIDTH = 0.45
 const FREE_ITEM_MARGIN = 0.07
 const FREE_ITEM_CASCADE = 0.07
 
+/** Lays photos out on the free canvas as a cascade, each at its own aspect. */
+function buildFreeItems(photos: LoadedPhoto[], startIndex: number): FreeItem[] {
+  return photos.map((p, i) => {
+    const slot = startIndex + i
+    return {
+      id: `free-${p.id}`,
+      photoId: p.id,
+      // Cascaded 7% of the canvas per photo (it was 2%, which stacked them
+      // almost exactly on top of each other — the second photo hid the first,
+      // and nine landed as one pile in the corner), wrapping every fourth so a
+      // full set stays on the canvas.
+      x: FREE_ITEM_MARGIN + (slot % 4) * FREE_ITEM_CASCADE,
+      y: FREE_ITEM_MARGIN + (slot % 4) * FREE_ITEM_CASCADE + Math.floor(slot / 4) * FREE_ITEM_CASCADE,
+      width: FREE_ITEM_WIDTH,
+      // Its OWN shape. Both sides are fractions of the canvas WIDTH (see
+      // FreeItemsLayer), so a photo arrives uncropped instead of being squeezed
+      // into whatever rectangle 0.4 x 0.4 of the current canvas happened to be.
+      height: FREE_ITEM_WIDTH * (p.height / p.width),
+      rotation: 0,
+      transform: { ...DEFAULT_TRANSFORM },
+    }
+  })
+}
+
+/** Grid state (cell count, template, assignments) for a run of photos. */
+function buildGridFor(photoIds: string[]) {
+  const photoCount = Math.min(MAX_COLLAGE_PHOTOS, Math.max(MIN_COLLAGE_PHOTOS, photoIds.length))
+  const assignments = buildAssignmentsForCount(photoCount)
+  assignments.forEach((cell, i) => {
+    if (photoIds[i]) cell.photoId = photoIds[i]
+  })
+  return { photoCount, templateId: getTemplatesForCount(photoCount)[0].id, assignments }
+}
+
 function buildAssignmentsForCount(count: number): CellAssignment[] {
   return Array.from({ length: count }, (_, i) => ({
     cellId: `cell-${i}`,
@@ -318,8 +352,40 @@ export const useEditorStore = create<EditorStoreState>((set, get) => ({
   setBorderColor: (id) =>
     set((state) => ({ border: { ...state.border, borderColor: id } })),
 
+  /**
+   * Switching Template <-> Free carries the photos across when the side you're
+   * moving to is empty.
+   *
+   * The two layouts keep their own arrangement — a grid of cells on one side,
+   * loose frames on the other — and that stays true: whatever you've already
+   * arranged over there is left exactly as it was. But arriving at an empty
+   * canvas and being asked to pick the same photos again, when they are
+   * already decoded and sitting in memory, was pure friction (and it left both
+   * copies resident afterwards).
+   */
   setCollageLayoutMode: (layoutMode) =>
-    set((state) => ({ collage: { ...state.collage, layoutMode } })),
+    set((state) => {
+      const collage = state.collage
+      if (layoutMode === collage.layoutMode) return {}
+
+      if (layoutMode === 'free' && collage.freeItems.length === 0) {
+        const carried = collage.assignments
+          .map((a) => (a.photoId ? state.photos[a.photoId] : null))
+          .filter((p): p is LoadedPhoto => !!p)
+        if (carried.length > 0) {
+          return { collage: { ...collage, layoutMode, freeItems: buildFreeItems(carried, 0) } }
+        }
+      }
+
+      if (layoutMode === 'grid' && !collage.assignments.some((a) => a.photoId)) {
+        const carried = collage.freeItems.map((f) => f.photoId).filter((id) => !!state.photos[id])
+        if (carried.length > 0) {
+          return { collage: { ...collage, layoutMode, ...buildGridFor(carried) } }
+        }
+      }
+
+      return { collage: { ...collage, layoutMode } }
+    }),
 
   // Selecting a template only ever happens among templates matching the
   // current photo count (the picker filters by it), so this normally just
@@ -371,29 +437,7 @@ export const useEditorStore = create<EditorStoreState>((set, get) => ({
     if (startingFresh && newPhotos.length < MIN_COLLAGE_PHOTOS) return false
     const photoRecord = Object.fromEntries(newPhotos.map((p) => [p.id, p]))
     if (state.collage.layoutMode === 'free') {
-      const startIndex = state.collage.freeItems.length
-      const items: FreeItem[] = newPhotos.map((p, i) => {
-        const slot = startIndex + i
-        return {
-          id: `free-${p.id}`,
-          photoId: p.id,
-          // Cascaded 7% of the canvas per photo (it was 2%, which stacked them
-          // almost exactly on top of each other — the second photo hid the
-          // first, and nine landed as one pile in the corner), wrapping every
-          // fourth so a full set stays on the canvas.
-          x: FREE_ITEM_MARGIN + (slot % 4) * FREE_ITEM_CASCADE,
-          y: FREE_ITEM_MARGIN + (slot % 4) * FREE_ITEM_CASCADE + Math.floor(slot / 4) * FREE_ITEM_CASCADE,
-          width: FREE_ITEM_WIDTH,
-          // Its OWN shape. Both sides are fractions of the canvas WIDTH (see
-          // FreeItemsLayer), so a photo arrives uncropped instead of being
-          // squeezed into whatever rectangle 0.4 x 0.4 of the current canvas
-          // happened to be — square photos used to land as portrait slivers on
-          // a 9:16 canvas.
-          height: FREE_ITEM_WIDTH * (p.height / p.width),
-          rotation: 0,
-          transform: { ...DEFAULT_TRANSFORM },
-        }
-      })
+      const items = buildFreeItems(newPhotos, state.collage.freeItems.length)
       set((s) => ({
         photos: { ...s.photos, ...photoRecord },
         collage: { ...s.collage, freeItems: [...s.collage.freeItems, ...items] },

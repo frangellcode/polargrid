@@ -25,7 +25,7 @@ import { ExportFlowModal, type ExportFlowPhase } from './ExportFlowModal'
 import { ImportProgressModal } from './ImportProgressModal'
 import { WorkspaceBackgroundPicker } from './WorkspaceBackgroundPicker'
 import { BorderColorPicker } from './BorderColorPicker'
-import { IconCrop, IconDrop, IconFrame, IconGrain, IconGrid } from './icons'
+import { IconCrop, IconDrop, IconFrame, IconGrain, IconGrid, IconSwatch } from './icons'
 import { GrainOverlay } from './GrainOverlay'
 
 const PREVIEW_LONG_EDGE = 900
@@ -888,11 +888,17 @@ export function CollageEditor() {
     { id: 'formato', label: tr.collageEditor.toolAspect, icon: <IconCrop /> },
     { id: 'plantilla', label: tr.collageEditor.toolTemplate, icon: <IconGrid /> },
     { id: 'bordes', label: tr.collageEditor.toolBorder, icon: <IconFrame /> },
+    // Same tool, same icon, same place in the row as the border editor's —
+    // the border colour used to be tucked inside Workspace here and had its
+    // own tab there, so the one setting lived somewhere different depending on
+    // which editor you were in.
+    { id: 'color', label: tr.borderEditor.toolColor, icon: <IconSwatch /> },
     { id: 'grain', label: tr.collageEditor.toolGrain, icon: <IconGrain /> },
   ]
   const FREE_TOOLS: BottomBarTool[] = [
     { id: 'workspace', label: tr.tools.workspace, icon: <IconDrop /> },
     { id: 'formato', label: tr.collageEditor.toolAspect, icon: <IconCrop /> },
+    { id: 'color', label: tr.borderEditor.toolColor, icon: <IconSwatch /> },
     { id: 'grain', label: tr.collageEditor.toolGrain, icon: <IconGrain /> },
   ]
   const store = useEditorStore()
@@ -1549,10 +1555,11 @@ export function CollageEditor() {
           )}
 
           {activeToolId === 'workspace' && (
-            <>
-              <WorkspaceBackgroundPicker value={store.workspaceBackground} onChange={store.setWorkspaceBackground} />
-              <BorderColorPicker value={collage.borderColor} onChange={store.setCollageBorderColor} />
-            </>
+            <WorkspaceBackgroundPicker value={store.workspaceBackground} onChange={store.setWorkspaceBackground} />
+          )}
+
+          {activeToolId === 'color' && (
+            <BorderColorPicker value={collage.borderColor} onChange={store.setCollageBorderColor} />
           )}
 
           {activeToolId === 'grain' && (
