@@ -16,6 +16,12 @@ interface PhotoCellProps {
   transform: PhotoTransform
   onTransformChange: (t: PhotoTransform) => void
   onEmptyClick?: () => void
+  /** Tapped while it HAS a photo — Collage's grid uses this to select the cell
+   *  (which is what puts Replace/Remove on screen). Konva only fires this when
+   *  the press wasn't a drag, so panning the photo never selects by accident. */
+  onPhotoClick?: () => void
+  /** Draws the selection outline. Purely visual; the cell stays interactive. */
+  selected?: boolean
   /** 'cover' (default) crops to fill; 'contain' shows the whole photo (border-unlocked
    *  mode); a number 0..1 blends between them, for animating the toggle smoothly. */
   fit?: PhotoFit | number
@@ -63,6 +69,8 @@ export function PhotoCell({
   transform,
   onTransformChange,
   onEmptyClick,
+  onPhotoClick,
+  selected = false,
   fit = 'cover',
   animateLayout = false,
   shape = 'rect',
@@ -412,6 +420,8 @@ export function PhotoCell({
       opacity={opacity}
       clipFunc={(ctx) => traceRoundedRectPath(ctx, cornerRadius, width, height)}
       onWheel={handleWheel}
+      onClick={onPhotoClick}
+      onTap={onPhotoClick}
       onTouchMove={handleHoldCheckMove}
       onTouchEnd={clearHold}
       onMouseDown={handleHoldStart}
@@ -438,6 +448,33 @@ export function PhotoCell({
         }}
         onDragEnd={handleDragEnd}
       />
+      {/* Inside the clip, so it follows the cell's own rounded corners, and
+          drawn last so no photo covers it. Two strokes: a dark one under a
+          dashed white one, which stays legible over a photo of any colour. */}
+      {selected && (
+        <>
+          <Shape
+            listening={false}
+            sceneFunc={(ctx, node) => {
+              traceRoundedRectPath(ctx, cornerRadius, width, height)
+              ctx.strokeShape(node)
+            }}
+            stroke="#0f172a"
+            strokeWidth={6}
+            opacity={0.45}
+          />
+          <Shape
+            listening={false}
+            sceneFunc={(ctx, node) => {
+              traceRoundedRectPath(ctx, cornerRadius, width, height)
+              ctx.strokeShape(node)
+            }}
+            stroke="#ffffff"
+            strokeWidth={3}
+            dash={[14, 10]}
+          />
+        </>
+      )}
       <GrainOverlay
         // Sized to the actual drawn photo rect intersected with the cell's
         // safe bounds — NOT the raw cell size. In 'cover' fit `draw` always

@@ -107,6 +107,9 @@ interface EditorStoreState {
   setCollageGrain: (intensity: number) => void
   setCollageBorderColor: (id: string) => void
   assignPhotoToCell: (cellId: string, photoId: string | null) => void
+  /** Empties ONE grid cell, leaving the template's shape alone so the gap it
+   *  frees can be filled again by tapping it. */
+  clearCell: (cellId: string) => void
   setCellTransform: (cellId: string, transform: PhotoTransform) => void
   /** Swaps photoId + transform between two grid cells (long-press-drag reorder) —
    *  cellId itself denotes grid POSITION, not photo identity, so this is the one
@@ -458,6 +461,19 @@ export const useEditorStore = create<EditorStoreState>((set, get) => ({
         ),
       },
     })),
+
+  clearCell: (cellId) =>
+    set((state) => {
+      const collage = {
+        ...state.collage,
+        assignments: state.collage.assignments.map((a) =>
+          a.cellId === cellId ? { ...a, photoId: null, transform: { ...DEFAULT_TRANSFORM } } : a,
+        ),
+      }
+      // Emptying a cell is the one moment a photo is certain to be unwanted —
+      // its bitmap goes with it, unless the other editor still points at it.
+      return { collage, photos: prunePhotos(state.photos, state.border, collage) }
+    }),
 
   setCellTransform: (cellId, transform) =>
     set((state) => ({

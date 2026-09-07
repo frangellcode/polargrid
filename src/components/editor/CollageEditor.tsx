@@ -493,6 +493,9 @@ interface GridCellsLayerProps {
   grain: number
   onCellTransformChange: (cellId: string, transform: PhotoTransform) => void
   onEmptyCellClick: (cellId: string) => void
+  /** The cell whose photo is selected — the one Replace/Remove act on. */
+  selectedCellId: string | null
+  onSelectCell: (cellId: string | null) => void
 }
 
 /** How long the flying overlay pair takes to land in each other's spot once
@@ -582,6 +585,8 @@ function GridCellsLayer({
   grain,
   onCellTransformChange,
   onEmptyCellClick,
+  selectedCellId,
+  onSelectCell,
 }: GridCellsLayerProps) {
   const [dragState, setDragState] = useState<CellDragState | null>(null)
   const [swapAnim, setSwapAnim] = useState<SwapAnimState | null>(null)
@@ -751,8 +756,12 @@ function GridCellsLayer({
               // mousemove/touchmove listener that tracks the swap's
               // hoverCellId — the swap can never see a drop target.
               interactive={dragState?.sourceCellId !== assignment.cellId}
+              selected={selectedCellId === assignment.cellId}
               onTransformChange={(t) => onCellTransformChange(assignment.cellId, t)}
               onEmptyClick={() => onEmptyCellClick(assignment.cellId)}
+              // Tapping the photo selects its cell; tapping the selected one
+              // again lets it go, so a tap is always reversible by the same tap.
+              onPhotoClick={() => onSelectCell(selectedCellId === assignment.cellId ? null : assignment.cellId)}
               onLongPressStart={(evt) => beginDrag(assignment.cellId, evt)}
             />
             {isHoverTarget && (
@@ -895,6 +904,13 @@ export function CollageEditor() {
   const [swapKey, setSwapKey] = useState(0)
   const [pendingCellId, setPendingCellId] = useState<string | null>(null)
   const [selectedFreeId, setSelectedFreeId] = useState<string | null>(null)
+  // The grid cell whose photo is selected. Grid mode had no way at all to take
+  // a photo back out — removeCollagePhoto existed in the store and nothing
+  // ever called it — so one wrong pick meant starting the collage over, and
+  // "the collage is full, remove one" asked for something the screen couldn't
+  // do. Selection is the same gesture and the same action row free mode
+  // already uses, so the two halves of Collage now behave alike.
+  const [selectedCellId, setSelectedCellId] = useState<string | null>(null)
   const [activeTool, setActiveTool] = useState<string | null>(null)
   const [gutterLinked, setGutterLinked] = useState(false)
   const [uploadError, setUploadError] = useState<string | null>(null)
@@ -919,6 +935,12 @@ export function CollageEditor() {
   const [frozenPreview, setFrozenPreview] = useState<string | null>(null)
   const stageRef = useRef<CanvasStageHandle>(null)
   const toolbarRef = useRef<ToolbarHandle>(null)
+
+  // A selection only means anything for the cell it was made on: retiling,
+  // changing how many photos there are, or leaving grid mode all invalidate it.
+  useEffect(() => {
+    setSelectedCellId(null)
+  }, [collage.templateId, collage.photoCount, collage.orientation, collage.layoutMode])
 
   useEffect(() => {
     if (!uploadError) return
@@ -1240,6 +1262,24 @@ export function CollageEditor() {
           >
             {collage.layoutMode === 'grid'
               ? (
+                <>
+                {/* Under the cells: a tap on bare canvas (a gutter, the outer
+                    border) drops the selection. Needs an explicit hitFunc —
+                    an unfilled Rect draws nothing into Konva's hit graph. */}
+                <Rect
+                  x={0}
+                  y={0}
+                  width={outputWidth}
+                  height={outputHeight}
+                  hitFunc={(ctx, shape) => {
+                    ctx.beginPath()
+                    ctx.rect(0, 0, outputWidth, outputHeight)
+                    ctx.closePath()
+                    ctx.fillStrokeShape(shape)
+                  }}
+                  onMouseDown={() => setSelectedCellId(null)}
+                  onTouchStart={() => setSelectedCellId(null)}
+                />
                 <GridCellsLayer
                   template={template}
                   assignments={collage.assignments}
@@ -1257,7 +1297,10 @@ export function CollageEditor() {
                     setPendingCellId(cellId)
                     toolbarRef.current?.openFilePicker()
                   }}
+                  selectedCellId={selectedCellId}
+                  onSelectCell={setSelectedCellId}
                 />
+                </>
               )
               : (
                 <FreeItemsLayer
@@ -1291,14 +1334,66 @@ export function CollageEditor() {
           <button
             type="button"
             onClick={() => {
-              store.removeFreeItem(selectedFreeId)
+              const id = selectedFreeId
               setSelectedFreeId(null)
+              // Removing the last one swaps the canvas for the Dropzone — the
+              // same whole-screen change, so it gets the same crossfade
+              // instead of blinking straight to it.
+              if (collage.freeItems.length <= 1) {
+                swapContent(() => store.removeFreeItem(id))
+              } else {
+                store.removeFreeItem(id)
+              }
             }}
             className="font-label rounded-full bg-red-500/15 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-red-300 transition duration-200 hover:bg-red-500/25 active:scale-90"
           >
             {tr.collageEditor.removePhoto}
           </button>
           )}
+        </div>
+      )}
+
+      {/* Grid mode's own action row, deliberately the same shape and place as
+          free mode's above: a hint on the left, the actions for whatever is
+          selected on the right. Only mounted with a selection, so it costs no
+          height while you're just arranging. */}
+      {collage.layoutMode === 'grid' && hasContent && selectedCellId && (
+        <div className="fade-in flex shrink-0 items-center justify-between gap-3 border-t border-white/10 bg-ink-900 px-4 py-2">
+          <p className="font-label text-[11px] leading-snug text-white/40">{tr.collageEditor.gridCellHint}</p>
+          <div className="flex shrink-0 items-center gap-2">
+            <button
+              type="button"
+              onClick={() => {
+                // Straight into the same picker the empty cell uses, aimed at
+                // this cell — so "replace" is one tap, not remove-then-add.
+                setPendingCellId(selectedCellId)
+                setSelectedCellId(null)
+                toolbarRef.current?.openFilePicker()
+              }}
+              className="font-label rounded-full bg-white/10 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-white transition duration-200 hover:bg-white/15 active:scale-90"
+            >
+              {tr.collageEditor.replacePhoto}
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                const cellId = selectedCellId
+                setSelectedCellId(null)
+                // Emptying the LAST cell turns the canvas back into the
+                // Dropzone, which is a whole-screen change and gets the same
+                // crossfade every other one does. Emptying any other cell is
+                // just a gap opening up, and the grid animates that itself.
+                if (collage.assignments.filter((a) => a.photoId).length <= 1) {
+                  swapContent(() => store.clearCell(cellId))
+                } else {
+                  store.clearCell(cellId)
+                }
+              }}
+              className="font-label rounded-full bg-red-500/15 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-red-300 transition duration-200 hover:bg-red-500/25 active:scale-90"
+            >
+              {tr.collageEditor.removePhoto}
+            </button>
+          </div>
         </div>
       )}
 
@@ -1382,7 +1477,12 @@ export function CollageEditor() {
                   onChange={store.setCollageTemplateId}
                 />
               </div>
-              <p className="font-label text-center text-xs text-white/40">{tr.collageEditor.emptyCellHint}</p>
+              {/* Only while there is actually a gap to fill. Before cells
+                  could be emptied there never was one, so this line sat there
+                  permanently describing something that could not happen. */}
+              {collage.assignments.some((a) => !a.photoId) && (
+                <p className="font-label text-center text-xs text-white/40">{tr.collageEditor.emptyCellHint}</p>
+              )}
             </>
           )}
 
