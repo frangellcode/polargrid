@@ -330,8 +330,16 @@ export const useEditorStore = create<EditorStoreState>((set, get) => ({
 
   setCollageShape: (shape) => set((state) => ({ collage: { ...state.collage, shape } })),
 
+  // The two orientations move together, in both directions.
+  //
+  // They used to be independent: `orientation` transposed the TEMPLATE and
+  // `ratioOrientation` (over in Aspect) flipped the CANVAS. So tapping
+  // Horizontal under Template re-tiled a 2x3 into a 3x2 and left it inside a
+  // 9:16 portrait canvas — six absurdly tall slivers, and the control read as
+  // broken. Nobody wants a horizontal grid in a vertical frame; one intent,
+  // one state, surfaced in both places.
   setCollageOrientation: (orientation) =>
-    set((state) => ({ collage: { ...state.collage, orientation } })),
+    set((state) => ({ collage: { ...state.collage, orientation, ratioOrientation: orientation } })),
 
   addCollagePhotos: (allNewPhotos) => {
     const state = get()
@@ -426,7 +434,7 @@ export const useEditorStore = create<EditorStoreState>((set, get) => ({
     set((state) => ({ collage: { ...state.collage, aspectRatioId: id } })),
 
   setCollageRatioOrientation: (orientation) =>
-    set((state) => ({ collage: { ...state.collage, ratioOrientation: orientation } })),
+    set((state) => ({ collage: { ...state.collage, ratioOrientation: orientation, orientation } })),
 
   setOuterBorderPct: (pct) => set((state) => ({ collage: { ...state.collage, outerBorderPct: pct } })),
 

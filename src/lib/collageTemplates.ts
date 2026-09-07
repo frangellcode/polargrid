@@ -1598,11 +1598,20 @@ export function transposeTemplate(template: GridTemplate): GridTemplate {
     id: `${template.id}-t`,
     cols: template.rows,
     rows: template.cols,
-    cells: template.cells.map((cell) => ({
-      col: cell.row,
-      row: cell.col,
-      colSpan: cell.rowSpan,
-      rowSpan: cell.colSpan,
-    })),
+    cells: template.cells
+      .map((cell) => ({
+        col: cell.row,
+        row: cell.col,
+        colSpan: cell.rowSpan,
+        rowSpan: cell.colSpan,
+      }))
+      // Re-sorted into reading order, because photos are placed into
+      // template.cells IN ORDER: cell 0 gets the first photo, cell 1 the
+      // second. Transposing alone keeps the source template's ordering, which
+      // after the flip runs DOWN each column — so a vertical collage (the
+      // default) filled the first column top to bottom, then the second. Six
+      // photos picked as A B C D E F landed as A D / B E / C F. Sorting by
+      // row then column puts them back in the order anyone reads a grid in.
+      .sort((a, b) => a.row - b.row || a.col - b.col),
   }
 }

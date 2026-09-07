@@ -1209,7 +1209,7 @@ export function CollageEditor() {
         </p>
       )}
 
-      <div className="flex items-center justify-center gap-2 border-b border-white/10 bg-ink-900 px-4 py-2">
+      <div className="flex shrink-0 items-center justify-center gap-2 border-b border-white/10 bg-ink-900 px-4 py-2">
         {(['grid', 'free'] as const).map((m) => (
           <button
             key={m}
@@ -1285,7 +1285,7 @@ export function CollageEditor() {
           — it's the answer to "how do I make this photo bigger", which is
           exactly the question asked before anything is selected. */}
       {collage.layoutMode === 'free' && hasContent && (
-        <div className="fade-in flex items-center justify-between gap-3 border-t border-white/10 bg-ink-900 px-4 py-2">
+        <div className="fade-in flex shrink-0 items-center justify-between gap-3 border-t border-white/10 bg-ink-900 px-4 py-2">
           <p className="font-label text-[11px] leading-snug text-white/40">{tr.collageEditor.freeHint}</p>
           {selectedFreeId && (
           <button
@@ -1305,7 +1305,11 @@ export function CollageEditor() {
       {hasContent && (
         <div
           key={swapKey}
-          className={swapPhase === 'exiting' ? 'view-exit' : swapPhase === 'entering' ? 'view-enter' : ''}
+          // shrink-0: this is a flex item, and when the panel above grew
+          // taller than the room left the bar was the thing flexbox chose to
+          // squeeze — clipping its own last row behind the tool icons. The
+          // canvas (flex-1 min-h-0) is what should absorb the pressure.
+          className={`shrink-0 ${swapPhase === 'exiting' ? 'view-exit' : swapPhase === 'entering' ? 'view-enter' : ''}`}
         >
         <EditorBottomBar tools={tools} activeId={activeToolId} onSelect={setActiveTool}>
           {activeToolId === 'formato' && (

@@ -461,7 +461,11 @@ export function BorderEditor() {
       {photo && (
         <div
           key={`bar-${swapKey}`}
-          className={swapPhase === 'exiting' ? 'view-exit' : swapPhase === 'entering' ? 'view-enter' : ''}
+          // shrink-0: this is a flex item, and when the panel above grew
+          // taller than the room left the bar was the thing flexbox chose to
+          // squeeze — clipping its own last row behind the tool icons. The
+          // canvas (flex-1 min-h-0) is what should absorb the pressure.
+          className={`shrink-0 ${swapPhase === 'exiting' ? 'view-exit' : swapPhase === 'entering' ? 'view-enter' : ''}`}
         >
         <EditorBottomBar tools={TOOLS} activeId={activeTool} onSelect={setActiveTool}>
           {activeTool === 'aspecto' && (
