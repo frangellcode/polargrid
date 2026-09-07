@@ -85,9 +85,10 @@ export const translations = {
         n === 1
           ? 'There is room for 1 more photo — nothing was added, select just one'
           : `There is room for ${n} more photos — nothing was added, select ${n} or fewer`,
-      freeHint: 'Drag to move · pinch to resize and rotate',
+      freeHint: 'Drag · pinch to resize and rotate',
       removePhoto: 'Remove photo',
       replacePhoto: 'Replace',
+      bringToFront: 'To front',
       gridCellHint: 'Drag to reposition · hold to move',
       canvasFormat: 'Canvas format',
       orientation: 'Orientation',
@@ -223,9 +224,10 @@ export const translations = {
         n === 1
           ? 'Queda espacio para 1 foto más — no se agregó ninguna, selecciona solo una'
           : `Queda espacio para ${n} fotos más — no se agregó ninguna, selecciona ${n} o menos`,
-      freeHint: 'Arrastra para mover · pellizca para agrandar y girar',
+      freeHint: 'Arrastra · pellizca para agrandar y girar',
       removePhoto: 'Eliminar foto',
       replacePhoto: 'Reemplazar',
+      bringToFront: 'Al frente',
       gridCellHint: 'Arrastra para encuadrar · mantén para mover',
       canvasFormat: 'Formato del lienzo',
       orientation: 'Orientación',

@@ -404,8 +404,12 @@ export async function renderCollageFree(
   freeItems.forEach((item) => {
     const photo = photos[item.photoId]
     if (!photo) return
+    // Both sides against the canvas WIDTH, matching the preview's own geometry
+    // (see FreeItemsLayer.geom) — measuring the height against the canvas
+    // height here would export every photo a different shape from the one on
+    // screen the moment the canvas wasn't square.
     const w = item.width * refSize.width
-    const h = item.height * refSize.height
+    const h = item.height * refSize.width
     const zoom = Math.max(1, item.transform.zoom)
     const usable = MAX_CELL_UPSCALE / zoom
     maxScale = Math.min(maxScale, (photo.width * usable) / w, (photo.height * usable) / h)
@@ -433,7 +437,7 @@ export async function renderCollageFree(
       item.x * width,
       item.y * height,
       item.width * width,
-      item.height * height,
+      item.height * width,
       item.transform,
       item.rotation,
       'cover',

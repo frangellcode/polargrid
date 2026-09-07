@@ -144,17 +144,27 @@ function FreeItemsLayer({ outputWidth, outputHeight, selectedId, onSelect, grain
     }
   }, [])
 
+  /**
+   * A free item's rect on the canvas.
+   *
+   * BOTH sides are fractions of the canvas WIDTH. Measuring the height against
+   * the canvas height instead (as this did) tied every photo's shape to the
+   * canvas's: 0.4 x 0.4 was a portrait rectangle on 9:16 and a square on 1:1,
+   * so switching format re-shaped and re-cropped every photo in a composition
+   * that was already arranged. With one basis for both, changing the canvas
+   * moves the frame around but never distorts what's in it.
+   */
   const geom = (item: FreeItem) => {
     const w = item.width * outputWidth
-    const h = item.height * outputHeight
+    const h = item.height * outputWidth
     return { w, h, cx: item.x * outputWidth + w / 2, cy: item.y * outputHeight + h / 2 }
   }
 
   /** Keeps a scale factor inside the size bounds on BOTH axes. */
   const clampScale = (item: FreeItem, scale: number) => {
-    const minScale = Math.max(MIN_ITEM_FRACTION / item.width, MIN_ITEM_FRACTION / item.height)
-    const maxScale = Math.min(MAX_ITEM_FRACTION / item.width, MAX_ITEM_FRACTION / item.height)
-    return Math.min(maxScale, Math.max(minScale, scale))
+    const longest = Math.max(item.width, item.height)
+    const shortest = Math.min(item.width, item.height)
+    return Math.min(MAX_ITEM_FRACTION / longest, Math.max(MIN_ITEM_FRACTION / shortest, scale))
   }
 
   /** Resizes about the center: the item keeps its middle exactly where it is,
@@ -164,7 +174,7 @@ function FreeItemsLayer({ outputWidth, outputHeight, selectedId, onSelect, grain
       x: (cx - w / 2) / outputWidth,
       y: (cy - h / 2) / outputHeight,
       width: w / outputWidth,
-      height: h / outputHeight,
+      height: h / outputWidth,
       rotation,
     })
   }
@@ -1331,6 +1341,14 @@ export function CollageEditor() {
         <div className="fade-in flex shrink-0 items-center justify-between gap-3 border-t border-white/10 bg-ink-900 px-4 py-2">
           <p className="font-label text-[11px] leading-snug text-white/40">{tr.collageEditor.freeHint}</p>
           {selectedFreeId && (
+          <div className="flex shrink-0 items-center gap-2">
+          <button
+            type="button"
+            onClick={() => store.bringFreeItemToFront(selectedFreeId)}
+            className="font-label rounded-full bg-white/10 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-white transition duration-200 hover:bg-white/15 active:scale-90"
+          >
+            {tr.collageEditor.bringToFront}
+          </button>
           <button
             type="button"
             onClick={() => {
@@ -1349,6 +1367,7 @@ export function CollageEditor() {
           >
             {tr.collageEditor.removePhoto}
           </button>
+          </div>
           )}
         </div>
       )}

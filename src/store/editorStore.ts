@@ -117,6 +117,9 @@ interface EditorStoreState {
    *  the photo that was there goes the other way, in a single state transition. */
   swapCellAssignments: (cellIdA: string, cellIdB: string) => void
   updateFreeItem: (id: string, patch: Partial<FreeItem>) => void
+  /** Moves one free item to the end of the list, i.e. on top of the others —
+   *  the only way to change what covers what, since they are drawn in order. */
+  bringFreeItemToFront: (id: string) => void
   removeFreeItem: (id: string) => void
 }
 
@@ -163,6 +166,13 @@ function prunePhotos(
   // prune that freed nothing.
   return dropped ? next : photos
 }
+
+/** How a photo dropped into the free canvas is placed, as fractions of the
+ *  canvas WIDTH (both axes — see FreeItemsLayer for why width is the basis for
+ *  both). */
+const FREE_ITEM_WIDTH = 0.45
+const FREE_ITEM_MARGIN = 0.07
+const FREE_ITEM_CASCADE = 0.07
 
 function buildAssignmentsForCount(count: number): CellAssignment[] {
   return Array.from({ length: count }, (_, i) => ({
@@ -362,16 +372,28 @@ export const useEditorStore = create<EditorStoreState>((set, get) => ({
     const photoRecord = Object.fromEntries(newPhotos.map((p) => [p.id, p]))
     if (state.collage.layoutMode === 'free') {
       const startIndex = state.collage.freeItems.length
-      const items: FreeItem[] = newPhotos.map((p, i) => ({
-        id: `free-${p.id}`,
-        photoId: p.id,
-        x: 0.05 + ((startIndex + i) % 4) * 0.02,
-        y: 0.05 + ((startIndex + i) % 4) * 0.02,
-        width: 0.4,
-        height: 0.4,
-        rotation: 0,
-        transform: { ...DEFAULT_TRANSFORM },
-      }))
+      const items: FreeItem[] = newPhotos.map((p, i) => {
+        const slot = startIndex + i
+        return {
+          id: `free-${p.id}`,
+          photoId: p.id,
+          // Cascaded 7% of the canvas per photo (it was 2%, which stacked them
+          // almost exactly on top of each other — the second photo hid the
+          // first, and nine landed as one pile in the corner), wrapping every
+          // fourth so a full set stays on the canvas.
+          x: FREE_ITEM_MARGIN + (slot % 4) * FREE_ITEM_CASCADE,
+          y: FREE_ITEM_MARGIN + (slot % 4) * FREE_ITEM_CASCADE + Math.floor(slot / 4) * FREE_ITEM_CASCADE,
+          width: FREE_ITEM_WIDTH,
+          // Its OWN shape. Both sides are fractions of the canvas WIDTH (see
+          // FreeItemsLayer), so a photo arrives uncropped instead of being
+          // squeezed into whatever rectangle 0.4 x 0.4 of the current canvas
+          // happened to be — square photos used to land as portrait slivers on
+          // a 9:16 canvas.
+          height: FREE_ITEM_WIDTH * (p.height / p.width),
+          rotation: 0,
+          transform: { ...DEFAULT_TRANSFORM },
+        }
+      })
       set((s) => ({
         photos: { ...s.photos, ...photoRecord },
         collage: { ...s.collage, freeItems: [...s.collage.freeItems, ...items] },
@@ -509,6 +531,18 @@ export const useEditorStore = create<EditorStoreState>((set, get) => ({
         freeItems: state.collage.freeItems.map((f) => (f.id === id ? { ...f, ...patch } : f)),
       },
     })),
+
+  bringFreeItemToFront: (id) =>
+    set((state) => {
+      const item = state.collage.freeItems.find((f) => f.id === id)
+      if (!item || state.collage.freeItems.at(-1)?.id === id) return {}
+      return {
+        collage: {
+          ...state.collage,
+          freeItems: [...state.collage.freeItems.filter((f) => f.id !== id), item],
+        },
+      }
+    }),
 
   removeFreeItem: (id) =>
     set((state) => {
