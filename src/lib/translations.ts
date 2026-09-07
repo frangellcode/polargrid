@@ -37,7 +37,10 @@ export const translations = {
       someFailed: (n: number) =>
         n === 1 ? 'One photo could not be read and was skipped' : `${n} photos could not be read and were skipped`,
       unsupportedFormat: 'Only JPEG, PNG and HEIC — RAW files (DNG, CR2, ARW) cannot be opened',
-      tooHeavy: (mb: number) => `Each photo must be under ${mb} MB — the heavier ones were skipped`,
+      tooHeavy: (mb: number, n = 2) =>
+        n === 1
+          ? `That photo is over ${mb} MB — pick a lighter one`
+          : `Each photo must be under ${mb} MB — the heavier ones were skipped`,
       addPhoto: 'Add photo',
       exportFailed: 'Could not export — try a lower quality or fewer photos.',
       readyToSave: (n: number) =>
@@ -104,6 +107,12 @@ export const translations = {
       linked: 'Linked with outer border ✓',
       matchOuter: 'Match outer border',
       grain: 'Grain',
+    },
+    discard: {
+      title: 'Leave this behind?',
+      body: 'Going back clears the photos and adjustments you have here.',
+      keep: 'Keep editing',
+      discard: 'Discard',
     },
     exportSheet: {
       close: 'Close',
@@ -176,7 +185,10 @@ export const translations = {
       someFailed: (n: number) =>
         n === 1 ? 'Una foto no se pudo leer y se omitió' : `${n} fotos no se pudieron leer y se omitieron`,
       unsupportedFormat: 'Solo JPEG, PNG y HEIC — los archivos RAW (DNG, CR2, ARW) no se pueden abrir',
-      tooHeavy: (mb: number) => `Cada foto debe pesar menos de ${mb} MB — las más pesadas se omitieron`,
+      tooHeavy: (mb: number, n = 2) =>
+        n === 1
+          ? `Esa foto pesa más de ${mb} MB — elige una más liviana`
+          : `Cada foto debe pesar menos de ${mb} MB — las más pesadas se omitieron`,
       addPhoto: 'Agregar foto',
       exportFailed: 'No se pudo exportar — prueba con menos calidad o menos fotos.',
       readyToSave: (n: number) =>
@@ -243,6 +255,12 @@ export const translations = {
       linked: 'Vinculado con el borde exterior ✓',
       matchOuter: 'Igualar con el borde exterior',
       grain: 'Grano',
+    },
+    discard: {
+      title: '¿Dejar esto?',
+      body: 'Al volver se borran las fotos y los ajustes que tienes aquí.',
+      keep: 'Seguir editando',
+      discard: 'Descartar',
     },
     exportSheet: {
       close: 'Cerrar',

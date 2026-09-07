@@ -2,7 +2,7 @@ import { forwardRef, useEffect, useImperativeHandle, useLayoutEffect, useRef, us
 import type { ChangeEvent } from 'react'
 import type { ExportQuality } from '../../types'
 import { useTranslation } from '../../store/languageStore'
-import { CLOSE_MS, ExportQualitySheet } from './ExportQualitySheet'
+import { ExportQualitySheet } from './ExportQualitySheet'
 import { PHOTO_ACCEPT_ATTR } from '../../lib/photoInput'
 
 interface ToolbarProps {
@@ -89,9 +89,13 @@ export const Toolbar = forwardRef<ToolbarHandle, ToolbarProps>(function Toolbar(
 
   const handleConfirmExport = (quality: ExportQuality) => {
     setSheetOpen(false)
-    // Let the sheet's own close transition actually play before the export
-    // (a synchronous canvas render that blocks the main thread) kicks off.
-    setTimeout(() => onExport(quality), CLOSE_MS)
+    // Straight through, no delay. This used to wait out the sheet's close
+    // transition before even telling the editor to start, so for those 300ms
+    // the screen had accepted the tap and showed nothing about it. The editor
+    // now raises its own progress card immediately and waits out the sheet
+    // itself (see SHEET_SETTLE_MS) before the render blocks the main thread —
+    // so both animations still play, with nothing dead in between.
+    onExport(quality)
   }
 
   return (

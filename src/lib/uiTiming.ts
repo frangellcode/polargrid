@@ -25,3 +25,16 @@ export async function holdImportCard(startedAt: number, count: number): Promise<
   if (remaining <= 0) return
   await new Promise((resolve) => setTimeout(resolve, remaining))
 }
+
+/** How long the export quality sheet takes to slide away (ExportQualitySheet's
+ *  own CLOSE_MS). The editors wait this out — with their progress card already
+ *  up — before starting the render, because that render blocks the main thread
+ *  and would freeze the sheet mid-slide. */
+export const SHEET_SETTLE_MS = 300
+
+/** Resolves once the quality sheet has finished closing. Deliberately a plain
+ *  timer, not a frame: a backgrounded tab gets no frames, and an export that
+ *  waits for one there never starts at all. */
+export function holdForSheetClose(): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, SHEET_SETTLE_MS))
+}

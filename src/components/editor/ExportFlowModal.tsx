@@ -185,7 +185,25 @@ export function ExportFlowModal({
                   // that needs something visibly still working.
                   <div className="h-10 w-10 animate-spin rounded-full border-2 border-white/15 border-t-white" />
                 ) : (
-                  <div className="flex h-12 w-12 items-center justify-center rounded-full bg-white/10 text-2xl">✓</div>
+                  // A save glyph, NOT the tick: this card is still asking for a
+                  // tap, and wearing the same ✓ the confirmation wears read as
+                  // "already saved" to anyone glancing at it.
+                  <div className="flex h-12 w-12 items-center justify-center rounded-full bg-white/10 text-white">
+                    <svg
+                      width={22}
+                      height={22}
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth={2}
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      aria-hidden="true"
+                    >
+                      <path d="M12 4v12M12 16l-4-4M12 16l4-4" />
+                      <path d="M4 18v1a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-1" />
+                    </svg>
+                  </div>
                 )}
 
                 <p className="font-label text-xs text-white/50">

@@ -9,9 +9,9 @@ import { easeInOutCubic, useAnimatedColor, useAnimatedNumber, useIsReflowing } f
 import { COLLAGE_ASPECT_RATIOS } from '../../lib/aspectRatios'
 import { computeOutputPixelSize, getImageDrawRect } from '../../lib/cropMath'
 import { MAX_PHOTO_MB, screenPhotoFiles } from '../../lib/photoInput'
-import { holdImportCard } from '../../lib/uiTiming'
+import { holdForSheetClose, holdImportCard } from '../../lib/uiTiming'
 import { MAX_COLLAGE_PHOTOS, MIN_COLLAGE_PHOTOS, getTemplateById, transposeTemplate } from '../../lib/collageTemplates'
-import { renderCollageFree, renderCollageGrid, resolveRatio, saveExportedFiles, yieldToBrowser } from '../../lib/exportImage'
+import { renderCollageFree, renderCollageGrid, resolveRatio, saveExportedFiles } from '../../lib/exportImage'
 import { getBorderColor } from '../../lib/borderColors'
 import { Toolbar, type ToolbarHandle } from './Toolbar'
 import { AspectRatioPicker } from './AspectRatioPicker'
@@ -23,6 +23,7 @@ import { Dropzone } from './Dropzone'
 import { EditorBottomBar, type BottomBarTool } from './EditorBottomBar'
 import { ExportFlowModal, type ExportFlowPhase } from './ExportFlowModal'
 import { ImportProgressModal } from './ImportProgressModal'
+import { ConfirmDiscardModal } from './ConfirmDiscardModal'
 import { WorkspaceBackgroundPicker } from './WorkspaceBackgroundPicker'
 import { BorderColorPicker } from './BorderColorPicker'
 import { IconCrop, IconDrop, IconFrame, IconGrain, IconGrid, IconSwatch } from './icons'
@@ -934,6 +935,9 @@ export function CollageEditor() {
   // Non-null for exactly as long as a selection is being decoded — see
   // ImportProgressModal for why that window needs something on screen.
   const [importing, setImporting] = useState<{ done: number; total: number } | null>(null)
+  // Back throws the collage away (App.tsx resets the screen you leave), so it
+  // asks first — but only when there is something to lose.
+  const [confirmingBack, setConfirmingBack] = useState(false)
   // The export's own modal — the confirmation, or, when iOS wouldn't open the
   // share sheet because the Export tap had already expired, the tap that hands
   // this exact file to it with no re-render. See BorderEditor's own exportFlow.
@@ -1091,7 +1095,7 @@ export function CollageEditor() {
     // ignoring a selection reads as the app losing the photos.
     const { accepted, rejectedType, rejectedSize } = screenPhotoFiles(files)
     if (rejectedType > 0) setUploadError(tr.toolbar.unsupportedFormat)
-    else if (rejectedSize > 0) setUploadError(tr.toolbar.tooHeavy(MAX_PHOTO_MB))
+    else if (rejectedSize > 0) setUploadError(tr.toolbar.tooHeavy(MAX_PHOTO_MB, rejectedSize))
     if (accepted.length === 0) return
     // The picker has no notion of a maximum, so an over-sized selection has to
     // be caught here — and it is rejected WHOLE rather than trimmed to what
@@ -1166,10 +1170,11 @@ export function CollageEditor() {
     // One frame with the preview already swapped for its still before the
     // first decode starts — otherwise React's re-render is queued behind the
     // whole synchronous render and the canvas stays up for exactly the window
-    // it must not. yieldToBrowser, not a bare requestAnimationFrame: a
-    // backgrounded tab gets no frames at all, and waiting on one there stalled
-    // the export before it had rendered a single photo.
-    await yieldToBrowser()
+    // it must not.
+    // The card is up; now let the quality sheet finish sliding away before the
+    // render seizes the main thread. Doubles as the frame the preview needs to
+    // be swapped for its still before the canvas comes down.
+    await holdForSheetClose()
     try {
       // Rendered here, saved on a deliberate tap — never shared off the Export
       // tap itself. A collage is the heaviest render in the app and routinely
@@ -1221,7 +1226,7 @@ export function CollageEditor() {
       <Toolbar
         ref={toolbarRef}
         title={tr.home.collageTitle}
-        onBack={() => store.setMode('home')}
+        onBack={() => (hasContent ? setConfirmingBack(true) : store.setMode('home'))}
         onUpload={handleUpload}
         onExport={handleExport}
         exportQuality={collage.exportQuality}
@@ -1576,6 +1581,15 @@ export function CollageEditor() {
       )}
 
       <ImportProgressModal open={!!importing} done={importing?.done ?? 0} total={importing?.total ?? 0} />
+
+      <ConfirmDiscardModal
+        open={confirmingBack}
+        onCancel={() => setConfirmingBack(false)}
+        onConfirm={() => {
+          setConfirmingBack(false)
+          store.setMode('home')
+        }}
+      />
 
       <ExportFlowModal
         open={!!exportFlow}

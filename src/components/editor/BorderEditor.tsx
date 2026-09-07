@@ -6,8 +6,8 @@ import { useImageBitmap } from '../../hooks/useImageBitmap'
 import { useAnimatedColor, useAnimatedNumber } from '../../hooks/useAnimatedNumber'
 import { computeOutputPixelSize } from '../../lib/cropMath'
 import { MAX_PHOTO_MB, screenPhotoFiles } from '../../lib/photoInput'
-import { holdImportCard } from '../../lib/uiTiming'
-import { renderBorderPhotoFiles, resolveRatio, saveExportedFiles, yieldToBrowser } from '../../lib/exportImage'
+import { holdForSheetClose, holdImportCard } from '../../lib/uiTiming'
+import { renderBorderPhotoFiles, resolveRatio, saveExportedFiles } from '../../lib/exportImage'
 import { Toolbar } from './Toolbar'
 import { AspectRatioPicker } from './AspectRatioPicker'
 import { BorderThicknessSlider } from './BorderThicknessSlider'
@@ -17,6 +17,7 @@ import { Dropzone } from './Dropzone'
 import { EditorBottomBar, type BottomBarTool } from './EditorBottomBar'
 import { ExportFlowModal, type ExportFlowPhase } from './ExportFlowModal'
 import { ImportProgressModal } from './ImportProgressModal'
+import { ConfirmDiscardModal } from './ConfirmDiscardModal'
 import { WorkspaceBackgroundPicker } from './WorkspaceBackgroundPicker'
 import { BorderColorPicker } from './BorderColorPicker'
 import { getBorderColor } from '../../lib/borderColors'
@@ -89,13 +90,16 @@ export function BorderEditor() {
   // Non-null for exactly as long as a selection is being decoded — see
   // ImportProgressModal for why that window needs something on screen.
   const [importing, setImporting] = useState<{ done: number; total: number } | null>(null)
+  // Back throws the editor away (App.tsx resets the screen you leave), so it
+  // asks first — but only when there is something to lose.
+  const [confirmingBack, setConfirmingBack] = useState(false)
 
   // Screens a raw selection and reports whatever was dropped. Returns null when
   // there's nothing usable left, so callers can just bail.
   const screen = (files: FileList): File[] | null => {
     const { accepted, rejectedType, rejectedSize } = screenPhotoFiles(files)
     setUploadError(
-      rejectedType > 0 ? tr.toolbar.unsupportedFormat : rejectedSize > 0 ? tr.toolbar.tooHeavy(MAX_PHOTO_MB) : null,
+      rejectedType > 0 ? tr.toolbar.unsupportedFormat : rejectedSize > 0 ? tr.toolbar.tooHeavy(MAX_PHOTO_MB, rejectedSize) : null,
     )
     return accepted.length > 0 ? accepted : null
   }
@@ -322,11 +326,11 @@ export function BorderEditor() {
     // One frame with the preview already swapped for its still before the
     // first decode starts — without it React's re-render is queued behind the
     // whole synchronous render loop, so the canvas would still be up for
-    // exactly the window it needed to be out of. yieldToBrowser, not a bare
-    // requestAnimationFrame: a backgrounded tab gets no frames at all, and
-    // waiting on one there stalled the export before it had rendered a single
-    // photo.
-    await yieldToBrowser()
+    // exactly the window it needed to be out of.
+    // The card is up; now let the quality sheet finish sliding away before the
+    // render seizes the main thread. Doubles as the frame the preview needs to
+    // be swapped for its still before the canvas comes down.
+    await holdForSheetClose()
     try {
       await renderExport(quality)
     } catch {
@@ -354,7 +358,7 @@ export function BorderEditor() {
     <div className="flex h-full flex-col bg-ink-900">
       <Toolbar
         title={tr.borderEditor.title}
-        onBack={() => setMode('home')}
+        onBack={() => (photo ? setConfirmingBack(true) : setMode('home'))}
         onUpload={isBatch ? handleBatchUpload : handleUpload}
         onExport={handleExport}
         exportQuality={border.exportQuality}
@@ -533,6 +537,15 @@ export function BorderEditor() {
       )}
 
       <ImportProgressModal open={!!importing} done={importing?.done ?? 0} total={importing?.total ?? 0} />
+
+      <ConfirmDiscardModal
+        open={confirmingBack}
+        onCancel={() => setConfirmingBack(false)}
+        onConfirm={() => {
+          setConfirmingBack(false)
+          setMode('home')
+        }}
+      />
 
       <ExportFlowModal
         open={!!exportFlow}
