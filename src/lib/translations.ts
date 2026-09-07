@@ -61,6 +61,8 @@ export const translations = {
       dropBatchHint: (n: number, mb: number) =>
         `up to ${n} photos under ${mb} MB, same adjustment applied to all`,
       batchCount: (n: number) => `${n} photos selected — this adjustment will be applied to all of them on export`,
+      batchNote: (n: number) => `same adjustment\nfor all ${n}`,
+      batchThumb: (n: number) => `Preview photo ${n}`,
       batchTooMany: (n: number) => `${n} photos max — nothing was added, select ${n} or fewer`,
       exportingBatch: (done: number, total: number) => `Exporting ${done}/${total}…`,
       cropHeading: 'Aspect',
@@ -209,6 +211,8 @@ export const translations = {
       dropBatchHint: (n: number, mb: number) =>
         `hasta ${n} fotos de menos de ${mb} MB, mismo ajuste para todas`,
       batchCount: (n: number) => `${n} fotos seleccionadas — este ajuste se aplicará a todas al exportar`,
+      batchNote: (n: number) => `mismo ajuste\npara las ${n}`,
+      batchThumb: (n: number) => `Ver la foto ${n}`,
       batchTooMany: (n: number) => `Máximo ${n} fotos — no se agregó ninguna, selecciona ${n} o menos`,
       exportingBatch: (done: number, total: number) => `Exportando ${done}/${total}…`,
       cropHeading: 'Aspecto',

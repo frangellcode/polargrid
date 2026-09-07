@@ -18,6 +18,7 @@ import { EditorBottomBar, type BottomBarTool } from './EditorBottomBar'
 import { ExportFlowModal, type ExportFlowPhase } from './ExportFlowModal'
 import { ImportProgressModal } from './ImportProgressModal'
 import { ConfirmDiscardModal } from './ConfirmDiscardModal'
+import { BatchStrip } from './BatchStrip'
 import { WorkspaceBackgroundPicker } from './WorkspaceBackgroundPicker'
 import { BorderColorPicker } from './BorderColorPicker'
 import { getBorderColor } from '../../lib/borderColors'
@@ -93,6 +94,9 @@ export function BorderEditor() {
   // Back throws the editor away (App.tsx resets the screen you leave), so it
   // asks first — but only when there is something to lose.
   const [confirmingBack, setConfirmingBack] = useState(false)
+  // Which photo of a batch the canvas is showing. The adjustment is still one
+  // shared adjustment; this only picks which photo you're checking it against.
+  const [previewIndex, setPreviewIndex] = useState(0)
 
   // Screens a raw selection and reports whatever was dropped. Returns null when
   // there's nothing usable left, so callers can just bail.
@@ -176,8 +180,19 @@ export function BorderEditor() {
     }, EXIT_MS)
   }
 
-  const photo = border.photoId ? photos[border.photoId] : null
   const isBatch = border.batchPhotoIds.length > 1
+  const batchPhotos = border.batchPhotoIds.map((id) => photos[id]).filter((p) => !!p)
+  // Falls back to the first photo whenever the index is stale — a batch can
+  // shrink (a new, smaller selection) between renders.
+  const photo = isBatch
+    ? (batchPhotos[previewIndex] ?? batchPhotos[0] ?? null)
+    : border.photoId
+      ? photos[border.photoId]
+      : null
+
+  useEffect(() => {
+    setPreviewIndex(0)
+  }, [border.batchPhotoIds])
 
   const ratio = useMemo(() => {
     const fallback = photo ? photo.width / photo.height : 1
@@ -310,8 +325,7 @@ export function BorderEditor() {
   }
 
   /** Every photo this export covers: the whole batch, or the single one. */
-  const exportPhotoList = () =>
-    isBatch ? border.batchPhotoIds.map((id) => photos[id]).filter((p) => !!p) : photo ? [photo] : []
+  const exportPhotoList = () => (isBatch ? batchPhotos : photo ? [photo] : [])
 
   const handleExport = async (quality: ExportQuality) => {
     if (!photo) return
@@ -383,13 +397,17 @@ export function BorderEditor() {
           className={swapPhase === 'exiting' ? 'view-exit' : swapPhase === 'entering' ? 'view-enter' : ''}
         >
           {/* mt-2 here is matched by the pt-2 the canvas area takes on while
-              this banner is up (see below), so the two gaps stay equal — the
-              banner reads as its own row rather than as something stuck to the
-              toolbar — while both are tight enough to hand the extra height to
-              the photo. */}
-          <p className="font-label mx-4 mt-2 rounded-lg border border-white/15 bg-white/5 px-3 py-2 text-center text-[11px] leading-snug text-white/70">
-            {tr.borderEditor.batchCount(border.batchPhotoIds.length)}
-          </p>
+              this row is up (see below), so the two gaps stay equal — it reads
+              as its own row rather than as something stuck to the toolbar —
+              while both are tight enough to hand the extra height to the
+              photo. */}
+          <BatchStrip
+            photos={batchPhotos}
+            selectedIndex={Math.min(previewIndex, Math.max(0, batchPhotos.length - 1))}
+            onSelect={setPreviewIndex}
+            note={tr.borderEditor.batchNote(batchPhotos.length)}
+            thumbLabel={tr.borderEditor.batchThumb}
+          />
         </div>
       )}
 
