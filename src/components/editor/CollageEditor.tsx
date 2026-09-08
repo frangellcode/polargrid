@@ -24,6 +24,7 @@ import { EditorBottomBar, type BottomBarTool } from './EditorBottomBar'
 import { ExportFlowModal, type ExportFlowPhase } from './ExportFlowModal'
 import { ImportProgressModal } from './ImportProgressModal'
 import { ConfirmDiscardModal } from './ConfirmDiscardModal'
+import { ActionRow } from './ActionRow'
 import { WorkspaceBackgroundPicker } from './WorkspaceBackgroundPicker'
 import { BorderColorPicker } from './BorderColorPicker'
 import { IconCrop, IconDrop, IconFrame, IconGrain, IconGrid, IconSwatch } from './icons'
@@ -334,7 +335,16 @@ function FreeItemsLayer({ outputWidth, outputHeight, selectedId, onSelect, grain
     stage.on('mouseup.freehandle touchend.freehandle touchcancel.freehandle', handleRelease)
   }
 
-  const selected = collage.freeItems.find((i) => i.id === selectedId) ?? null
+  const live = collage.freeItems.find((i) => i.id === selectedId) ?? null
+  // Fades the outline and handles in and out instead of blinking them on — the
+  // same 180ms the grid's selection outline uses. The last selected item is
+  // kept while the fade runs so there is still something to draw; switching
+  // straight from one photo to another keeps alpha at 1 and just moves the
+  // frame, which is how a selection is expected to behave.
+  const selectionAlpha = useAnimatedNumber(live ? 1 : 0, 180)
+  const lastSelectedRef = useRef<FreeItem | null>(null)
+  if (live) lastSelectedRef.current = live
+  const selected = live ?? (selectionAlpha > 0.01 ? lastSelectedRef.current : null)
 
   return (
     <>
@@ -413,6 +423,7 @@ function FreeItemsLayer({ outputWidth, outputHeight, selectedId, onSelect, grain
           being scaled straight on its node, so they would be a frame behind
           it the whole way — and both hands are already on the photo. */}
       {selected &&
+        selectionAlpha > 0.01 &&
         pinchingId !== selected.id &&
         draggingId !== selected.id &&
         (() => {
@@ -452,6 +463,7 @@ function FreeItemsLayer({ outputWidth, outputHeight, selectedId, onSelect, grain
                 shadowColor="#0f172a"
                 shadowBlur={8}
                 shadowOpacity={0.6}
+                opacity={selectionAlpha}
                 listening={false}
               />
               {/* Bottom-right: resize. Top-left: rotate — kept diagonally
@@ -463,6 +475,7 @@ function FreeItemsLayer({ outputWidth, outputHeight, selectedId, onSelect, grain
                 fill="#ffffff"
                 stroke="#0f172a"
                 strokeWidth={3}
+                opacity={selectionAlpha}
                 hitStrokeWidth={HANDLE_HIT_PADDING}
                 onMouseDown={(e) => beginHandleDrag('resize', selected, e)}
                 onTouchStart={(e) => beginHandleDrag('resize', selected, e)}
@@ -474,6 +487,7 @@ function FreeItemsLayer({ outputWidth, outputHeight, selectedId, onSelect, grain
                 fill="#0f172a"
                 stroke="#ffffff"
                 strokeWidth={4}
+                opacity={selectionAlpha}
                 hitStrokeWidth={HANDLE_HIT_PADDING}
                 onMouseDown={(e) => beginHandleDrag('rotate', selected, e)}
                 onTouchStart={(e) => beginHandleDrag('rotate', selected, e)}
@@ -928,6 +942,11 @@ export function CollageEditor() {
   // do. Selection is the same gesture and the same action row free mode
   // already uses, so the two halves of Collage now behave alike.
   const [selectedCellId, setSelectedCellId] = useState<string | null>(null)
+  // The row below animates closed, so it needs something to keep showing while
+  // it does. These hold the last selection for exactly that long; the row is
+  // pointer-events-none while closing, so acting on a stale id can't happen.
+  const lastCellRef = useRef<string | null>(null)
+  const lastFreeRef = useRef<string | null>(null)
   const [activeTool, setActiveTool] = useState<string | null>(null)
   const [gutterLinked, setGutterLinked] = useState(false)
   const [uploadError, setUploadError] = useState<string | null>(null)
@@ -1221,6 +1240,13 @@ export function CollageEditor() {
   const hasContent =
     collage.layoutMode === 'grid' ? collage.assignments.some((a) => a.photoId) : collage.freeItems.length > 0
 
+  // What the action rows act on: the live selection, or the last one while the
+  // row is still collapsing.
+  if (selectedCellId) lastCellRef.current = selectedCellId
+  if (selectedFreeId) lastFreeRef.current = selectedFreeId
+  const cellId = selectedCellId ?? lastCellRef.current
+  const freeId = selectedFreeId ?? lastFreeRef.current
+
   return (
     <div className="flex h-full flex-col bg-ink-900">
       <Toolbar
@@ -1348,14 +1374,16 @@ export function CollageEditor() {
           here permanently in free mode rather than only alongside a selection
           — it's the answer to "how do I make this photo bigger", which is
           exactly the question asked before anything is selected. */}
-      {collage.layoutMode === 'free' && hasContent && (
-        <div className="fade-in flex shrink-0 items-center justify-between gap-3 border-t border-white/10 bg-ink-900 px-4 py-2">
-          <p className="font-label text-[11px] leading-snug text-white/40">{tr.collageEditor.freeHint}</p>
-          {selectedFreeId && (
-          <div className="flex shrink-0 items-center gap-2">
+      <ActionRow open={collage.layoutMode === 'free' && hasContent}>
+        <p className="font-label text-[11px] leading-snug text-white/40">{tr.collageEditor.freeHint}</p>
+        <div
+          className={`flex shrink-0 items-center gap-2 transition-opacity duration-200 ${
+            selectedFreeId ? 'opacity-100' : 'pointer-events-none opacity-0'
+          }`}
+        >
           <button
             type="button"
-            onClick={() => store.bringFreeItemToFront(selectedFreeId)}
+            onClick={() => freeId && store.bringFreeItemToFront(freeId)}
             className="font-label rounded-full bg-white/10 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-white transition duration-200 hover:bg-white/15 active:scale-90"
           >
             {tr.collageEditor.bringToFront}
@@ -1363,7 +1391,8 @@ export function CollageEditor() {
           <button
             type="button"
             onClick={() => {
-              const id = selectedFreeId
+              if (!freeId) return
+              const id = freeId
               setSelectedFreeId(null)
               // Removing the last one swaps the canvas for the Dropzone — the
               // same whole-screen change, so it gets the same crossfade
@@ -1378,54 +1407,52 @@ export function CollageEditor() {
           >
             {tr.collageEditor.removePhoto}
           </button>
-          </div>
-          )}
         </div>
-      )}
+      </ActionRow>
 
       {/* Grid mode's own action row, deliberately the same shape and place as
           free mode's above: a hint on the left, the actions for whatever is
-          selected on the right. Only mounted with a selection, so it costs no
-          height while you're just arranging. */}
-      {collage.layoutMode === 'grid' && hasContent && selectedCellId && (
-        <div className="fade-in flex shrink-0 items-center justify-between gap-3 border-t border-white/10 bg-ink-900 px-4 py-2">
-          <p className="font-label text-[11px] leading-snug text-white/40">{tr.collageEditor.gridCellHint}</p>
-          <div className="flex shrink-0 items-center gap-2">
-            <button
-              type="button"
-              onClick={() => {
-                // Straight into the same picker the empty cell uses, aimed at
-                // this cell — so "replace" is one tap, not remove-then-add.
-                setPendingCellId(selectedCellId)
-                setSelectedCellId(null)
-                toolbarRef.current?.openFilePicker()
-              }}
-              className="font-label rounded-full bg-white/10 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-white transition duration-200 hover:bg-white/15 active:scale-90"
-            >
-              {tr.collageEditor.replacePhoto}
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                const cellId = selectedCellId
-                setSelectedCellId(null)
-                // Emptying the LAST cell turns the canvas back into the
-                // Dropzone, which is a whole-screen change and gets the same
-                // crossfade every other one does. Emptying any other cell is
-                // just a gap opening up, and the grid animates that itself.
-                if (collage.assignments.filter((a) => a.photoId).length <= 1) {
-                  swapContent(() => store.clearCell(cellId))
-                } else {
-                  store.clearCell(cellId)
-                }
-              }}
-              className="font-label rounded-full bg-red-500/15 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-red-300 transition duration-200 hover:bg-red-500/25 active:scale-90"
-            >
-              {tr.collageEditor.removePhoto}
-            </button>
-          </div>
+          selected on the right. It eases open and shut with the selection, so
+          the canvas gives up that height gradually instead of jumping. */}
+      <ActionRow open={collage.layoutMode === 'grid' && hasContent && !!selectedCellId}>
+        <p className="font-label text-[11px] leading-snug text-white/40">{tr.collageEditor.gridCellHint}</p>
+        <div className="flex shrink-0 items-center gap-2">
+          <button
+            type="button"
+            onClick={() => {
+              if (!cellId) return
+              // Straight into the same picker the empty cell uses, aimed at
+              // this cell — so "replace" is one tap, not remove-then-add.
+              setPendingCellId(cellId)
+              setSelectedCellId(null)
+              toolbarRef.current?.openFilePicker()
+            }}
+            className="font-label rounded-full bg-white/10 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-white transition duration-200 hover:bg-white/15 active:scale-90"
+          >
+            {tr.collageEditor.replacePhoto}
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              if (!cellId) return
+              const id = cellId
+              setSelectedCellId(null)
+              // Emptying the LAST cell turns the canvas back into the
+              // Dropzone, which is a whole-screen change and gets the same
+              // crossfade every other one does. Emptying any other cell is
+              // just a gap opening up, and the grid animates that itself.
+              if (collage.assignments.filter((a) => a.photoId).length <= 1) {
+                swapContent(() => store.clearCell(id))
+              } else {
+                store.clearCell(id)
+              }
+            }}
+            className="font-label rounded-full bg-red-500/15 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-red-300 transition duration-200 hover:bg-red-500/25 active:scale-90"
+          >
+            {tr.collageEditor.removePhoto}
+          </button>
         </div>
-      )}
+      </ActionRow>
 
       {hasContent && (
         <div

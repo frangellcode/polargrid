@@ -133,6 +133,10 @@ export function PhotoCell({
   // Eases the corner radius itself between shapes (rect <-> rounded) instead
   // of the clip snapping straight to the new corners.
   const cornerRadius = useAnimatedNumber(shapeRadiusRatio(shape))
+  // The selection outline fades rather than blinking on and off. 180ms: quick
+  // enough to feel like a direct response to the tap, slow enough not to read
+  // as a flash.
+  const selectionAlpha = useAnimatedNumber(selected ? 1 : 0, 180)
 
   // Outside a gesture the live zoom IS the committed zoom. Keeping them in
   // step here means dragBounds/handleDragEnd can read liveZoomRef
@@ -451,7 +455,7 @@ export function PhotoCell({
       {/* Inside the clip, so it follows the cell's own rounded corners, and
           drawn last so no photo covers it. Two strokes: a dark one under a
           dashed white one, which stays legible over a photo of any colour. */}
-      {selected && (
+      {selectionAlpha > 0.01 && (
         <>
           <Shape
             listening={false}
@@ -461,7 +465,7 @@ export function PhotoCell({
             }}
             stroke="#0f172a"
             strokeWidth={6}
-            opacity={0.45}
+            opacity={0.45 * selectionAlpha}
           />
           <Shape
             listening={false}
@@ -472,6 +476,7 @@ export function PhotoCell({
             stroke="#ffffff"
             strokeWidth={3}
             dash={[14, 10]}
+            opacity={selectionAlpha}
           />
         </>
       )}
