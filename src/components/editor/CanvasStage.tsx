@@ -1,4 +1,4 @@
-import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from 'react'
+import { forwardRef, useEffect, useImperativeHandle, useLayoutEffect, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import { Stage, Layer, Rect } from 'react-konva'
 import { useEditorStore } from '../../store/editorStore'
@@ -48,9 +48,36 @@ export const CanvasStage = forwardRef<CanvasStageHandle, CanvasStageProps>(funct
 }: CanvasStageProps, ref) {
   const containerRef = useRef<HTMLDivElement>(null)
   const stageRef = useRef<import('konva/lib/Stage').Stage>(null)
-  const [box, setBox] = useState({ width: 0, height: 0 })
+  // `withContainer` records whether the FIRST usable measurement arrived
+  // before the browser had painted this container even once. It decides
+  // whether the canvas needs an entrance animation of its own — see the
+  // layout effect and the `fade-in-slow` class below.
+  const [box, setBox] = useState({ width: 0, height: 0, withContainer: false })
   const workspaceBackground = useEditorStore((s) => s.workspaceBackground)
   const workspaceBg = getWorkspaceBackground(workspaceBackground)
+
+  // Measured here, synchronously, rather than waiting for the ResizeObserver
+  // below to report the first size. The Stage only renders once a size is
+  // known, and a ResizeObserver's first callback lands AFTER the frame that
+  // painted this container — so the workspace background appeared alone for
+  // a frame, and the canvas then arrived separately with its own fade. On a
+  // nine-photo collage, coming straight out of the import card, that read as
+  // the photos dropping in a beat after the background. A layout effect runs
+  // before the paint, so the canvas is on screen in the same frame as the
+  // background it sits on, and the two ride the caller's crossfade together.
+  //
+  // clientWidth/Height minus padding rather than getBoundingClientRect: this
+  // element is usually mid-`view-enter` at this point, and that animation's
+  // scale(0.98) would otherwise be baked into the canvas size for good
+  // (a transform never triggers the observer, so nothing would correct it).
+  useLayoutEffect(() => {
+    const el = containerRef.current
+    if (!el) return
+    const style = getComputedStyle(el)
+    const width = el.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight)
+    const height = el.clientHeight - parseFloat(style.paddingTop) - parseFloat(style.paddingBottom)
+    if (width > 0 && height > 0) setBox({ width, height, withContainer: true })
+  }, [])
 
   useEffect(() => {
     const el = containerRef.current
@@ -58,7 +85,11 @@ export const CanvasStage = forwardRef<CanvasStageHandle, CanvasStageProps>(funct
     const observer = new ResizeObserver((entries) => {
       const entry = entries[0]
       if (entry) {
-        setBox({ width: entry.contentRect.width, height: entry.contentRect.height })
+        setBox((prev) => ({
+          width: entry.contentRect.width,
+          height: entry.contentRect.height,
+          withContainer: prev.withContainer,
+        }))
       }
     })
     observer.observe(el)
@@ -124,7 +155,15 @@ export const CanvasStage = forwardRef<CanvasStageHandle, CanvasStageProps>(funct
       />
       {scale > 0 && (
         <div
-          className="fade-in-slow relative rounded-sm ring-1 ring-slate-900/10"
+          // The entrance fade is only for a canvas that could NOT be shown in
+          // its container's first painted frame (the container was laid out
+          // at zero size and only the observer above ever reported a real
+          // one) — appearing late, unannounced, is what needs softening.
+          // When the size was known before the first paint the canvas is
+          // simply part of that frame, and a second fade on top of the
+          // caller's own crossfade is the double entrance this used to look
+          // like.
+          className={`relative rounded-sm ring-1 ring-slate-900/10 ${box.withContainer ? '' : 'fade-in-slow'}`}
           // touchAction 'none' so a two-finger pinch on the canvas is OURS to
           // handle (PhotoCell's zoom) instead of the browser's page zoom, and
           // a one-finger pan doesn't fight page scrolling. Konva never sets
