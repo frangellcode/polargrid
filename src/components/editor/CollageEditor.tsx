@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Circle, Group, Image as KonvaImage, Rect } from 'react-konva'
+import { Circle, Group, Image as KonvaImage, Line, Rect } from 'react-konva'
 import type Konva from 'konva'
 import type { CellAssignment, CellShape, ExportQuality, FreeItem, GridTemplate, LoadedPhoto, PhotoTransform } from '../../types'
 import { useEditorStore } from '../../store/editorStore'
@@ -8,6 +8,7 @@ import { useImageBitmap } from '../../hooks/useImageBitmap'
 import { easeInOutCubic, useAnimatedColor, useAnimatedNumber, useIsReflowing } from '../../hooks/useAnimatedNumber'
 import { COLLAGE_ASPECT_RATIOS } from '../../lib/aspectRatios'
 import { computeOutputPixelSize, getImageDrawRect } from '../../lib/cropMath'
+import { snapRotation } from '../../lib/rotationSnap'
 import { MAX_PHOTO_MB, screenPhotoFiles } from '../../lib/photoInput'
 import { holdForSheetClose, holdImportCard } from '../../lib/uiTiming'
 import { MAX_COLLAGE_PHOTOS, MIN_COLLAGE_PHOTOS, getTemplateById, transposeTemplate } from '../../lib/collageTemplates'
@@ -61,6 +62,11 @@ const MAX_ITEM_FRACTION = 3
  *  dot. HANDLE_HIT_PADDING is what actually gets tapped: it widens the hit
  *  region to comfortably past the 44px of real screen a fingertip needs,
  *  without making the dot itself big enough to cover the photo. */
+/** How long the alignment guide stays after the finger lifts on a snap. Long
+ *  enough to register as "that locked in", short enough not to linger over the
+ *  photo you were just working on. */
+const SNAP_GUIDE_HOLD_MS = 450
+
 const HANDLE_RADIUS = 26
 const HANDLE_HIT_PADDING = 80
 
@@ -136,6 +142,41 @@ function FreeItemsLayer({ outputWidth, outputHeight, selectedId, onSelect, grain
   // which are positioned from the STORE — would otherwise hang behind at the
   // photo's old spot for the whole gesture.
   const [draggingId, setDraggingId] = useState<string | null>(null)
+  // Where to draw the alignment guide, set only while a rotation gesture is
+  // actually held at a snapped angle. Kept in a ref alongside the state so the
+  // pinch path can tell "still snapped" from "just snapped" and only re-render
+  // React on the change — a setState per pinch frame is the very thing that
+  // path goes out of its way to avoid.
+  const [snapGuide, setSnapGuide] = useState<{ cx: number; cy: number } | null>(null)
+  const snappedRef = useRef(false)
+  const guideHoldTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
+  const lastGuideRef = useRef<{ cx: number; cy: number } | null>(null)
+  // Fades in and out rather than blinking, and keeps drawing from the last
+  // position while it fades away.
+  const guideAlpha = useAnimatedNumber(snapGuide ? 1 : 0, 180)
+  if (snapGuide) lastGuideRef.current = snapGuide
+  const guide = snapGuide ?? (guideAlpha > 0.01 ? lastGuideRef.current : null)
+
+  const reportSnap = (snapped: boolean, cx: number, cy: number) => {
+    if (snapped === snappedRef.current) return
+    snappedRef.current = snapped
+    clearTimeout(guideHoldTimer.current)
+    setSnapGuide(snapped ? { cx, cy } : null)
+  }
+
+  /** Ends the gesture. When it ended ON a snap, the guide is held a beat
+   *  longer — the photo is square now and a line that vanishes with your
+   *  finger leaves nothing confirming that it took. */
+  const clearSnap = () => {
+    const wasSnapped = snappedRef.current
+    snappedRef.current = false
+    clearTimeout(guideHoldTimer.current)
+    if (!wasSnapped) {
+      setSnapGuide(null)
+      return
+    }
+    guideHoldTimer.current = setTimeout(() => setSnapGuide(null), SNAP_GUIDE_HOLD_MS)
+  }
 
   // A gesture still attached when this layer goes away (mode switched, photo
   // removed mid-pinch) would keep firing against a detached node.
@@ -143,6 +184,7 @@ function FreeItemsLayer({ outputWidth, outputHeight, selectedId, onSelect, grain
     return () => {
       pinchCleanup.current?.()
       pinchCleanup.current = null
+      clearTimeout(guideHoldTimer.current)
     }
   }, [])
 
@@ -192,6 +234,7 @@ function FreeItemsLayer({ outputWidth, outputHeight, selectedId, onSelect, grain
     pinchCleanup.current?.()
     pinchCleanup.current = null
     setPinchingId(null)
+    clearSnap()
     if (!active) return
     const node = nodeRefs.current[active.id]
     // Scale was applied straight to the node (never through the store, so the
@@ -246,8 +289,12 @@ function FreeItemsLayer({ outputWidth, outputHeight, selectedId, onSelect, grain
       if (!(next.dist > 0)) return
       active.scale = clampScale(item, next.dist / active.startDist)
       // Rotation follows the angle BETWEEN the fingers, so the photo turns
-      // exactly as much as the hand does.
-      active.rotation = active.startRotation + ((next.angle - active.startAngle) * 180) / Math.PI
+      // exactly as much as the hand does — then the magnet gets a say: within
+      // 5° of any quarter turn it lands square instead of a degree or two off.
+      const turned = active.startRotation + ((next.angle - active.startAngle) * 180) / Math.PI
+      const snap = snapRotation(turned)
+      active.rotation = snap.rotation
+      reportSnap(snap.snapped, active.cx, active.cy)
       const node = nodeRefs.current[active.id]
       if (!node) return
       // Uniform on both axes, so the photo can never be squashed by a pinch —
@@ -324,12 +371,15 @@ function FreeItemsLayer({ outputWidth, outputHeight, selectedId, onSelect, grain
         commitSize(drag.id, drag.cx, drag.cy, drag.startW * factor, drag.startH * factor, drag.startRotation)
       } else {
         const delta = ((Math.atan2(ly, lx) - drag.startAngle) * 180) / Math.PI
-        updateFreeItem(drag.id, { rotation: drag.startRotation + delta })
+        const snap = snapRotation(drag.startRotation + delta)
+        reportSnap(snap.snapped, drag.cx, drag.cy)
+        updateFreeItem(drag.id, { rotation: snap.rotation })
       }
     }
     const handleRelease = () => {
       stage.off('mousemove.freehandle touchmove.freehandle')
       stage.off('mouseup.freehandle touchend.freehandle touchcancel.freehandle')
+      clearSnap()
     }
     stage.on('mousemove.freehandle touchmove.freehandle', handleMove)
     stage.on('mouseup.freehandle touchend.freehandle touchcancel.freehandle', handleRelease)
@@ -417,6 +467,33 @@ function FreeItemsLayer({ outputWidth, outputHeight, selectedId, onSelect, grain
           </Group>
         )
       })}
+
+      {/* The alignment guide: a crosshair through the photo's middle, spanning
+          the canvas, shown only while a rotation is being held at a snapped
+          angle. It is the answer to "is this actually straight?" — the photo's
+          edges are parallel to these lines the moment it appears, so there is
+          nothing left to judge by eye. Non-interactive, and drawn under the
+          selection outline so the handles stay readable on top of it. */}
+      {guide && guideAlpha > 0.01 && (
+        <>
+          <Line
+            points={[0, guide.cy, outputWidth, guide.cy]}
+            stroke="#7dd3fc"
+            strokeWidth={3}
+            dash={[18, 12]}
+            opacity={0.95 * guideAlpha}
+            listening={false}
+          />
+          <Line
+            points={[guide.cx, 0, guide.cx, outputHeight]}
+            stroke="#7dd3fc"
+            strokeWidth={3}
+            dash={[18, 12]}
+            opacity={0.95 * guideAlpha}
+            listening={false}
+          />
+        </>
+      )}
 
       {/* Selection outline and handles, drawn last so they sit above every
           photo. Hidden for the duration of a pinch: the item they'd frame is
