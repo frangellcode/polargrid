@@ -4,6 +4,12 @@
 
 **→ [Open PolarGrid](https://frangellcode.github.io/polargrid/)**
 
+<p align="center">
+  <img src="docs/screenshots/01-home.png" width="30%" alt="PolarGrid home screen" />
+  <img src="docs/screenshots/02-white-border.png" width="30%" alt="A photo framed in a white border" />
+  <img src="docs/screenshots/03-collage-template.png" width="30%" alt="Six photos laid out in a collage template" />
+</p>
+
 ## What it is
 
 PolarGrid is a small web app (a PWA) for two things photographers keep needing and keep paying for:
@@ -35,6 +41,11 @@ It is built phone-first. Add it to your home screen and it opens like any other 
 - Independent control of the outer border and the spacing between photos, or link the two.
 - Rectangular or rounded cells.
 - Adjustable film grain.
+
+<p align="center">
+  <img src="docs/screenshots/04-layout-picker.png" width="45%" alt="Picking a layout, orientation and cell shape for six photos" />
+  <img src="docs/screenshots/05-collage-free.png" width="45%" alt="Free mode, with photos placed by hand on the canvas" />
+</p>
 
 ### In both
 
