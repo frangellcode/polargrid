@@ -51,7 +51,7 @@
          </BuildableReference>
       </BuildableProductRunnable>
       <StoreKitConfigurationFileReference
-         identifier = "../../App/PolarGrid.storekit">
+         identifier = "../App/PolarGrid.storekit">
       </StoreKitConfigurationFileReference>
    </LaunchAction>
    <ProfileAction
