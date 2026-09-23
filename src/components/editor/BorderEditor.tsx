@@ -599,6 +599,7 @@ export function BorderEditor() {
         done={exportFlow?.done ?? 0}
         total={exportFlow?.total ?? 0}
         progress={exportFlow?.progress ?? 0}
+        showProgress={(exportFlow?.total ?? 0) > 1}
         onSave={handleSave}
         onClose={() => setExportFlow(null)}
         onCreateAnother={() => {

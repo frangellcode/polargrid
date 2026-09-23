@@ -21,6 +21,10 @@ interface ExportFlowModalProps {
   /** The whole render, 0..1 — drives the bar, and the percentage a single
    *  image shows in place of a counter. */
   progress: number
+  /** Off for renders too quick to follow: a single bordered photo finishes
+   *  in a blink, and a bar that fills and vanishes before it can be read is
+   *  just a flicker. Those keep the spinner. */
+  showProgress?: boolean
   onSave: () => void
   onCreateAnother: () => void
   onGoHome: () => void
@@ -46,6 +50,7 @@ export function ExportFlowModal({
   done,
   total,
   progress,
+  showProgress = true,
   onSave,
   onCreateAnother,
   onGoHome,
@@ -181,12 +186,14 @@ export function ExportFlowModal({
                   <p className="font-display text-3xl font-semibold tabular-nums text-white">
                     {done}/{total}
                   </p>
-                ) : rendering ? (
+                ) : rendering && showProgress ? (
                   // A single image has no counter to show, so it shows how far
                   // along it is instead. A spinner said "working" but not for
                   // how long — and a nine-photo collage at full resolution is
                   // the one wait in the app long enough to need the answer.
                   <p className="font-display text-3xl font-semibold tabular-nums text-white">{Math.round(progress * 100)}%</p>
+                ) : rendering ? (
+                  <div className="h-10 w-10 animate-spin rounded-full border-2 border-white/15 border-t-white" />
                 ) : (
                   // A save glyph, NOT the tick: this card is still asking for a
                   // tap, and wearing the same ✓ the confirmation wears read as
@@ -217,7 +224,7 @@ export function ExportFlowModal({
                     : tr.toolbar.readyToSave(total)}
                 </p>
 
-                {(total > 1 || rendering) && (
+                {(total > 1 || (rendering && showProgress)) && (
                   <div className="h-1 w-full overflow-hidden rounded-full bg-white/10">
                     <div
                       className={`h-full rounded-full bg-white transition-[width] duration-300 ${EASE}`}
