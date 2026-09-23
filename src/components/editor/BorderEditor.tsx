@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import type { PhotoSource } from '../../lib/photoSource'
 import type { ExportQuality } from '../../types'
 import { useEditorStore } from '../../store/editorStore'
 import { useTranslation } from '../../store/languageStore'
@@ -82,7 +83,7 @@ export function BorderEditor() {
   // the class is removed once the animation finishes, and a permanently
   // composited layer is what breaks iOS taps/drags — this content area sits
   // right on top of PhotoCell's own drag gesture.
-  const [swapPhase, setSwapPhase] = useState<'idle' | 'exiting' | 'entering'>('idle')
+  const [swapPhase, setSwapPhase] = useState<'idle' | 'exiting' | 'mounting' | 'entering'>('idle')
   const [swapKey, setSwapKey] = useState(0)
   // Starts on 'aspecto' so the panel opens with Aspect already selected the
   // moment a photo lands — the bottom bar itself is gated on `photo` below,
@@ -104,7 +105,7 @@ export function BorderEditor() {
 
   // Screens a raw selection and reports whatever was dropped. Returns null when
   // there's nothing usable left, so callers can just bail.
-  const screen = (files: FileList | File[]): File[] | null => {
+  const screen = (files: FileList | PhotoSource[]): PhotoSource[] | null => {
     const { accepted, rejectedType, rejectedSize } = screenPhotoFiles(files)
     setUploadError(
       rejectedType > 0 ? tr.toolbar.unsupportedFormat : rejectedSize > 0 ? tr.toolbar.tooHeavy(MAX_PHOTO_MB, rejectedSize) : null,
@@ -116,7 +117,7 @@ export function BorderEditor() {
   // itself refused (a truncated file, a HEIC this browser has no decoder
   // for). Those used to vanish without a word: the batch simply came back
   // shorter than the selection.
-  const decode = async (images: File[]) => {
+  const decode = async (images: PhotoSource[]) => {
     const startedAt = performance.now()
     setImporting({ done: 0, total: images.length })
     try {
@@ -139,6 +140,8 @@ export function BorderEditor() {
     phase: ExportFlowPhase
     done: number
     total: number
+    /** The whole export, 0..1 — see ExportFlowModal's progress. */
+    progress: number
     files: ExportedImage[]
   } | null>(null)
   const [exportError, setExportError] = useState<string | null>(null)
@@ -180,9 +183,28 @@ export function BorderEditor() {
     setTimeout(() => {
       apply()
       setSwapKey((k) => k + 1)
-      setSwapPhase('entering')
+      setSwapPhase('mounting')
     }, EXIT_MS)
   }
+
+  // The new content mounts invisible and only starts fading in once it has
+  // actually been painted. Starting the fade on mount raced the first render:
+  // a nine-photo collage takes long enough to build (every cell, the grid,
+  // the tool panel) that the 380ms fade was mostly over before the first
+  // frame could paint, so the collage just appeared, all at once, after a
+  // blank moment. The effect runs after the commit; the first frame after it
+  // draws the canvas, the second is the first one that can show it.
+  useEffect(() => {
+    if (swapPhase !== 'mounting') return
+    let second = 0
+    const first = requestAnimationFrame(() => {
+      second = requestAnimationFrame(() => setSwapPhase((p) => (p === 'mounting' ? 'entering' : p)))
+    })
+    return () => {
+      cancelAnimationFrame(first)
+      cancelAnimationFrame(second)
+    }
+  }, [swapPhase])
 
   const isBatch = border.batchPhotoIds.length > 1
   const batchPhotos = border.batchPhotoIds.map((id) => photos[id]).filter((p) => !!p)
@@ -249,7 +271,7 @@ export function BorderEditor() {
   // final picked color once, no animation needed for a static file.
   const animatedBorderColorHex = useAnimatedColor(borderColorHex)
 
-  const handleUpload = async (files: FileList | File[]) => {
+  const handleUpload = async (files: FileList | PhotoSource[]) => {
     const images = screen(files)
     if (!images) return
     const loaded = await decode(images)
@@ -271,7 +293,7 @@ export function BorderEditor() {
   // there's no way for the person to tell which one went. Nothing is decoded
   // until the count is known to be good, so an over-sized pick costs no memory
   // at all.
-  const handleBatchUpload = async (files: FileList | File[]) => {
+  const handleBatchUpload = async (files: FileList | PhotoSource[]) => {
     const images = screen(files)
     if (!images) return
     if (images.length > MAX_BORDER_BATCH_PHOTOS) {
@@ -296,7 +318,7 @@ export function BorderEditor() {
   // ends on the same deliberate Save tap.
   const renderExport = async (quality: ExportQuality) => {
     const exportPhotos = exportPhotoList()
-    setExportFlow({ phase: 'rendering', done: 0, total: exportPhotos.length, files: [] })
+    setExportFlow({ phase: 'rendering', done: 0, total: exportPhotos.length, progress: 0, files: [] })
     const files = await renderBorderPhotoFiles(
       exportPhotos,
       // Resolved against each photo's OWN dimensions: with "Original" that
@@ -311,9 +333,9 @@ export function BorderEditor() {
       border.locked,
       border.grainIntensity,
       borderColorHex,
-      (done, total) => setExportFlow((s) => (s ? { ...s, done, total } : s)),
+      (done, total, progress) => setExportFlow((s) => (s ? { ...s, done, total, progress } : s)),
     )
-    setExportFlow({ phase: 'ready', done: files.length, total: files.length, files })
+    setExportFlow({ phase: 'ready', done: files.length, total: files.length, progress: 1, files })
   }
 
   const handleSave = async () => {
@@ -338,7 +360,7 @@ export function BorderEditor() {
     // The modal goes up BEFORE the preview comes down, so the two swap in the
     // same frame — set the other way round, the export screen was blank, with
     // nothing to say why, for as long as the render took.
-    setExportFlow({ phase: 'rendering', done: 0, total: exportPhotoList().length, files: [] })
+    setExportFlow({ phase: 'rendering', done: 0, total: exportPhotoList().length, progress: 0, files: [] })
     setFrozenPreview(stageRef.current?.snapshot() ?? null)
     setPreviewSuspended(true)
     // One frame with the preview already swapped for its still before the
@@ -399,7 +421,7 @@ export function BorderEditor() {
           // React then reuses the wrong one and the banner sticks mid-exit
           // instead of unmounting.
           key={`banner-${swapKey}`}
-          className={swapPhase === 'exiting' ? 'view-exit' : swapPhase === 'entering' ? 'view-enter' : ''}
+          className={swapPhase === 'exiting' ? 'view-exit' : swapPhase === 'mounting' ? 'opacity-0' : swapPhase === 'entering' ? 'view-enter' : ''}
         >
           {/* mt-2 here is matched by the pt-2 the canvas area takes on while
               this row is up (see below), so the two gaps stay equal — it reads
@@ -442,7 +464,7 @@ export function BorderEditor() {
       >
         <div
           key={`canvas-${swapKey}`}
-          className={`h-full ${swapPhase === 'entering' ? 'view-enter' : ''}`}
+          className={`h-full ${swapPhase === 'mounting' ? 'opacity-0' : swapPhase === 'entering' ? 'view-enter' : ''}`}
           onAnimationEnd={() => setSwapPhase((p) => (p === 'entering' ? 'idle' : p))}
         >
           {photo ? (
@@ -493,7 +515,7 @@ export function BorderEditor() {
           // taller than the room left the bar was the thing flexbox chose to
           // squeeze — clipping its own last row behind the tool icons. The
           // canvas (flex-1 min-h-0) is what should absorb the pressure.
-          className={`shrink-0 ${swapPhase === 'exiting' ? 'view-exit' : swapPhase === 'entering' ? 'view-enter' : ''}`}
+          className={`shrink-0 ${swapPhase === 'exiting' ? 'view-exit' : swapPhase === 'mounting' ? 'opacity-0' : swapPhase === 'entering' ? 'view-enter' : ''}`}
         >
         <EditorBottomBar tools={TOOLS} activeId={activeTool} onSelect={setActiveTool}>
           {activeTool === 'aspecto' && (
@@ -576,6 +598,7 @@ export function BorderEditor() {
         phase={exportFlow?.phase ?? 'rendering'}
         done={exportFlow?.done ?? 0}
         total={exportFlow?.total ?? 0}
+        progress={exportFlow?.progress ?? 0}
         onSave={handleSave}
         onClose={() => setExportFlow(null)}
         onCreateAnother={() => {

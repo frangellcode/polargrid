@@ -18,6 +18,9 @@ interface ExportFlowModalProps {
   /** Photos rendered so far / in total. `total` of 1 hides the counter. */
   done: number
   total: number
+  /** The whole render, 0..1 — drives the bar, and the percentage a single
+   *  image shows in place of a counter. */
+  progress: number
   onSave: () => void
   onCreateAnother: () => void
   onGoHome: () => void
@@ -42,6 +45,7 @@ export function ExportFlowModal({
   phase,
   done,
   total,
+  progress,
   onSave,
   onCreateAnother,
   onGoHome,
@@ -116,7 +120,6 @@ export function ExportFlowModal({
   // Dismissable only once there's nothing in flight: tapping out mid-render (or
   // mid-share) would leave work running with nothing on screen reporting it.
   const dismissable = ready || saved
-  const progress = total > 0 ? done / total : 0
 
   return (
     <div
@@ -179,11 +182,11 @@ export function ExportFlowModal({
                     {done}/{total}
                   </p>
                 ) : rendering ? (
-                  // A single image has no counter to show, and a tick would be
-                  // claiming it is already done — a collage render is the
-                  // slowest thing in the app, so this is exactly the phase
-                  // that needs something visibly still working.
-                  <div className="h-10 w-10 animate-spin rounded-full border-2 border-white/15 border-t-white" />
+                  // A single image has no counter to show, so it shows how far
+                  // along it is instead. A spinner said "working" but not for
+                  // how long — and a nine-photo collage at full resolution is
+                  // the one wait in the app long enough to need the answer.
+                  <p className="font-display text-3xl font-semibold tabular-nums text-white">{Math.round(progress * 100)}%</p>
                 ) : (
                   // A save glyph, NOT the tick: this card is still asking for a
                   // tap, and wearing the same ✓ the confirmation wears read as
@@ -214,7 +217,7 @@ export function ExportFlowModal({
                     : tr.toolbar.readyToSave(total)}
                 </p>
 
-                {total > 1 && (
+                {(total > 1 || rendering) && (
                   <div className="h-1 w-full overflow-hidden rounded-full bg-white/10">
                     <div
                       className={`h-full rounded-full bg-white transition-[width] duration-300 ${EASE}`}

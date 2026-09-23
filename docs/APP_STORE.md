@@ -146,7 +146,7 @@ WHITE BORDER
 • Crop to fill, or show the whole photo uncropped
 • Drag to reposition, pinch to zoom
 • Film grain
-• Batch mode: set it once, export up to 5 photos
+• Batch mode: set it once, export up to 15 photos
 
 COLLAGE
 • 2 to 9 photos in one image
@@ -170,7 +170,7 @@ BORDE BLANCO
 • Recorta para llenar o muestra la foto completa sin recortar
 • Arrastra para mover, pellizca para hacer zoom
 • Grano de película
-• Modo lote: ajústalo una vez y exporta hasta 5 fotos
+• Modo lote: ajústalo una vez y exporta hasta 15 fotos
 
 COLLAGE
 • De 2 a 9 fotos en una imagen

@@ -1,10 +1,12 @@
 import { registerPlugin } from '@capacitor/core'
+import type { NativePhotoRef } from './photoSource'
 
 interface PickedPhoto {
   /** A URL the webview can fetch the ORIGINAL file from. */
   webPath: string
   name: string
   mimeType: string
+  size: number
 }
 
 interface PhotoPickerPlugin {
@@ -15,18 +17,12 @@ interface PhotoPickerPlugin {
 const PhotoPicker = registerPlugin<PhotoPickerPlugin>('PhotoPicker')
 
 /** Opens the iOS photo picker capped at `limit` photos — the picker itself
- *  stops the person at the limit, which an <input type="file"> can never do —
- *  and returns the picked originals as Files, so everything downstream (the
- *  format/size screening, the decoder) is exactly the web path's.
+ *  stops the person at the limit, which an <input type="file"> can never do.
  *
- *  Read one at a time rather than all at once, so a pick of fifteen doesn't
- *  have fifteen reads in flight together. Cancelling resolves to []. */
-export async function pickPhotosNatively(limit: number): Promise<File[]> {
+ *  Nothing is read here: each photo comes back as a reference to its original
+ *  on disk, read only when it's decoded (see photoSource.ts), so a pick of
+ *  fifteen large photos costs no memory up front. Cancelling resolves to []. */
+export async function pickPhotosNatively(limit: number): Promise<NativePhotoRef[]> {
   const { photos } = await PhotoPicker.pick({ limit: Math.max(1, limit) })
-  const files: File[] = []
-  for (const photo of photos) {
-    const blob = await (await fetch(photo.webPath)).blob()
-    files.push(new File([blob], photo.name, { type: photo.mimeType || blob.type }))
-  }
-  return files
+  return photos.map((photo) => ({ url: photo.webPath, name: photo.name, type: photo.mimeType, size: photo.size }))
 }

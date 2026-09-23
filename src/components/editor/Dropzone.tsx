@@ -1,4 +1,5 @@
 import { useRef, useState } from 'react'
+import type { PhotoSource } from '../../lib/photoSource'
 import type { ChangeEvent, DragEvent } from 'react'
 import { PHOTO_ACCEPT_ATTR } from '../../lib/photoInput'
 import { isNativeApp } from '../../lib/native'
@@ -9,7 +10,7 @@ interface DropzoneProps {
   hint?: string
   /** Transient validation message (e.g. "need at least N photos"), shown in place of the hint. */
   error?: string | null
-  onFiles: (files: FileList | File[]) => void
+  onFiles: (files: FileList | PhotoSource[]) => void
   multiple?: boolean
   /** Most photos one pick may return. Only the native picker can enforce it;
    *  on the web the caller still has to check what comes back. */

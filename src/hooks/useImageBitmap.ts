@@ -1,5 +1,7 @@
 import { useCallback } from 'react'
 import type { LoadedPhoto } from '../types'
+import { readPhoto } from '../lib/photoSource'
+import type { PhotoSource } from '../lib/photoSource'
 
 let idCounter = 0
 function nextId() {
@@ -36,7 +38,7 @@ async function buildPreviewBitmap(bitmap: ImageBitmap): Promise<ImageBitmap> {
  *  for the duration. */
 export function useImageBitmap() {
   const loadFiles = useCallback(async (
-    files: FileList | File[],
+    files: FileList | PhotoSource[],
     onProgress?: (done: number, total: number) => void,
   ): Promise<LoadedPhoto[]> => {
     const list = Array.from(files)
@@ -54,7 +56,7 @@ export function useImageBitmap() {
       // screen simply never changed.
       let bitmap: ImageBitmap | null = null
       try {
-        bitmap = await createImageBitmap(file, { imageOrientation: 'from-image' })
+        bitmap = await createImageBitmap(await readPhoto(file), { imageOrientation: 'from-image' })
         // Inside the same try as the decode: downscaling allocates a second
         // bitmap and can fail on its own (it is the tail end of a big
         // selection that runs closest to the memory ceiling). Letting that

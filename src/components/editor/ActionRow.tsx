@@ -42,6 +42,9 @@ export function ActionRow({ open, children }: ActionRowProps) {
 
   return (
     <div
+      // Taps in here act ON the selection, so they must not clear it — see the
+      // editors' tap-anywhere-else handling.
+      data-selection-actions=""
       className={`shrink-0 overflow-hidden transition-[height] duration-300 ${EASE}`}
       style={{ height: open ? height : 0 }}
     >

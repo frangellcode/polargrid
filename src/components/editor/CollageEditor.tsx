@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import type { PhotoSource } from '../../lib/photoSource'
 import { Circle, Group, Image as KonvaImage, Line, Rect } from 'react-konva'
 import type Konva from 'konva'
 import type { CellAssignment, CellShape, ExportQuality, FreeItem, GridTemplate, LoadedPhoto, PhotoTransform } from '../../types'
@@ -1009,7 +1010,7 @@ export function CollageEditor() {
   // the class is removed once the animation finishes, and a permanently
   // composited layer is what breaks iOS taps/drags — this content area sits
   // right on top of each cell's own drag gesture.
-  const [swapPhase, setSwapPhase] = useState<'idle' | 'exiting' | 'entering'>('idle')
+  const [swapPhase, setSwapPhase] = useState<'idle' | 'exiting' | 'mounting' | 'entering'>('idle')
   const [swapKey, setSwapKey] = useState(0)
   const [pendingCellId, setPendingCellId] = useState<string | null>(null)
   const [selectedFreeId, setSelectedFreeId] = useState<string | null>(null)
@@ -1025,7 +1026,9 @@ export function CollageEditor() {
   // pointer-events-none while closing, so acting on a stale id can't happen.
   const lastCellRef = useRef<string | null>(null)
   const lastFreeRef = useRef<string | null>(null)
-  const [activeTool, setActiveTool] = useState<string | null>(null)
+  // Opens on Aspect, like the border editor: the canvas shape is the first
+  // thing anyone decides, and an empty panel area read as nothing to do.
+  const [activeTool, setActiveTool] = useState<string | null>('formato')
   const [gutterLinked, setGutterLinked] = useState(false)
   const [uploadError, setUploadError] = useState<string | null>(null)
   const [exportError, setExportError] = useState<string | null>(null)
@@ -1038,7 +1041,7 @@ export function CollageEditor() {
   // The export's own modal — the confirmation, or, when iOS wouldn't open the
   // share sheet because the Export tap had already expired, the tap that hands
   // this exact file to it with no re-render. See BorderEditor's own exportFlow.
-  const [exportFlow, setExportFlow] = useState<{ phase: ExportFlowPhase; files: ExportedImage[] } | null>(null)
+  const [exportFlow, setExportFlow] = useState<{ phase: ExportFlowPhase; progress: number; files: ExportedImage[] } | null>(null)
   // The live preview is taken down for the render and rebuilt afterwards —
   // same reasoning as BorderEditor's own previewSuspended: WebKit blanks the
   // preview's canvas to stay inside its per-tab canvas budget while a
@@ -1058,6 +1061,24 @@ export function CollageEditor() {
   useEffect(() => {
     setSelectedCellId(null)
   }, [collage.templateId, collage.photoCount, collage.orientation, collage.layoutMode])
+
+  // A selection is a question — Replace or Remove? — and touching anything
+  // else is moving on from it. Without this it outlived every other tap: open
+  // a tool, change the border, and the photo was still picked with its row
+  // still asking. Only the canvas (where tapping picks another photo, or the
+  // bare background already clears it) and the row acting on the selection
+  // leave it alone. Capture phase, so it sees the tap before whatever was
+  // tapped reacts to it.
+  useEffect(() => {
+    if (!selectedCellId && !selectedFreeId) return
+    const onPointerDown = (e: PointerEvent) => {
+      if ((e.target as Element | null)?.closest('.konvajs-content, [data-selection-actions]')) return
+      setSelectedCellId(null)
+      setSelectedFreeId(null)
+    }
+    window.addEventListener('pointerdown', onPointerDown, true)
+    return () => window.removeEventListener('pointerdown', onPointerDown, true)
+  }, [selectedCellId, selectedFreeId])
 
   useEffect(() => {
     if (!uploadError) return
@@ -1175,9 +1196,28 @@ export function CollageEditor() {
     setTimeout(() => {
       apply()
       setSwapKey((k) => k + 1)
-      setSwapPhase('entering')
+      setSwapPhase('mounting')
     }, EXIT_MS)
   }
+
+  // The new content mounts invisible and only starts fading in once it has
+  // actually been painted. Starting the fade on mount raced the first render:
+  // a nine-photo collage takes long enough to build (every cell, the grid,
+  // the tool panel) that the 380ms fade was mostly over before the first
+  // frame could paint, so the collage just appeared, all at once, after a
+  // blank moment. The effect runs after the commit; the first frame after it
+  // draws the canvas, the second is the first one that can show it.
+  useEffect(() => {
+    if (swapPhase !== 'mounting') return
+    let second = 0
+    const first = requestAnimationFrame(() => {
+      second = requestAnimationFrame(() => setSwapPhase((p) => (p === 'mounting' ? 'entering' : p)))
+    })
+    return () => {
+      cancelAnimationFrame(first)
+      cancelAnimationFrame(second)
+    }
+  }, [swapPhase])
 
   /** How many more photos this collage can hold right now. */
   const freeSlots = () =>
@@ -1186,7 +1226,7 @@ export function CollageEditor() {
       ? collage.freeItems.length
       : collage.assignments.filter((a) => a.photoId).length)
 
-  const handleUpload = async (files: FileList | File[]) => {
+  const handleUpload = async (files: FileList | PhotoSource[]) => {
     // RAW and over-sized files are dropped before anything is decoded — see
     // photoInput.ts. Saying which of the two happened matters: silently
     // ignoring a selection reads as the app losing the photos.
@@ -1261,7 +1301,7 @@ export function CollageEditor() {
     // render to finish: with the preview suspended below, the export screen
     // would otherwise be blank for however many seconds a nine-photo
     // native-resolution collage takes.
-    setExportFlow({ phase: 'rendering', files: [] })
+    setExportFlow({ phase: 'rendering', progress: 0, files: [] })
     setFrozenPreview(stageRef.current?.snapshot() ?? null)
     setPreviewSuspended(true)
     // One frame with the preview already swapped for its still before the
@@ -1278,9 +1318,11 @@ export function CollageEditor() {
       // outlives WebKit's activation window, so trying first and recovering
       // afterwards made a fast run and a slow run two different flows; this is
       // now the same three steps the border editor shows, every time.
+      const onProgress = (progress: number) => setExportFlow((f) => (f ? { ...f, progress } : f))
       const file =
         collage.layoutMode === 'grid'
           ? await renderCollageGrid(
+              onProgress,
               template,
               collage.assignments,
               photos,
@@ -1292,8 +1334,8 @@ export function CollageEditor() {
               collage.grainIntensity,
               borderColorHex,
             )
-          : await renderCollageFree(collage.freeItems, photos, ratio, quality, collage.grainIntensity, borderColorHex)
-      setExportFlow({ phase: 'ready', files: [file] })
+          : await renderCollageFree(onProgress, collage.freeItems, photos, ratio, quality, collage.grainIntensity, borderColorHex)
+      setExportFlow({ phase: 'ready', progress: 1, files: [file] })
     } catch {
       // Nothing upstream ever surfaced a failed export — it just quietly
       // reset the button, with no way to tell a real error apart from a
@@ -1375,7 +1417,7 @@ export function CollageEditor() {
       <div className={`min-h-0 flex-1 p-4 ${swapPhase === 'exiting' ? 'view-exit' : ''}`}>
         <div
           key={swapKey}
-          className={`h-full ${swapPhase === 'entering' ? 'view-enter' : ''}`}
+          className={`h-full ${swapPhase === 'mounting' ? 'opacity-0' : swapPhase === 'entering' ? 'view-enter' : ''}`}
           onAnimationEnd={() => setSwapPhase((p) => (p === 'entering' ? 'idle' : p))}
         >
         {hasContent ? (
@@ -1519,8 +1561,8 @@ export function CollageEditor() {
               setSelectedCellId(null)
               // Emptying the LAST cell turns the canvas back into the
               // Dropzone, which is a whole-screen change and gets the same
-              // crossfade every other one does. Emptying any other cell is
-              // just a gap opening up, and the grid animates that itself.
+              // crossfade every other one does. Any other removal retiles
+              // the grid for one photo fewer, which it animates itself.
               if (collage.assignments.filter((a) => a.photoId).length <= 1) {
                 swapContent(() => store.clearCell(id))
               } else {
@@ -1541,7 +1583,7 @@ export function CollageEditor() {
           // taller than the room left the bar was the thing flexbox chose to
           // squeeze — clipping its own last row behind the tool icons. The
           // canvas (flex-1 min-h-0) is what should absorb the pressure.
-          className={`shrink-0 ${swapPhase === 'exiting' ? 'view-exit' : swapPhase === 'entering' ? 'view-enter' : ''}`}
+          className={`shrink-0 ${swapPhase === 'exiting' ? 'view-exit' : swapPhase === 'mounting' ? 'opacity-0' : swapPhase === 'entering' ? 'view-enter' : ''}`}
         >
         <EditorBottomBar tools={tools} activeId={activeToolId} onSelect={setActiveTool}>
           {activeToolId === 'formato' && (
@@ -1703,6 +1745,7 @@ export function CollageEditor() {
         phase={exportFlow?.phase ?? 'ready'}
         done={1}
         total={1}
+        progress={exportFlow?.progress ?? 0}
         onSave={async () => {
           if (!exportFlow) return
           setExportFlow((f) => (f ? { ...f, phase: 'saving' } : f))

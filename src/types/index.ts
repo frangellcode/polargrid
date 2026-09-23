@@ -1,3 +1,5 @@
+import type { PhotoSource } from '../lib/photoSource'
+
 export type AppMode = 'home' | 'border' | 'collage'
 
 export type CollageLayoutMode = 'grid' | 'free'
@@ -38,7 +40,7 @@ export interface LoadedPhoto {
    *  exceeding iOS's per-tab memory budget and getting the whole app killed
    *  and reloaded — a phone with less RAM than an iPad hits that ceiling
    *  with fewer, lower-megapixel photos already loaded. */
-  file: File
+  file: PhotoSource
   /** Downscaled copy for the live Konva canvas (see useImageBitmap.ts) — the
    *  on-screen preview never needs more than a couple thousand px, and
    *  redrawing a huge camera bitmap on every animation/drag frame is what

@@ -27,15 +27,21 @@ const ImageComposer = registerPlugin<ImageComposerPlugin>('ImageComposer')
  *  appended pieces then decode back to exactly the original bytes. Chunking at
  *  all is what keeps a full-resolution export (easily 20 MB+) from being
  *  turned into one giant base64 string in memory at once. */
-const CHUNK_BYTES = 3 * 1024 * 1024
+const CHUNK_BYTES = 6 * 1024 * 1024
 
-async function toBase64(blob: Blob): Promise<string> {
-  const bytes = new Uint8Array(await blob.arrayBuffer())
-  let binary = ''
-  for (let i = 0; i < bytes.length; i += 0x8000) {
-    binary += String.fromCharCode(...bytes.subarray(i, i + 0x8000))
-  }
-  return btoa(binary)
+/** Base64 through FileReader, which WebKit does natively — several times
+ *  faster than building the string byte by byte in JavaScript, which was a
+ *  noticeable share of every exported photo's time. */
+function toBase64(blob: Blob): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = () => {
+      const url = reader.result as string
+      resolve(url.slice(url.indexOf(',') + 1))
+    }
+    reader.onerror = () => reject(reader.error)
+    reader.readAsDataURL(blob)
+  })
 }
 
 /** Writes a blob into the app's cache and returns its file:// URI. */
@@ -61,6 +67,11 @@ async function writeToCache(blob: Blob, path: string): Promise<string> {
  *  person picks in it) may still be reading them after share() has resolved. */
 export async function resetNativeExports(): Promise<void> {
   await Filesystem.rmdir({ path: EXPORT_DIR, directory: Directory.Cache, recursive: true }).catch(() => {})
+}
+
+/** Saves a finished export that needed no joining. */
+export async function writeExport(image: Blob, filename: string): Promise<NativeExport> {
+  return { name: filename, uri: await writeToCache(image, `${EXPORT_DIR}/${filename}`) }
 }
 
 /** Stores one rendered band of an export until composeBands() joins them. */

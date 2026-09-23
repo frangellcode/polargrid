@@ -5,7 +5,8 @@ import { capLongEdge, getMaxLongEdge } from './exportQuality'
 import { traceShapePath } from './shapeClip'
 import { drawGrainOverlay, seededRandom } from './grain'
 import { isNativeApp } from './native'
-import { composeBands, resetNativeExports, shareFilesNatively, writeBand } from './nativeSave'
+import { readPhoto } from './photoSource'
+import { composeBands, resetNativeExports, shareFilesNatively, writeBand, writeExport } from './nativeSave'
 import type { ExportedImage } from './nativeSave'
 
 export type { ExportedImage } from './nativeSave'
@@ -43,7 +44,7 @@ async function drawPhotoInRect(
   grainSeed?: number,
 ) {
   if (rectW <= 0 || rectH <= 0) return
-  const bitmap = await createImageBitmap(photo.file, { imageOrientation: 'from-image' })
+  const bitmap = await createImageBitmap(await readPhoto(photo.file), { imageOrientation: 'from-image' })
   try {
     ctx.save()
     ctx.translate(rectX + rectW / 2, rectY + rectH / 2)
@@ -244,6 +245,27 @@ function createExportCanvas(width: number, height: number) {
   return { canvas, ctx }
 }
 
+/** Reports how far one export has got, 0..1. */
+type Progress = (fraction: number) => void
+
+/** Draws the part of the export that falls in `band`, calling `report` with
+ *  how much of that drawing is done (0..1) as it goes. */
+type Paint = (ctx: CanvasRenderingContext2D, band: Band, report: Progress) => Promise<void>
+
+/** Turns the steps of one render into a single 0..1 figure. Each step counts
+ *  the same; drawing, the one step made of many smaller ones (a collage's
+ *  photos), also reports its progress within itself. */
+function progressMeter(steps: number, onProgress?: Progress) {
+  let done = 0
+  return {
+    partial: (fraction: number) => onProgress?.((done + Math.max(0, Math.min(1, fraction))) / steps),
+    step: () => {
+      done += 1
+      onProgress?.(done / steps)
+    },
+  }
+}
+
 /** Renders a width x height export by calling `paint` with a context in the
  *  final image's own coordinates.
  *
@@ -252,32 +274,64 @@ function createExportCanvas(width: number, height: number) {
  *  in horizontal bands — the context is translated so `paint` never knows —
  *  and has iOS join the bands into one JPEG on disk. The full image never
  *  exists in the webview's memory, which is what makes a full-resolution
- *  nine-photo collage possible at all. */
-async function renderImage(
+ *  nine-photo collage possible at all. An image that fits in one band (a
+ *  bordered photo, practically always) skips the joining: its one band IS the
+ *  finished JPEG.
+ *
+ *  Resolves as soon as the drawing is done, with `result` still encoding and
+ *  saving. In the native build a batch starts drawing the next photo in that
+ *  time, so the two overlap instead of queueing. */
+async function startRender(
   width: number,
   height: number,
   filename: string,
-  paint: (ctx: CanvasRenderingContext2D, band: Band) => Promise<void>,
-): Promise<ExportedImage> {
+  paint: Paint,
+  onProgress?: Progress,
+): Promise<{ result: Promise<ExportedImage> }> {
   if (!isNativeApp) {
+    const meter = progressMeter(2, onProgress)
     const { canvas, ctx } = createExportCanvas(width, height)
-    await paint(ctx, { top: 0, bottom: height })
-    return canvasToFile(canvas, filename)
+    await paint(ctx, { top: 0, bottom: height }, meter.partial)
+    meter.step()
+    return { result: canvasToFile(canvas, filename).finally(meter.step) }
   }
+
   const bandHeight = Math.max(1, Math.min(height, Math.floor(NATIVE_BAND_AREA / width)))
-  const bands: string[] = []
+  const bandCount = Math.ceil(height / bandHeight)
+  if (bandCount === 1) {
+    const meter = progressMeter(2, onProgress)
+    const { canvas, ctx } = createExportCanvas(width, height)
+    await paint(ctx, { top: 0, bottom: height }, meter.partial)
+    meter.step()
+    const result = canvasToFile(canvas, filename).then((file) => writeExport(file, filename))
+    return { result: result.finally(meter.step) }
+  }
+
+  // Drawing, then encoding + saving, for every band, then the join.
+  const meter = progressMeter(bandCount * 2 + 1, onProgress)
+  const bands: Promise<string>[] = []
   for (let top = 0; top < height; top += bandHeight) {
     const bottom = Math.min(height, top + bandHeight)
     const { canvas, ctx } = createExportCanvas(width, bottom - top)
     ctx.translate(0, -top)
-    await paint(ctx, { top, bottom })
-    bands.push(await writeBand(await canvasToFile(canvas, filename), filename, bands.length))
+    await paint(ctx, { top, bottom }, meter.partial)
+    meter.step()
+    // The band before this one had until now to finish encoding; waiting for
+    // it here keeps at most two band canvases alive at once.
+    if (bands.length > 0) await bands[bands.length - 1]
+    const index = bands.length
+    bands.push(
+      canvasToFile(canvas, filename)
+        .then((file) => writeBand(file, filename, index))
+        .finally(meter.step),
+    )
     await yieldToBrowser()
   }
-  return composeBands(width, height, bands, filename, JPEG_QUALITY)
+  const result = Promise.all(bands).then((paths) => composeBands(width, height, paths, filename, JPEG_QUALITY))
+  return { result: result.finally(meter.step) }
 }
 
-async function renderBorderImage(
+async function startBorderImage(
   photo: LoadedPhoto,
   ratio: number,
   borderThicknessPct: number,
@@ -287,7 +341,8 @@ async function renderBorderImage(
   grainIntensity: number,
   borderColorHex: string,
   filename: string,
-): Promise<ExportedImage> {
+  onProgress?: Progress,
+): Promise<{ result: Promise<ExportedImage> }> {
   const sizeFn = locked ? computeNativeCanvasSize : computeNativeCanvasSizeContain
   // Cap the PHOTO's own resolution to the quality tier first, then build the
   // bordered canvas around that. Capping the final (photo + border) canvas
@@ -298,29 +353,36 @@ async function renderBorderImage(
   const { width, height } = sizeFn(effPhotoW, effPhotoH, ratio, borderThicknessPct, transform.zoom)
   const borderPx = borderThicknessPct * Math.min(width, height)
   const grainSeed = Math.floor(Math.random() * 2 ** 32)
-  return renderImage(width, height, filename, async (ctx) => {
-    ctx.fillStyle = borderColorHex
-    ctx.fillRect(0, 0, width, height)
-    await drawPhotoInRect(
-      ctx,
-      photo,
-      borderPx,
-      borderPx,
-      width - borderPx * 2,
-      height - borderPx * 2,
-      transform,
-      0,
-      locked ? 'cover' : 'contain',
-      'rect',
-      grainIntensity,
-      grainSeed,
-    )
-  })
+  return startRender(
+    width,
+    height,
+    filename,
+    async (ctx, _band, report) => {
+      ctx.fillStyle = borderColorHex
+      ctx.fillRect(0, 0, width, height)
+      await drawPhotoInRect(
+        ctx,
+        photo,
+        borderPx,
+        borderPx,
+        width - borderPx * 2,
+        height - borderPx * 2,
+        transform,
+        0,
+        locked ? 'cover' : 'contain',
+        'rect',
+        grainIntensity,
+        grainSeed,
+      )
+      report(1)
+    },
+    onProgress,
+  )
 }
 
 /** Same shared adjustment (ratio/border/transform/etc.) rendered against every
  *  photo in `photos`, returned as files — WITHOUT saving them. This is the only
- *  border export path, for one photo as much as for five.
+ *  border export path, for one photo as much as for fifteen.
  *
  *  Nothing here can reach the share sheet off the tap that started it: a
  *  native-resolution render routinely outlives WebKit's activation window, and
@@ -349,28 +411,45 @@ export async function renderBorderPhotoFiles(
   locked: boolean,
   grainIntensity: number,
   borderColorHex: string,
-  onProgress?: (done: number, total: number) => void,
+  /** `done` photos are finished; `fraction` is the whole batch, 0..1. */
+  onProgress?: (done: number, total: number, fraction: number) => void,
 ): Promise<ExportedImage[]> {
   if (isNativeApp) await resetNativeExports()
   const stamp = Date.now()
   const images: ExportedImage[] = []
+  const fractions = photos.map(() => 0)
+  const report = () => onProgress?.(images.length, photos.length, fractions.reduce((a, b) => a + b, 0) / photos.length)
+  // The native build overlaps one photo's encoding with the next one's
+  // drawing (see startRender). The web build doesn't: two export canvases
+  // alive at once is exactly what runs WebKit past its canvas budget there.
+  let pending: Promise<ExportedImage> | null = null
   for (let i = 0; i < photos.length; i++) {
-    images.push(
-      await renderBorderImage(
-        photos[i],
-        ratioFor(photos[i]),
-        borderThicknessPct,
-        transform,
-        quality,
-        locked,
-        grainIntensity,
-        borderColorHex,
-        `polargrid-border-${stamp}-${i + 1}.jpg`,
-      ),
+    const { result } = await startBorderImage(
+      photos[i],
+      ratioFor(photos[i]),
+      borderThicknessPct,
+      transform,
+      quality,
+      locked,
+      grainIntensity,
+      borderColorHex,
+      `polargrid-border-${stamp}-${i + 1}.jpg`,
+      (fraction) => {
+        fractions[i] = fraction
+        report()
+      },
     )
-    onProgress?.(i + 1, photos.length)
+    if (pending) images.push(await pending)
+    pending = result
+    if (!isNativeApp) {
+      images.push(await pending)
+      pending = null
+    }
+    report()
     await yieldToBrowser()
   }
+  if (pending) images.push(await pending)
+  report()
   return images
 }
 
@@ -412,6 +491,7 @@ function nativeCollageLongEdge(fits: number[]): number {
 }
 
 export async function renderCollageGrid(
+  onProgress: Progress | undefined,
   template: GridTemplate,
   assignments: CellAssignment[],
   photos: Record<string, LoadedPhoto>,
@@ -460,27 +540,43 @@ export async function renderCollageGrid(
 
   if (isNativeApp) await resetNativeExports()
   const grainSeed = Math.floor(Math.random() * 2 ** 32)
-  return renderImage(width, height, `polargrid-collage-${Date.now()}.jpg`, async (ctx, band) => {
-    ctx.fillStyle = borderColorHex
-    ctx.fillRect(0, 0, width, height)
-    // Sequential (not the equivalent forEach) so each cell's full-resolution
-    // decode is closed before the next one is opened — see drawPhotoInRect.
-    for (let i = 0; i < template.cells.length; i++) {
-      const cell = template.cells[i]
-      const assignment = assignments[i]
-      const photo = assignment?.photoId ? photos[assignment.photoId] : null
-      if (!photo) continue
-      const x = contentX + cell.col * (cellW + gutterPx)
-      const y = contentY + cell.row * (cellH + gutterPx)
-      const w = cellW * cell.colSpan + gutterPx * (cell.colSpan - 1)
-      const h = cellH * cell.rowSpan + gutterPx * (cell.rowSpan - 1)
-      if (!reachesBand(band, y, w, h)) continue
-      await drawPhotoInRect(ctx, photo, x, y, w, h, assignment.transform, 0, 'cover', shape, grainIntensity, grainSeed + i)
-    }
+  const cells = template.cells.flatMap((cell, i) => {
+    const assignment = assignments[i]
+    const photo = assignment?.photoId ? photos[assignment.photoId] : null
+    if (!photo) return []
+    return [{
+      i,
+      photo,
+      transform: assignment.transform,
+      x: contentX + cell.col * (cellW + gutterPx),
+      y: contentY + cell.row * (cellH + gutterPx),
+      w: cellW * cell.colSpan + gutterPx * (cell.colSpan - 1),
+      h: cellH * cell.rowSpan + gutterPx * (cell.rowSpan - 1),
+    }]
   })
+  const { result } = await startRender(
+    width,
+    height,
+    `polargrid-collage-${Date.now()}.jpg`,
+    async (ctx, band, report) => {
+      ctx.fillStyle = borderColorHex
+      ctx.fillRect(0, 0, width, height)
+      const inBand = cells.filter((c) => reachesBand(band, c.y, c.w, c.h))
+      // Sequential (not the equivalent forEach) so each cell's full-resolution
+      // decode is closed before the next one is opened — see drawPhotoInRect.
+      for (let k = 0; k < inBand.length; k++) {
+        const c = inBand[k]
+        await drawPhotoInRect(ctx, c.photo, c.x, c.y, c.w, c.h, c.transform, 0, 'cover', shape, grainIntensity, grainSeed + c.i)
+        report((k + 1) / inBand.length)
+      }
+    },
+    onProgress,
+  )
+  return result
 }
 
 export async function renderCollageFree(
+  onProgress: Progress | undefined,
   freeItems: FreeItem[],
   photos: Record<string, LoadedPhoto>,
   ratio: number,
@@ -509,19 +605,27 @@ export async function renderCollageFree(
 
   if (isNativeApp) await resetNativeExports()
   const grainSeed = Math.floor(Math.random() * 2 ** 32)
-  return renderImage(width, height, `polargrid-collage-${Date.now()}.jpg`, async (ctx, band) => {
-    ctx.fillStyle = borderColorHex
-    ctx.fillRect(0, 0, width, height)
-    for (let i = 0; i < freeItems.length; i++) {
-      const item = freeItems[i]
-      const photo = photos[item.photoId]
-      if (!photo) continue
-      const x = item.x * width
-      const y = item.y * height
-      const w = item.width * width
-      const h = item.height * width
-      if (!reachesBand(band, y, w, h, item.rotation)) continue
-      await drawPhotoInRect(ctx, photo, x, y, w, h, item.transform, item.rotation, 'cover', 'rect', grainIntensity, grainSeed + i)
-    }
+  const items = freeItems.flatMap((item, i) => {
+    const photo = photos[item.photoId]
+    if (!photo) return []
+    return [{ i, item, photo, x: item.x * width, y: item.y * height, w: item.width * width, h: item.height * width }]
   })
+  const { result } = await startRender(
+    width,
+    height,
+    `polargrid-collage-${Date.now()}.jpg`,
+    async (ctx, band, report) => {
+      ctx.fillStyle = borderColorHex
+      ctx.fillRect(0, 0, width, height)
+      // In list order even within a band: later items are drawn on top.
+      const inBand = items.filter((c) => reachesBand(band, c.y, c.w, c.h, c.item.rotation))
+      for (let k = 0; k < inBand.length; k++) {
+        const { i, item, photo, x, y, w, h } = inBand[k]
+        await drawPhotoInRect(ctx, photo, x, y, w, h, item.transform, item.rotation, 'cover', 'rect', grainIntensity, grainSeed + i)
+        report((k + 1) / inBand.length)
+      }
+    },
+    onProgress,
+  )
+  return result
 }

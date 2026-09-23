@@ -530,12 +530,24 @@ export const useEditorStore = create<EditorStoreState>((set, get) => ({
 
   clearCell: (cellId) =>
     set((state) => {
-      const collage = {
-        ...state.collage,
-        assignments: state.collage.assignments.map((a) =>
-          a.cellId === cellId ? { ...a, photoId: null, transform: { ...DEFAULT_TRANSFORM } } : a,
-        ),
-      }
+      // Removing a photo retiles the collage for the photos that are left —
+      // nine become a real eight-photo layout — instead of leaving a hole to
+      // fill. Anyone who wanted a different photo there has Replace. Only
+      // below the two-photo minimum does the cell stay, empty, since a collage
+      // of one isn't one.
+      const remaining = state.collage.assignments.filter((a) => a.photoId && a.cellId !== cellId)
+      const collage =
+        remaining.length >= MIN_COLLAGE_PHOTOS
+          ? {
+              ...state.collage,
+              ...buildGridFor(remaining.map((a) => a.photoId as string)),
+            }
+          : {
+              ...state.collage,
+              assignments: state.collage.assignments.map((a) =>
+                a.cellId === cellId ? { ...a, photoId: null, transform: { ...DEFAULT_TRANSFORM } } : a,
+              ),
+            }
       // Emptying a cell is the one moment a photo is certain to be unwanted —
       // its bitmap goes with it, unless the other editor still points at it.
       return { collage, photos: prunePhotos(state.photos, state.border, collage) }

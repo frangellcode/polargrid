@@ -1,4 +1,5 @@
 import { forwardRef, useEffect, useImperativeHandle, useLayoutEffect, useRef, useState } from 'react'
+import type { PhotoSource } from '../../lib/photoSource'
 import type { ChangeEvent } from 'react'
 import type { ExportQuality } from '../../types'
 import { useTranslation } from '../../store/languageStore'
@@ -10,7 +11,7 @@ import { pickPhotosNatively } from '../../lib/nativePhotos'
 interface ToolbarProps {
   title: string
   onBack: () => void
-  onUpload: (files: FileList | File[]) => void
+  onUpload: (files: FileList | PhotoSource[]) => void
   onExport: (quality: ExportQuality) => void
   exportQuality: ExportQuality
   exporting?: boolean

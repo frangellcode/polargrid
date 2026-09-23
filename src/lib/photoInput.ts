@@ -1,3 +1,6 @@
+import { isNativeApp } from './native'
+import type { PhotoSource } from './photoSource'
+
 /** What the app will take in, and how big. Everything the editors accept goes
  *  through screenPhotoFiles() below — the `accept` attribute on a file input is
  *  a hint to the picker, not a guarantee, and drag & drop ignores it entirely. */
@@ -24,19 +27,24 @@ export const PHOTO_ACCEPT_ATTR = [...ACCEPTED_TYPES, ...ACCEPTED_EXTENSIONS].joi
  * ever gets to render anything. 25 MB clears any real photo comfortably — a
  * 48 MP iPhone HEIC is ~3-5 MB and its JPEG equivalent ~15-25 MB — while
  * stopping the pathological ones.
+ *
+ * The App Store build allows 50 MB: its photos stay on disk until the moment
+ * they're decoded (see photoSource.ts) instead of all sitting in memory, and
+ * its picker shrinks anything bigger before it ever gets here (see
+ * PhotoPickerPlugin.swift) — so there, nothing is actually turned away.
  */
-export const MAX_PHOTO_BYTES = 25 * 1024 * 1024
-export const MAX_PHOTO_MB = 25
+export const MAX_PHOTO_MB = isNativeApp ? 50 : 25
+export const MAX_PHOTO_BYTES = MAX_PHOTO_MB * 1024 * 1024
 
 export interface ScreenedPhotos {
-  accepted: File[]
+  accepted: PhotoSource[]
   /** Files dropped for being an unsupported format. */
   rejectedType: number
   /** Files dropped for being over MAX_PHOTO_BYTES. */
   rejectedSize: number
 }
 
-function isAcceptedType(file: File) {
+function isAcceptedType(file: PhotoSource) {
   if (ACCEPTED_TYPES.includes(file.type.toLowerCase())) return true
   // Only trust the extension when the MIME is missing or generic — a file that
   // positively claims image/gif shouldn't sneak through on a renamed .jpg.
@@ -48,7 +56,7 @@ function isAcceptedType(file: File) {
 /** Splits a selection into what the app will take and a count of why the rest
  *  was dropped, so the caller can say something instead of silently ignoring
  *  files (which reads as the app having lost them). */
-export function screenPhotoFiles(files: FileList | File[]): ScreenedPhotos {
+export function screenPhotoFiles(files: FileList | PhotoSource[]): ScreenedPhotos {
   const result: ScreenedPhotos = { accepted: [], rejectedType: 0, rejectedSize: 0 }
   for (const file of Array.from(files)) {
     if (!isAcceptedType(file)) result.rejectedType++
