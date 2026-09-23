@@ -8,6 +8,9 @@ const config: CapacitorConfig = {
   // behind the boot splash while the bundle loads.
   backgroundColor: '#141e30',
   ios: {
+    // The Xcode project FILE has to stay App.xcodeproj (the Capacitor CLI looks
+    // for that name), but its target and scheme are PolarGrid.
+    scheme: 'PolarGrid',
     // Each screen already pads itself with env(safe-area-inset-*), exactly as
     // the installed PWA does — letting iOS inset the webview too would double it.
     contentInset: 'never',

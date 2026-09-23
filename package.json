@@ -9,7 +9,7 @@
     "lint": "oxlint",
     "preview": "vite preview",
     "generate-icons": "node scripts/generate-icons.mjs",
-    "ios": "npm run build && cap sync ios && cap open ios"
+    "ios": "npm run build && cap sync ios && open ios/App/PolarGrid.xcworkspace"
   },
   "dependencies": {
     "@capacitor/core": "^8.5.2",
