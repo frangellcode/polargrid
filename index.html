@@ -5,16 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1" />
     <title>PolarGrid</title>
     <meta name="description" content="White borders and photo collages in high quality, 100% offline." />
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <!-- display=optional (not swap): with swap, the fallback system font
-         paints first and then gets replaced by Syne/Jost once they load —
-         since the two have different line-heights, that swap reflows the
-         Toolbar's height and visibly shifts everything below it down by a
-         few px right after the screen has already appeared. optional
-         either has the real font ready in time for the first paint or
-         sticks with the fallback for that load — no swap, no shift. -->
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Syne:wght@500;700&family=Jost:wght@300;400;500&display=optional" />
     <!-- Must match the app's real background (every screen is bg-ink-900,
          #141e30) — in Safari (non-installed mode) this tints the toolbar/
          app-switcher card, so a value that doesn't match the app's
@@ -72,36 +62,32 @@
     <div id="boot-splash" class="boot-splash" aria-hidden="true">
         <svg width="62" height="62" viewBox="0 0 200 200" role="img" aria-label="PolarGrid">
           <rect x="0" y="0" width="200" height="200" rx="46" fill="#141e30" />
-          <g transform="translate(34,34) scale(0.2578)">
-            <path fill="#4E5058" d="M349.867,51.2H162.133V8.533c0-4.713,3.821-8.533,8.533-8.533h170.667c4.713,0,8.533,3.821,8.533,8.533V51.2z" />
-            <path fill="#383A43" d="M187.733,0h-17.067c-4.713,0-8.533,3.821-8.533,8.533V51.2H179.2V8.533C179.2,3.821,183.021,0,187.733,0z" />
-            <path fill="#D3D3D5" d="M469.333,256H42.667V42.667c0-4.713,3.821-8.533,8.533-8.533h409.6c4.713,0,8.533,3.821,8.533,8.533V256z" />
-            <path fill="#BDBDC0" d="M68.267,34.133H51.2c-4.713,0-8.533,3.821-8.533,8.533V256h17.067V42.667C59.733,37.954,63.554,34.133,68.267,34.133z" />
-            <polygon fill="#E9E9EA" points="503.467,349.867 8.533,349.867 42.667,256 469.333,256 " />
-            <polygon fill="#D3D3D5" points="42.667,256 8.533,349.867 25.6,349.867 59.733,256 " />
-            <path fill="#4E5058" d="M494.933,460.8H17.067c-4.713,0-8.533-3.821-8.533-8.533v-102.4h494.933v102.4C503.467,456.979,499.646,460.8,494.933,460.8z" />
-            <path fill="#383A43" d="M29.867,443.733c-2.356,0-4.267-1.91-4.267-4.267v-89.6H8.533v102.4c0,4.713,3.821,8.533,8.533,8.533h477.867c4.713,0,8.533-3.821,8.533-8.533v-8.533H29.867z" />
-            <path fill="#E9E9EA" d="M426.667,153.6H358.4c-4.713,0-8.533-3.821-8.533-8.533V76.8c0-4.713,3.821-8.533,8.533-8.533h68.267c4.713,0,8.533,3.821,8.533,8.533v68.267C435.2,149.779,431.379,153.6,426.667,153.6z" />
-            <path fill="#A7A7AB" d="M358.4,68.267c-4.713,0-8.533,3.821-8.533,8.533v41.067l49.6-49.6H358.4z" />
-            <path fill="#A7A7AB" d="M434.441,73.293l-79.547,79.547c1.071,0.484,2.256,0.759,3.507,0.759h31.467l45.333-45.333V76.8C435.2,75.549,434.924,74.364,434.441,73.293z" />
-            <path fill="#A7A7AB" d="M404.8,153.6h21.867c4.713,0,8.533-3.821,8.533-8.533V123.2L404.8,153.6z" />
-            <path fill="#7A7C82" d="M426.667,68.267H358.4c-4.713,0-8.533,3.821-8.533,8.533v68.267c0,4.713,3.821,8.533,8.533,8.533h68.267c4.713,0,8.533-3.821,8.533-8.533V76.8C435.2,72.087,431.379,68.267,426.667,68.267z M426.667,145.067H358.4V76.8h68.267V145.067z" />
-            <path fill="#7A7C82" d="M392.533,392.533H119.467c-4.713,0-8.533,3.821-8.533,8.533v17.067V435.2c0,4.713,3.821,8.533,8.533,8.533h273.067c4.713,0,8.533-3.821,8.533-8.533v-17.067v-17.067C401.067,396.354,397.246,392.533,392.533,392.533z" />
-            <path fill="#E9E9EA" d="M375.467,512H136.533c-4.713,0-8.533-3.821-8.533-8.533V392.533h256v110.933C384,508.179,380.179,512,375.467,512z" />
-            <rect x="128" y="392.533" fill="#D3D3D5" width="256" height="17.422" />
-            <circle fill="#D14D7B" cx="136.533" cy="196.267" r="25.6" />
-            <circle fill="#FD5E95" cx="136.533" cy="196.267" r="17.067" />
-            <circle fill="#64666D" cx="375.467" cy="196.267" r="25.6" />
-            <circle fill="#909296" cx="256" cy="145.067" r="76.8" />
-            <circle fill="#64666D" cx="256" cy="145.067" r="59.733" />
-            <path fill="#4E5058" d="M273.067,187.733c-32.99,0-59.733-26.743-59.733-59.733c0-12.129,3.626-23.407,9.837-32.83c-16.204,10.684-26.903,29.036-26.903,49.897c0,32.99,26.743,59.733,59.733,59.733c20.861,0,39.213-10.7,49.897-26.903C296.474,184.108,285.196,187.733,273.067,187.733z" />
-            <circle fill="#BDBDC0" cx="273.067" cy="119.467" r="17.067" />
-            <path fill="#7A7C82" d="M153.6,119.467H85.333c-4.713,0-8.533-3.821-8.533-8.533s3.821-8.533,8.533-8.533H153.6c4.713,0,8.533,3.821,8.533,8.533S158.313,119.467,153.6,119.467z" />
-            <path fill="#7A7C82" d="M153.6,153.6H85.333c-4.713,0-8.533-3.821-8.533-8.533c0-4.713,3.821-8.533,8.533-8.533H153.6c4.713,0,8.533,3.821,8.533,8.533C162.133,149.779,158.313,153.6,153.6,153.6z" />
-            <rect x="238.933" y="256" fill="#FD5E95" width="34.133" height="93.867" />
-            <rect x="273.067" y="256" fill="#45CAE0" width="34.133" height="93.867" />
-            <rect x="204.8" y="256" fill="#FFE88A" width="34.133" height="93.867" />
-          </g>
+          <rect x="58" y="41" width="42" height="14" rx="4" fill="#4E5058" />
+          <rect x="34" y="50" width="132" height="66" rx="12" fill="#D8D9DC" />
+          <path d="M46 50h-0a12 12 0 0 0-12 12v54h10V62a12 12 0 0 1 12-12z" fill="#C4C5C9" />
+          <rect x="34" y="98" width="132" height="4" fill="#FFE88A" />
+          <rect x="34" y="102" width="132" height="4" fill="#FD5E95" />
+          <rect x="34" y="106" width="132" height="4" fill="#45CAE0" />
+          <circle cx="100" cy="75" r="22" fill="#909296" />
+          <circle cx="100" cy="75" r="17" fill="#64666D" />
+          <circle cx="100" cy="75" r="10.5" fill="#3F4149" />
+          <circle cx="105.5" cy="69.5" r="4" fill="#BDBDC0" />
+          <circle cx="56" cy="66" r="7.5" fill="#D14D7B" />
+          <circle cx="56" cy="66" r="4.8" fill="#FD5E95" />
+          <rect x="48" y="80" width="18" height="3.5" rx="1.75" fill="#9A9CA2" />
+          <rect x="48" y="87" width="18" height="3.5" rx="1.75" fill="#9A9CA2" />
+          <rect x="133" y="59" width="22" height="17" rx="3.5" fill="#7A7C82" />
+          <rect x="136.5" y="62.5" width="15" height="10" rx="1.5" fill="#E9E9EA" />
+          <path d="M141 72.5l7-10h3.5l-7 10z" fill="#BDBDC0" />
+          <rect x="30" y="110" width="140" height="34" rx="10" fill="#4E5058" />
+          <path d="M30 134v0a10 10 0 0 0 10 10h120a10 10 0 0 0 10-10v0z" fill="#383A43" />
+          <rect x="60" y="123" width="80" height="7" rx="3.5" fill="#2A2C33" />
+          <rect x="67" y="127" width="66" height="42" rx="3" fill="#F2F2F3" />
+          <rect x="67" y="127" width="66" height="4" fill="#D8D9DC" />
+          <rect x="73" y="133" width="26" height="13" rx="1.5" fill="#45CAE0" />
+          <rect x="101" y="133" width="26" height="13" rx="1.5" fill="#FFE88A" />
+          <rect x="73" y="148" width="26" height="13" rx="1.5" fill="#FD5E95" />
+          <rect x="101" y="148" width="26" height="13" rx="1.5" fill="#8FD9B6" />
       </svg>
     </div>
     <script type="module" src="/src/main.tsx"></script>

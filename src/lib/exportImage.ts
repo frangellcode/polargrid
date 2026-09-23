@@ -4,6 +4,8 @@ import { ASPECT_RATIOS } from './aspectRatios'
 import { capLongEdge, getMaxLongEdge } from './exportQuality'
 import { traceShapePath } from './shapeClip'
 import { drawGrainOverlay } from './grain'
+import { isNativeApp } from './native'
+import { shareFilesNatively } from './nativeSave'
 
 const JPEG_QUALITY = 1.0
 
@@ -115,6 +117,8 @@ function prefersShareSheet(): boolean {
 
 export async function saveExportedFiles(files: File[]): Promise<SaveResult> {
   if (files.length === 0) return 'dismissed'
+
+  if (isNativeApp) return shareFilesNatively(files)
 
   // Where the sheet is the right path it is the ONLY path — never fall back to
   // the anchor there. In an iOS PWA each anchor click replaces the previous

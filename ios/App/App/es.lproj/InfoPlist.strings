@@ -1,0 +1,3 @@
+"NSCameraUsageDescription" = "PolarGrid usa la cámara solo cuando eliges tomar una foto nueva para enmarcarla o añadirla a un collage. Tus fotos nunca salen de tu dispositivo.";
+"NSPhotoLibraryUsageDescription" = "PolarGrid abre las fotos que eliges para ponerles borde o armar un collage. Todo se procesa en tu dispositivo y no se sube nada.";
+"NSPhotoLibraryAddUsageDescription" = "PolarGrid guarda en tu fototeca las fotos con borde y los collages que terminas.";

@@ -50,30 +50,6 @@ export default defineConfig({
       },
       workbox: {
         globPatterns: ['**/*.{js,css,html,svg,png,ico,woff2}'],
-        // The Syne/Jost Google Fonts are loaded from a separate origin, so
-        // globPatterns above (same-origin build output) never covers them —
-        // without this they're at the mercy of the browser's own HTTP cache,
-        // which iOS can evict after as little as a week of the app not being
-        // opened directly in Safari. Caching them here keeps the "100%
-        // offline" claim true and avoids the visible reflow that happens
-        // when the fallback font has to be swapped for the real one after
-        // a slow/failed re-fetch.
-        runtimeCaching: [
-          {
-            urlPattern: /^https:\/\/fonts\.googleapis\.com\/.*/,
-            handler: 'StaleWhileRevalidate',
-            options: { cacheName: 'google-fonts-stylesheets' },
-          },
-          {
-            urlPattern: /^https:\/\/fonts\.gstatic\.com\/.*/,
-            handler: 'CacheFirst',
-            options: {
-              cacheName: 'google-fonts-webfonts',
-              expiration: { maxEntries: 10, maxAgeSeconds: 60 * 60 * 24 * 365 },
-              cacheableResponse: { statuses: [0, 200] },
-            },
-          },
-        ],
       },
     }),
   ],

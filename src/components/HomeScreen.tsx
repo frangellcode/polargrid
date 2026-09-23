@@ -1,12 +1,17 @@
+import { useState } from 'react'
 import type { CSSProperties, Ref, TransitionEventHandler } from 'react'
 import { useEditorStore } from '../store/editorStore'
 import { useUpdateStore } from '../store/updateStore'
 import { useLanguageStore, useTranslation } from '../store/languageStore'
+import { isNativeApp } from '../lib/native'
 import { FadeText } from './FadeText'
 import { Logo } from './Logo'
+import { TipJarModal } from './TipJarModal'
 import { IconInstagram, IconRefresh } from './editor/icons'
 
 const INSTAGRAM_URL = 'https://instagram.com/frangellgram'
+/** Web only. App Store rules forbid pointing to an outside payment for a tip,
+ *  so the native build shows TipJarModal (in-app purchase) in its place. */
 const DONATE_URL = 'https://paypal.me/frangellgram'
 
 /**
@@ -58,6 +63,7 @@ export function HomeScreen({
   const language = useLanguageStore((s) => s.language)
   const toggleLanguage = useLanguageStore((s) => s.toggleLanguage)
   const tr = useTranslation()
+  const [tipJarOpen, setTipJarOpen] = useState(false)
 
   // Deliberately does NOT clear updateAvailable. It used to, which meant a
   // failed update (the new worker never took over, so the reload served the
@@ -142,9 +148,12 @@ export function HomeScreen({
         </button>
       </div>
 
-      {/* No disabled:opacity-* here — disabling always coincides with contentVisible
+      {/* Web/PWA only: the App Store build is updated by the App Store, and has
+          no service worker for this button to hand over to.
+          No disabled:opacity-* here — disabling always coincides with contentVisible
           going false, and its opacity-0 must win outright instead of settling for
           the disabled state's dimmed (but still visible) opacity. */}
+      {!isNativeApp && (
       <button
         type="button"
         onClick={handleUpdate}
@@ -161,6 +170,7 @@ export function HomeScreen({
         </span>
         <FadeText value={tr.home.updateApp} trigger={language} animateWidth />
       </button>
+      )}
       </div>
 
       {/* Isolated at the very bottom, outside the centered group above (see
@@ -176,16 +186,28 @@ export function HomeScreen({
           contentVisible ? 'opacity-100' : 'pointer-events-none opacity-0'
         }`}
       >
-        <a
-          href={DONATE_URL}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="font-label flex items-center gap-2 rounded-full bg-white/10 py-2 pl-4 pr-3.5 text-[11px] font-light text-white/60 transition duration-200 hover:bg-white/15 active:scale-95"
-        >
-          <FadeText value={tr.home.donateLabel} trigger={language} animateWidth />
-          <span className="h-3.5 w-px bg-white/25" />
-          <FadeText value={tr.home.donate} trigger={language} animateWidth className="font-semibold text-white" />
-        </a>
+        {isNativeApp ? (
+          <button
+            type="button"
+            onClick={() => setTipJarOpen(true)}
+            className="font-label flex items-center gap-2 rounded-full bg-white/10 py-2 pl-4 pr-3.5 text-[11px] font-light text-white/60 transition duration-200 hover:bg-white/15 active:scale-95"
+          >
+            <FadeText value={tr.home.tipLabel} trigger={language} animateWidth />
+            <span className="h-3.5 w-px bg-white/25" />
+            <FadeText value={tr.home.tip} trigger={language} animateWidth className="font-semibold text-white" />
+          </button>
+        ) : (
+          <a
+            href={DONATE_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="font-label flex items-center gap-2 rounded-full bg-white/10 py-2 pl-4 pr-3.5 text-[11px] font-light text-white/60 transition duration-200 hover:bg-white/15 active:scale-95"
+          >
+            <FadeText value={tr.home.donateLabel} trigger={language} animateWidth />
+            <span className="h-3.5 w-px bg-white/25" />
+            <FadeText value={tr.home.donate} trigger={language} animateWidth className="font-semibold text-white" />
+          </a>
+        )}
         <a
           href={INSTAGRAM_URL}
           target="_blank"
@@ -197,6 +219,8 @@ export function HomeScreen({
           <IconInstagram className="ml-1.5 h-3.5 w-3.5" />
         </a>
       </div>
+
+      {isNativeApp && <TipJarModal open={tipJarOpen} onClose={() => setTipJarOpen(false)} />}
     </div>
   )
 }
