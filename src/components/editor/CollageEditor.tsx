@@ -13,6 +13,7 @@ import { MAX_PHOTO_MB, screenPhotoFiles } from '../../lib/photoInput'
 import { holdForSheetClose, holdImportCard } from '../../lib/uiTiming'
 import { MAX_COLLAGE_PHOTOS, MIN_COLLAGE_PHOTOS, getTemplateById, transposeTemplate } from '../../lib/collageTemplates'
 import { renderCollageFree, renderCollageGrid, resolveRatio, saveExportedFiles } from '../../lib/exportImage'
+import type { ExportedImage } from '../../lib/exportImage'
 import { getBorderColor } from '../../lib/borderColors'
 import { Toolbar, type ToolbarHandle } from './Toolbar'
 import { AspectRatioPicker } from './AspectRatioPicker'
@@ -1037,7 +1038,7 @@ export function CollageEditor() {
   // The export's own modal — the confirmation, or, when iOS wouldn't open the
   // share sheet because the Export tap had already expired, the tap that hands
   // this exact file to it with no re-render. See BorderEditor's own exportFlow.
-  const [exportFlow, setExportFlow] = useState<{ phase: ExportFlowPhase; files: File[] } | null>(null)
+  const [exportFlow, setExportFlow] = useState<{ phase: ExportFlowPhase; files: ExportedImage[] } | null>(null)
   // The live preview is taken down for the render and rebuilt afterwards —
   // same reasoning as BorderEditor's own previewSuspended: WebKit blanks the
   // preview's canvas to stay inside its per-tab canvas budget while a
@@ -1185,7 +1186,7 @@ export function CollageEditor() {
       ? collage.freeItems.length
       : collage.assignments.filter((a) => a.photoId).length)
 
-  const handleUpload = async (files: FileList) => {
+  const handleUpload = async (files: FileList | File[]) => {
     // RAW and over-sized files are dropped before anything is decoded — see
     // photoInput.ts. Saying which of the two happened matters: silently
     // ignoring a selection reads as the app losing the photos.
@@ -1337,6 +1338,7 @@ export function CollageEditor() {
         canExport={hasContent}
         uploadLabel={tr.collageEditor.addPhotos}
         multiple
+        maxPhotos={freeSlots()}
       />
 
       {/* Only the empty Dropzone shows its own error inline, so once a collage
@@ -1419,7 +1421,7 @@ export function CollageEditor() {
                   onCellTransformChange={(cellId, t) => store.setCellTransform(cellId, t)}
                   onEmptyCellClick={(cellId) => {
                     setPendingCellId(cellId)
-                    toolbarRef.current?.openFilePicker()
+                    toolbarRef.current?.openFilePicker(1)
                   }}
                   selectedCellId={selectedCellId}
                   onSelectCell={setSelectedCellId}
@@ -1442,6 +1444,7 @@ export function CollageEditor() {
             hint={tr.collageEditor.dropHint(MIN_COLLAGE_PHOTOS, MAX_COLLAGE_PHOTOS, MAX_PHOTO_MB)}
             error={uploadError}
             onFiles={handleUpload}
+            maxPhotos={MAX_COLLAGE_PHOTOS}
           />
         )}
         </div>
@@ -1502,7 +1505,7 @@ export function CollageEditor() {
               // this cell — so "replace" is one tap, not remove-then-add.
               setPendingCellId(cellId)
               setSelectedCellId(null)
-              toolbarRef.current?.openFilePicker()
+              toolbarRef.current?.openFilePicker(1)
             }}
             className="font-label rounded-full bg-white/10 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-white transition duration-200 hover:bg-white/15 active:scale-90"
           >

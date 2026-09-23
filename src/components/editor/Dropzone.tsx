@@ -1,14 +1,19 @@
 import { useRef, useState } from 'react'
 import type { ChangeEvent, DragEvent } from 'react'
 import { PHOTO_ACCEPT_ATTR } from '../../lib/photoInput'
+import { isNativeApp } from '../../lib/native'
+import { pickPhotosNatively } from '../../lib/nativePhotos'
 
 interface DropzoneProps {
   label: string
   hint?: string
   /** Transient validation message (e.g. "need at least N photos"), shown in place of the hint. */
   error?: string | null
-  onFiles: (files: FileList) => void
+  onFiles: (files: FileList | File[]) => void
   multiple?: boolean
+  /** Most photos one pick may return. Only the native picker can enforce it;
+   *  on the web the caller still has to check what comes back. */
+  maxPhotos?: number
 }
 
 /** Accepts drag & drop across the whole box on desktop, but the actual tap
@@ -18,11 +23,18 @@ interface DropzoneProps {
  *  compositing glitch on large `:active`-driven layers (the same family of
  *  bug App.tsx's screen-transition fix already worked around elsewhere). A
  *  small button doesn't trigger it. */
-export function Dropzone({ label, hint, error, onFiles, multiple = true }: DropzoneProps) {
+export function Dropzone({ label, hint, error, onFiles, multiple = true, maxPhotos }: DropzoneProps) {
   const inputRef = useRef<HTMLInputElement>(null)
   const [isDragOver, setIsDragOver] = useState(false)
 
-  const openPicker = () => inputRef.current?.click()
+  const openPicker = async () => {
+    if (!isNativeApp) {
+      inputRef.current?.click()
+      return
+    }
+    const files = await pickPhotosNatively(multiple ? (maxPhotos ?? 1) : 1)
+    if (files.length > 0) onFiles(files)
+  }
 
   const handleDrop = (e: DragEvent<HTMLDivElement>) => {
     e.preventDefault()

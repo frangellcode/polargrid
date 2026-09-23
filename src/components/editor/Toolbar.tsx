@@ -4,11 +4,13 @@ import type { ExportQuality } from '../../types'
 import { useTranslation } from '../../store/languageStore'
 import { ExportQualitySheet } from './ExportQualitySheet'
 import { PHOTO_ACCEPT_ATTR } from '../../lib/photoInput'
+import { isNativeApp } from '../../lib/native'
+import { pickPhotosNatively } from '../../lib/nativePhotos'
 
 interface ToolbarProps {
   title: string
   onBack: () => void
-  onUpload: (files: FileList) => void
+  onUpload: (files: FileList | File[]) => void
   onExport: (quality: ExportQuality) => void
   exportQuality: ExportQuality
   exporting?: boolean
@@ -17,10 +19,14 @@ interface ToolbarProps {
   canExport?: boolean
   uploadLabel?: string
   multiple?: boolean
+  /** Most photos the toolbar's own button may pick. Only the native picker can
+   *  enforce it; on the web the caller still has to check what comes back. */
+  maxPhotos?: number
 }
 
 export interface ToolbarHandle {
-  openFilePicker: () => void
+  /** `limit` overrides maxPhotos for this one pick (filling a single cell). */
+  openFilePicker: (limit?: number) => void
 }
 
 export const Toolbar = forwardRef<ToolbarHandle, ToolbarProps>(function Toolbar(
@@ -35,6 +41,7 @@ export const Toolbar = forwardRef<ToolbarHandle, ToolbarProps>(function Toolbar(
     canExport = true,
     uploadLabel,
     multiple = false,
+    maxPhotos,
   },
   ref,
 ) {
@@ -78,8 +85,23 @@ export const Toolbar = forwardRef<ToolbarHandle, ToolbarProps>(function Toolbar(
     return () => clearTimeout(fadeTimer)
   }, [resolvedUploadLabel, displayLabel])
 
+  // The native picker resolves long after the tap, by which point the editor
+  // has re-rendered — e.g. with the cell it's filling now set — so the pick is
+  // handed to whatever onUpload is current THEN, not the one from the tap.
+  const onUploadRef = useRef(onUpload)
+  onUploadRef.current = onUpload
+
+  const openPicker = async (limit = multiple ? (maxPhotos ?? 1) : 1) => {
+    if (!isNativeApp) {
+      inputRef.current?.click()
+      return
+    }
+    const files = await pickPhotosNatively(limit)
+    if (files.length > 0) onUploadRef.current(files)
+  }
+
   useImperativeHandle(ref, () => ({
-    openFilePicker: () => inputRef.current?.click(),
+    openFilePicker: (limit?: number) => void openPicker(limit),
   }))
 
   const handleChange = (e: ChangeEvent<HTMLInputElement>) => {
@@ -120,7 +142,7 @@ export const Toolbar = forwardRef<ToolbarHandle, ToolbarProps>(function Toolbar(
         />
         <button
           type="button"
-          onClick={() => inputRef.current?.click()}
+          onClick={() => void openPicker()}
           className="font-label relative inline-flex h-9 items-center rounded-full bg-white/10 px-3 text-xs font-semibold uppercase tracking-wide text-white transition duration-200 hover:bg-white/15 active:scale-95"
         >
           <span

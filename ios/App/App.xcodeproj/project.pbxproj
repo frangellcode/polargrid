@@ -20,6 +20,8 @@
 		A1B2C3D4E5F6000000000103 /* MainViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F6000000000102 /* MainViewController.swift */; };
 		A1B2C3D4E5F6000000000105 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F6000000000104 /* PrivacyInfo.xcprivacy */; };
 		A1B2C3D4E5F6000000000107 /* InfoPlist.strings in Resources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F6000000000106 /* InfoPlist.strings */; };
+		A1B2C3D4E5F6000000000201 /* ImageComposerPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F6000000000200 /* ImageComposerPlugin.swift */; };
+		A1B2C3D4E5F6000000000203 /* PhotoPickerPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F6000000000202 /* PhotoPickerPlugin.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -40,6 +42,8 @@
 		A1B2C3D4E5F6000000000108 /* en */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = en; path = en.lproj/InfoPlist.strings; sourceTree = "<group>"; };
 		A1B2C3D4E5F6000000000109 /* es */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = es; path = es.lproj/InfoPlist.strings; sourceTree = "<group>"; };
 		A1B2C3D4E5F600000000010A /* PolarGrid.storekit */ = {isa = PBXFileReference; lastKnownFileType = text; path = PolarGrid.storekit; sourceTree = "<group>"; };
+		A1B2C3D4E5F6000000000200 /* ImageComposerPlugin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImageComposerPlugin.swift; sourceTree = "<group>"; };
+		A1B2C3D4E5F6000000000202 /* PhotoPickerPlugin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhotoPickerPlugin.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -79,6 +83,8 @@
 				504EC3071FED79650016851F /* AppDelegate.swift */,
 				A1B2C3D4E5F6000000000102 /* MainViewController.swift */,
 				A1B2C3D4E5F6000000000100 /* TipJarPlugin.swift */,
+				A1B2C3D4E5F6000000000202 /* PhotoPickerPlugin.swift */,
+				A1B2C3D4E5F6000000000200 /* ImageComposerPlugin.swift */,
 				A1B2C3D4E5F6000000000104 /* PrivacyInfo.xcprivacy */,
 				A1B2C3D4E5F6000000000106 /* InfoPlist.strings */,
 				A1B2C3D4E5F600000000010A /* PolarGrid.storekit */,
@@ -180,6 +186,8 @@
 				9582B6832FE993A70072D4E8 /* SceneDelegate.swift in Sources */,
 				A1B2C3D4E5F6000000000103 /* MainViewController.swift in Sources */,
 				A1B2C3D4E5F6000000000101 /* TipJarPlugin.swift in Sources */,
+				A1B2C3D4E5F6000000000203 /* PhotoPickerPlugin.swift in Sources */,
+				A1B2C3D4E5F6000000000201 /* ImageComposerPlugin.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

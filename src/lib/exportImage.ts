@@ -3,9 +3,12 @@ import { computeNativeCanvasSize, computeNativeCanvasSizeContain, computeOutputP
 import { ASPECT_RATIOS } from './aspectRatios'
 import { capLongEdge, getMaxLongEdge } from './exportQuality'
 import { traceShapePath } from './shapeClip'
-import { drawGrainOverlay } from './grain'
+import { drawGrainOverlay, seededRandom } from './grain'
 import { isNativeApp } from './native'
-import { shareFilesNatively } from './nativeSave'
+import { composeBands, resetNativeExports, shareFilesNatively, writeBand } from './nativeSave'
+import type { ExportedImage } from './nativeSave'
+
+export type { ExportedImage } from './nativeSave'
 
 const JPEG_QUALITY = 1.0
 
@@ -36,6 +39,8 @@ async function drawPhotoInRect(
   fit: PhotoFit = 'cover',
   shape: CellShape = 'rect',
   grainIntensity = 0,
+  /** Same seed on every band of one export, so the grain lines up across them. */
+  grainSeed?: number,
 ) {
   if (rectW <= 0 || rectH <= 0) return
   const bitmap = await createImageBitmap(photo.file, { imageOrientation: 'from-image' })
@@ -67,7 +72,7 @@ async function drawPhotoInRect(
     const grainH = Math.max(0, Math.min(rectH, draw.y + draw.height) - grainY)
     ctx.save()
     ctx.translate(grainX, grainY)
-    drawGrainOverlay(ctx, grainW, grainH, grainIntensity)
+    drawGrainOverlay(ctx, grainW, grainH, grainIntensity, grainSeed === undefined ? Math.random : seededRandom(grainSeed))
     ctx.restore()
     ctx.restore()
   } finally {
@@ -115,10 +120,13 @@ function prefersShareSheet(): boolean {
   return window.matchMedia?.('(hover: none) and (pointer: coarse)').matches ?? false
 }
 
-export async function saveExportedFiles(files: File[]): Promise<SaveResult> {
-  if (files.length === 0) return 'dismissed'
+export async function saveExportedFiles(images: ExportedImage[]): Promise<SaveResult> {
+  if (images.length === 0) return 'dismissed'
 
-  if (isNativeApp) return shareFilesNatively(files)
+  if (isNativeApp) return shareFilesNatively(images)
+
+  // Only the native build ever produces anything but a File.
+  const files = images.filter((image): image is File => image instanceof File)
 
   // Where the sheet is the right path it is the ONLY path — never fall back to
   // the anchor there. In an iOS PWA each anchor click replaces the previous
@@ -204,7 +212,72 @@ export function yieldToBrowser(): Promise<void> {
   })
 }
 
-async function renderBorderCanvas(
+/** The rows of the final image one paint call is drawing. On the web it's
+ *  always the whole image; in the native build it's one band of it. */
+interface Band {
+  top: number
+  bottom: number
+}
+
+/** Whether something drawn at (y, h) — rotated about its centre by
+ *  `rotationDeg`, with width `w` — can reach into `band`. Painting skips what
+ *  can't, so a band only pays to decode the photos that actually cross it. */
+function reachesBand(band: Band, y: number, w: number, h: number, rotationDeg = 0): boolean {
+  if (!rotationDeg) return y < band.bottom && y + h > band.top
+  const reach = Math.hypot(w, h) / 2
+  const centerY = y + h / 2
+  return centerY - reach < band.bottom && centerY + reach > band.top
+}
+
+/** Pixels per band in the native build: a canvas WebKit holds comfortably,
+ *  alongside the one full-resolution photo decoded to draw into it. */
+const NATIVE_BAND_AREA = 16_000_000
+
+function createExportCanvas(width: number, height: number) {
+  const canvas = document.createElement('canvas')
+  canvas.width = width
+  canvas.height = height
+  const ctx = canvas.getContext('2d')
+  if (!ctx) throw new Error('Canvas not supported')
+  ctx.imageSmoothingEnabled = true
+  ctx.imageSmoothingQuality = 'high'
+  return { canvas, ctx }
+}
+
+/** Renders a width x height export by calling `paint` with a context in the
+ *  final image's own coordinates.
+ *
+ *  On the web that's one canvas, capped (see exportQuality.ts) to what WebKit
+ *  will render. The native build isn't bound by that cap: it paints the image
+ *  in horizontal bands — the context is translated so `paint` never knows —
+ *  and has iOS join the bands into one JPEG on disk. The full image never
+ *  exists in the webview's memory, which is what makes a full-resolution
+ *  nine-photo collage possible at all. */
+async function renderImage(
+  width: number,
+  height: number,
+  filename: string,
+  paint: (ctx: CanvasRenderingContext2D, band: Band) => Promise<void>,
+): Promise<ExportedImage> {
+  if (!isNativeApp) {
+    const { canvas, ctx } = createExportCanvas(width, height)
+    await paint(ctx, { top: 0, bottom: height })
+    return canvasToFile(canvas, filename)
+  }
+  const bandHeight = Math.max(1, Math.min(height, Math.floor(NATIVE_BAND_AREA / width)))
+  const bands: string[] = []
+  for (let top = 0; top < height; top += bandHeight) {
+    const bottom = Math.min(height, top + bandHeight)
+    const { canvas, ctx } = createExportCanvas(width, bottom - top)
+    ctx.translate(0, -top)
+    await paint(ctx, { top, bottom })
+    bands.push(await writeBand(await canvasToFile(canvas, filename), filename, bands.length))
+    await yieldToBrowser()
+  }
+  return composeBands(width, height, bands, filename, JPEG_QUALITY)
+}
+
+async function renderBorderImage(
   photo: LoadedPhoto,
   ratio: number,
   borderThicknessPct: number,
@@ -213,7 +286,8 @@ async function renderBorderCanvas(
   locked: boolean,
   grainIntensity: number,
   borderColorHex: string,
-): Promise<HTMLCanvasElement> {
+  filename: string,
+): Promise<ExportedImage> {
   const sizeFn = locked ? computeNativeCanvasSize : computeNativeCanvasSizeContain
   // Cap the PHOTO's own resolution to the quality tier first, then build the
   // bordered canvas around that. Capping the final (photo + border) canvas
@@ -222,31 +296,26 @@ async function renderBorderCanvas(
   // adding a border. This way the border only ever adds pixels on top.
   const { width: effPhotoW, height: effPhotoH } = capLongEdge(photo.width, photo.height, getMaxLongEdge(quality))
   const { width, height } = sizeFn(effPhotoW, effPhotoH, ratio, borderThicknessPct, transform.zoom)
-  const canvas = document.createElement('canvas')
-  canvas.width = width
-  canvas.height = height
-  const ctx = canvas.getContext('2d')
-  if (!ctx) throw new Error('Canvas not supported')
-  ctx.imageSmoothingEnabled = true
-  ctx.imageSmoothingQuality = 'high'
-  ctx.fillStyle = borderColorHex
-  ctx.fillRect(0, 0, width, height)
-
   const borderPx = borderThicknessPct * Math.min(width, height)
-  await drawPhotoInRect(
-    ctx,
-    photo,
-    borderPx,
-    borderPx,
-    width - borderPx * 2,
-    height - borderPx * 2,
-    transform,
-    0,
-    locked ? 'cover' : 'contain',
-    'rect',
-    grainIntensity,
-  )
-  return canvas
+  const grainSeed = Math.floor(Math.random() * 2 ** 32)
+  return renderImage(width, height, filename, async (ctx) => {
+    ctx.fillStyle = borderColorHex
+    ctx.fillRect(0, 0, width, height)
+    await drawPhotoInRect(
+      ctx,
+      photo,
+      borderPx,
+      borderPx,
+      width - borderPx * 2,
+      height - borderPx * 2,
+      transform,
+      0,
+      locked ? 'cover' : 'contain',
+      'rect',
+      grainIntensity,
+      grainSeed,
+    )
+  })
 }
 
 /** Same shared adjustment (ratio/border/transform/etc.) rendered against every
@@ -281,16 +350,28 @@ export async function renderBorderPhotoFiles(
   grainIntensity: number,
   borderColorHex: string,
   onProgress?: (done: number, total: number) => void,
-): Promise<File[]> {
+): Promise<ExportedImage[]> {
+  if (isNativeApp) await resetNativeExports()
   const stamp = Date.now()
-  const files: File[] = []
+  const images: ExportedImage[] = []
   for (let i = 0; i < photos.length; i++) {
-    const canvas = await renderBorderCanvas(photos[i], ratioFor(photos[i]), borderThicknessPct, transform, quality, locked, grainIntensity, borderColorHex)
-    files.push(await canvasToFile(canvas, `polargrid-border-${stamp}-${i + 1}.jpg`))
+    images.push(
+      await renderBorderImage(
+        photos[i],
+        ratioFor(photos[i]),
+        borderThicknessPct,
+        transform,
+        quality,
+        locked,
+        grainIntensity,
+        borderColorHex,
+        `polargrid-border-${stamp}-${i + 1}.jpg`,
+      ),
+    )
     onProgress?.(i + 1, photos.length)
     await yieldToBrowser()
   }
-  return files
+  return images
 }
 
 /**
@@ -310,12 +391,25 @@ const REF_LONG_EDGE = 10000
  * good photos were thrown away to keep the small one pixel-exact.
  *
  * At 2x that photo is slightly soft where it already had the least detail to
- * lose, and everything else in the frame gains its full resolution. This can
- * only ever raise the result toward the existing MAX_SAFE_LONG_EDGE ceiling,
- * never past it, so the peak memory of an export is unchanged — the cap, not
- * this, is what keeps a nine-photo collage inside what Safari will render.
+ * lose, and everything else in the frame gains its full resolution.
+ *
+ * It is a ceiling on enlargement, not a target: the canvas never grows past
+ * the size at which the SHARPEST photo sits at its own native resolution.
+ * Growing it further only enlarges every photo, which adds pixels and no
+ * detail — and once the native build lifted the 6000 px cap there was
+ * nothing left to hide that.
  */
 const MAX_CELL_UPSCALE = 2
+
+/** The collage's long edge at which every photo is drawn as sharp as it can
+ *  be without any of them being enlarged past MAX_CELL_UPSCALE. `fits` holds,
+ *  per photo, the canvas scale (against REF_LONG_EDGE) at which that photo
+ *  sits exactly at its native resolution. */
+function nativeCollageLongEdge(fits: number[]): number {
+  if (fits.length === 0) return 2000
+  const scale = Math.min(Math.max(...fits), Math.min(...fits) * MAX_CELL_UPSCALE)
+  return Number.isFinite(scale) && scale > 0 ? REF_LONG_EDGE * scale : 2000
+}
 
 export async function renderCollageGrid(
   template: GridTemplate,
@@ -338,9 +432,7 @@ export async function renderCollageGrid(
   const refCellW = (refContentW - refGutterPx * (template.cols - 1)) / template.cols
   const refCellH = (refContentH - refGutterPx * (template.rows - 1)) / template.rows
 
-  // Find the largest canvas scale (relative to the reference) at which no photo
-  // needs to be upscaled beyond its native resolution inside its own cell.
-  let maxScale = Infinity
+  const fits: number[] = []
   template.cells.forEach((cell, i) => {
     const assignment = assignments[i]
     const photo = assignment?.photoId ? photos[assignment.photoId] : null
@@ -348,22 +440,11 @@ export async function renderCollageGrid(
     const w = refCellW * cell.colSpan + refGutterPx * (cell.colSpan - 1)
     const h = refCellH * cell.rowSpan + refGutterPx * (cell.rowSpan - 1)
     const zoom = Math.max(1, assignment.transform.zoom)
-    const usable = MAX_CELL_UPSCALE / zoom
-    maxScale = Math.min(maxScale, (photo.width * usable) / w, (photo.height * usable) / h)
+    fits.push(Math.min(photo.width / w, photo.height / h) / zoom)
   })
-  const nativeLongEdge = Number.isFinite(maxScale) && maxScale > 0 ? REF_LONG_EDGE * maxScale : 2000
 
-  const native = computeOutputPixelSize(ratio, nativeLongEdge)
+  const native = computeOutputPixelSize(ratio, nativeCollageLongEdge(fits))
   const { width, height } = capLongEdge(native.width, native.height, getMaxLongEdge(quality))
-  const canvas = document.createElement('canvas')
-  canvas.width = width
-  canvas.height = height
-  const ctx = canvas.getContext('2d')
-  if (!ctx) throw new Error('Canvas not supported')
-  ctx.imageSmoothingEnabled = true
-  ctx.imageSmoothingQuality = 'high'
-  ctx.fillStyle = borderColorHex
-  ctx.fillRect(0, 0, width, height)
 
   const shortSide = Math.min(width, height)
   const outerBorderPx = outerBorderPct * shortSide
@@ -377,21 +458,26 @@ export async function renderCollageGrid(
   const cellW = (contentW - gutterPx * (template.cols - 1)) / template.cols
   const cellH = (contentH - gutterPx * (template.rows - 1)) / template.rows
 
-  // Sequential (not the equivalent forEach) so each cell's full-resolution
-  // decode is closed before the next one is opened — see drawPhotoInRect.
-  for (let i = 0; i < template.cells.length; i++) {
-    const cell = template.cells[i]
-    const assignment = assignments[i]
-    const photo = assignment?.photoId ? photos[assignment.photoId] : null
-    if (!photo) continue
-    const x = contentX + cell.col * (cellW + gutterPx)
-    const y = contentY + cell.row * (cellH + gutterPx)
-    const w = cellW * cell.colSpan + gutterPx * (cell.colSpan - 1)
-    const h = cellH * cell.rowSpan + gutterPx * (cell.rowSpan - 1)
-    await drawPhotoInRect(ctx, photo, x, y, w, h, assignment.transform, 0, 'cover', shape, grainIntensity)
-  }
-
-  return canvasToFile(canvas, `polargrid-collage-${Date.now()}.jpg`)
+  if (isNativeApp) await resetNativeExports()
+  const grainSeed = Math.floor(Math.random() * 2 ** 32)
+  return renderImage(width, height, `polargrid-collage-${Date.now()}.jpg`, async (ctx, band) => {
+    ctx.fillStyle = borderColorHex
+    ctx.fillRect(0, 0, width, height)
+    // Sequential (not the equivalent forEach) so each cell's full-resolution
+    // decode is closed before the next one is opened — see drawPhotoInRect.
+    for (let i = 0; i < template.cells.length; i++) {
+      const cell = template.cells[i]
+      const assignment = assignments[i]
+      const photo = assignment?.photoId ? photos[assignment.photoId] : null
+      if (!photo) continue
+      const x = contentX + cell.col * (cellW + gutterPx)
+      const y = contentY + cell.row * (cellH + gutterPx)
+      const w = cellW * cell.colSpan + gutterPx * (cell.colSpan - 1)
+      const h = cellH * cell.rowSpan + gutterPx * (cell.rowSpan - 1)
+      if (!reachesBand(band, y, w, h)) continue
+      await drawPhotoInRect(ctx, photo, x, y, w, h, assignment.transform, 0, 'cover', shape, grainIntensity, grainSeed + i)
+    }
+  })
 }
 
 export async function renderCollageFree(
@@ -404,7 +490,7 @@ export async function renderCollageFree(
 ) {
   const refSize = computeOutputPixelSize(ratio, REF_LONG_EDGE)
 
-  let maxScale = Infinity
+  const fits: number[] = []
   freeItems.forEach((item) => {
     const photo = photos[item.photoId]
     if (!photo) return
@@ -415,40 +501,27 @@ export async function renderCollageFree(
     const w = item.width * refSize.width
     const h = item.height * refSize.width
     const zoom = Math.max(1, item.transform.zoom)
-    const usable = MAX_CELL_UPSCALE / zoom
-    maxScale = Math.min(maxScale, (photo.width * usable) / w, (photo.height * usable) / h)
+    fits.push(Math.min(photo.width / w, photo.height / h) / zoom)
   })
-  const nativeLongEdge = Number.isFinite(maxScale) && maxScale > 0 ? REF_LONG_EDGE * maxScale : 2000
 
-  const native = computeOutputPixelSize(ratio, nativeLongEdge)
+  const native = computeOutputPixelSize(ratio, nativeCollageLongEdge(fits))
   const { width, height } = capLongEdge(native.width, native.height, getMaxLongEdge(quality))
-  const canvas = document.createElement('canvas')
-  canvas.width = width
-  canvas.height = height
-  const ctx = canvas.getContext('2d')
-  if (!ctx) throw new Error('Canvas not supported')
-  ctx.imageSmoothingEnabled = true
-  ctx.imageSmoothingQuality = 'high'
-  ctx.fillStyle = borderColorHex
-  ctx.fillRect(0, 0, width, height)
 
-  for (const item of freeItems) {
-    const photo = photos[item.photoId]
-    if (!photo) continue
-    await drawPhotoInRect(
-      ctx,
-      photo,
-      item.x * width,
-      item.y * height,
-      item.width * width,
-      item.height * width,
-      item.transform,
-      item.rotation,
-      'cover',
-      'rect',
-      grainIntensity,
-    )
-  }
-
-  return canvasToFile(canvas, `polargrid-collage-${Date.now()}.jpg`)
+  if (isNativeApp) await resetNativeExports()
+  const grainSeed = Math.floor(Math.random() * 2 ** 32)
+  return renderImage(width, height, `polargrid-collage-${Date.now()}.jpg`, async (ctx, band) => {
+    ctx.fillStyle = borderColorHex
+    ctx.fillRect(0, 0, width, height)
+    for (let i = 0; i < freeItems.length; i++) {
+      const item = freeItems[i]
+      const photo = photos[item.photoId]
+      if (!photo) continue
+      const x = item.x * width
+      const y = item.y * height
+      const w = item.width * width
+      const h = item.height * width
+      if (!reachesBand(band, y, w, h, item.rotation)) continue
+      await drawPhotoInRect(ctx, photo, x, y, w, h, item.transform, item.rotation, 'cover', 'rect', grainIntensity, grainSeed + i)
+    }
+  })
 }

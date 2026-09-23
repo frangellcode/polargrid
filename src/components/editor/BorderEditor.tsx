@@ -7,7 +7,9 @@ import { useAnimatedColor, useAnimatedNumber } from '../../hooks/useAnimatedNumb
 import { computeOutputPixelSize } from '../../lib/cropMath'
 import { MAX_PHOTO_MB, screenPhotoFiles } from '../../lib/photoInput'
 import { holdForSheetClose, holdImportCard } from '../../lib/uiTiming'
+import { isNativeApp } from '../../lib/native'
 import { renderBorderPhotoFiles, resolveRatio, saveExportedFiles } from '../../lib/exportImage'
+import type { ExportedImage } from '../../lib/exportImage'
 import { Toolbar } from './Toolbar'
 import { AspectRatioPicker } from './AspectRatioPicker'
 import { BorderThicknessSlider } from './BorderThicknessSlider'
@@ -32,11 +34,13 @@ const PREVIEW_LONG_EDGE = 900
 // match .view-exit's animation-duration exactly, since the timeout below is
 // what actually triggers the content swap.
 const EXIT_MS = 200
-// Kept below the ten the UI used to allow: even with every export canvas now
-// released as soon as it's encoded (see canvasToFile), ten native-resolution
-// renders in one run sat close enough to WebKit's per-tab canvas ceiling that
-// a photo could come back black. Five leaves real headroom.
-const MAX_BORDER_BATCH_PHOTOS = 5
+// On the web, kept below the ten the UI used to allow: even with every export
+// canvas released as soon as it's encoded (see canvasToFile), ten native-
+// resolution renders in one run sat close enough to WebKit's per-tab canvas
+// ceiling that a photo could come back black. Five leaves real headroom.
+// The App Store build writes each photo to disk the moment it's rendered and
+// keeps only its path, so fifteen costs it no more than one.
+const MAX_BORDER_BATCH_PHOTOS = isNativeApp ? 15 : 5
 
 export function BorderEditor() {
   const tr = useTranslation()
@@ -100,7 +104,7 @@ export function BorderEditor() {
 
   // Screens a raw selection and reports whatever was dropped. Returns null when
   // there's nothing usable left, so callers can just bail.
-  const screen = (files: FileList): File[] | null => {
+  const screen = (files: FileList | File[]): File[] | null => {
     const { accepted, rejectedType, rejectedSize } = screenPhotoFiles(files)
     setUploadError(
       rejectedType > 0 ? tr.toolbar.unsupportedFormat : rejectedSize > 0 ? tr.toolbar.tooHeavy(MAX_PHOTO_MB, rejectedSize) : null,
@@ -135,7 +139,7 @@ export function BorderEditor() {
     phase: ExportFlowPhase
     done: number
     total: number
-    files: File[]
+    files: ExportedImage[]
   } | null>(null)
   const [exportError, setExportError] = useState<string | null>(null)
   // The live preview is taken down for the whole render and rebuilt from
@@ -245,7 +249,7 @@ export function BorderEditor() {
   // final picked color once, no animation needed for a static file.
   const animatedBorderColorHex = useAnimatedColor(borderColorHex)
 
-  const handleUpload = async (files: FileList) => {
+  const handleUpload = async (files: FileList | File[]) => {
     const images = screen(files)
     if (!images) return
     const loaded = await decode(images)
@@ -267,7 +271,7 @@ export function BorderEditor() {
   // there's no way for the person to tell which one went. Nothing is decoded
   // until the count is known to be good, so an over-sized pick costs no memory
   // at all.
-  const handleBatchUpload = async (files: FileList) => {
+  const handleBatchUpload = async (files: FileList | File[]) => {
     const images = screen(files)
     if (!images) return
     if (images.length > MAX_BORDER_BATCH_PHOTOS) {
@@ -380,6 +384,7 @@ export function BorderEditor() {
         canExport={!!photo}
         uploadLabel={photo ? tr.borderEditor.changePhoto : tr.borderEditor.uploadPhoto}
         multiple={isBatch}
+        maxPhotos={isBatch ? MAX_BORDER_BATCH_PHOTOS : 1}
       />
 
       {/* Carried by the SAME swap as the canvas and the bottom bar below —
@@ -474,6 +479,7 @@ export function BorderEditor() {
                 error={uploadError}
                 onFiles={handleBatchUpload}
                 multiple
+                maxPhotos={MAX_BORDER_BATCH_PHOTOS}
               />
             </div>
           )}

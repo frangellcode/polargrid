@@ -1,4 +1,5 @@
 import type { ExportQuality } from '../types'
+import { isNativeApp } from './native'
 
 // "Maximum" still means the photos' own native resolution for the vast
 // majority of exports (a single 48MP photo's long edge is ~8000px, well
@@ -11,8 +12,15 @@ import type { ExportQuality } from '../types'
 // finishes; it's still far above what any screen or print job needs.
 const MAX_SAFE_LONG_EDGE = 6000
 
+// The App Store build has no such canvas ceiling to respect: it draws the
+// export in bands WebKit can hold and has iOS join them (see exportImage.ts'
+// renderImage and ImageComposerPlugin.swift). 12000 px carries a 3x3 collage
+// of 12 MP phone photos at essentially their full resolution; past that the
+// files only get heavier without anyone being able to see the difference.
+const NATIVE_APP_MAX_LONG_EDGE = 12000
+
 export const EXPORT_QUALITY_PRESETS: { id: ExportQuality; label: string; hint: string; maxLongEdge?: number }[] = [
-  { id: 'native', label: 'Maximum', hint: 'Native resolution of your photos', maxLongEdge: MAX_SAFE_LONG_EDGE },
+  { id: 'native', label: 'Maximum', hint: 'Native resolution of your photos', maxLongEdge: isNativeApp ? NATIVE_APP_MAX_LONG_EDGE : MAX_SAFE_LONG_EDGE },
   { id: 'high', label: 'High', hint: 'Photos up to 2048 px, lighter file', maxLongEdge: 2048 },
   { id: 'web', label: 'Web', hint: 'Photos up to 1080 px, ideal for sharing', maxLongEdge: 1080 },
 ]

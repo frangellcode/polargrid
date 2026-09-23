@@ -51,7 +51,22 @@ export function grainSampleCounts(referenceW: number, referenceH: number): { x: 
  * boundary to show a seam at, and the stretch's own smoothing is what turns
  * flat dots into the soft, clumped look of real photographic grain.
  */
-export function buildGrainNoise(referenceW: number, referenceH: number): HTMLCanvasElement {
+/** A small seeded PRNG (mulberry32). The native build draws a large export
+ *  in horizontal bands, calling drawGrainOverlay once per band for the same
+ *  photo — seeding every call for that photo alike is what makes the bands
+ *  get the SAME noise, so no seam can show where one band meets the next. */
+export function seededRandom(seed: number): () => number {
+  let a = seed >>> 0
+  return () => {
+    a = (a + 0x6d2b79f5) >>> 0
+    let t = a
+    t = Math.imul(t ^ (t >>> 15), t | 1)
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61)
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296
+  }
+}
+
+export function buildGrainNoise(referenceW: number, referenceH: number, random: () => number = Math.random): HTMLCanvasElement {
   const { x: samplesX, y: samplesY } = grainSampleCounts(referenceW, referenceH)
   const canvas = document.createElement('canvas')
   canvas.width = samplesX
@@ -60,7 +75,7 @@ export function buildGrainNoise(referenceW: number, referenceH: number): HTMLCan
   const imageData = ctx.createImageData(samplesX, samplesY)
   const data = imageData.data
   for (let i = 0; i < data.length; i += 4) {
-    const v = Math.floor(Math.random() * 255)
+    const v = Math.floor(random() * 255)
     data[i] = v
     data[i + 1] = v
     data[i + 2] = v
@@ -97,9 +112,15 @@ export function grainPreviewOverlayOpacity(intensity: number): number {
  *  to the target shape, covering (0,0)-(rectW,rectH) in the CURRENT
  *  transform (i.e. call this right where you'd otherwise draw the photo's
  *  local rect, before restoring any translate/rotate/clip). */
-export function drawGrainOverlay(ctx: CanvasRenderingContext2D, rectW: number, rectH: number, intensity: number) {
+export function drawGrainOverlay(
+  ctx: CanvasRenderingContext2D,
+  rectW: number,
+  rectH: number,
+  intensity: number,
+  random: () => number = Math.random,
+) {
   if (intensity <= 0 || rectW <= 0 || rectH <= 0) return
-  const noise = buildGrainNoise(rectW, rectH)
+  const noise = buildGrainNoise(rectW, rectH, random)
   ctx.save()
   ctx.imageSmoothingEnabled = true
   ctx.globalCompositeOperation = 'overlay'
