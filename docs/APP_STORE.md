@@ -185,8 +185,8 @@ Gratis, sin marca de agua y sin nada bloqueado. Si te gusta, puedes dejar una pr
 ```
 
 **Keywords (máx. 100, separadas por coma, sin espacios):**
-EN `border,frame,collage,white border,grid,layout,photo editor,instagram,film,grain`
-ES `borde,marco,collage,borde blanco,grilla,fotos,editor,instagram,película,grano`
+EN `border,frame,collage,white border,grid,layout,photo editor,film grain,print,aspect ratio`
+ES `borde,marco,collage,borde blanco,grilla,fotos,editor,grano,impresión,proporción`
 
 **Support URL:** `https://frangellcode.github.io/polargrid/support.html`
 **Copyright:** `2026 Frangell Vasquez`
