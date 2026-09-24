@@ -19,14 +19,31 @@ function nextId() {
 const PREVIEW_BITMAP_MAX_LONG_EDGE = 1600
 
 async function buildPreviewBitmap(bitmap: ImageBitmap): Promise<ImageBitmap> {
-  const longEdge = Math.max(bitmap.width, bitmap.height)
-  if (longEdge <= PREVIEW_BITMAP_MAX_LONG_EDGE) return bitmap
-  const scale = PREVIEW_BITMAP_MAX_LONG_EDGE / longEdge
-  return createImageBitmap(bitmap, {
-    resizeWidth: Math.round(bitmap.width * scale),
-    resizeHeight: Math.round(bitmap.height * scale),
-    resizeQuality: 'medium',
-  })
+  const scale = Math.min(1, PREVIEW_BITMAP_MAX_LONG_EDGE / Math.max(bitmap.width, bitmap.height))
+  const width = Math.max(1, Math.round(bitmap.width * scale))
+  const height = Math.max(1, Math.round(bitmap.height * scale))
+  // Drawn through a canvas rather than createImageBitmap's own resize, so the
+  // preview is real pixels by the time the import card closes. WebKit is free
+  // to hand back a bitmap it hasn't actually decoded yet — and on a real
+  // iPhone, with real HEIC photos, it did: the import finished quickly and all
+  // nine full decodes then landed on the collage's first draw, which held the
+  // screen blank for about a second. Here that work happens under the import
+  // card's own progress, where it belongs.
+  const canvas = document.createElement('canvas')
+  canvas.width = width
+  canvas.height = height
+  const ctx = canvas.getContext('2d')
+  if (!ctx) throw new Error('Canvas not supported')
+  ctx.imageSmoothingEnabled = true
+  ctx.imageSmoothingQuality = 'high'
+  ctx.drawImage(bitmap, 0, 0, width, height)
+  try {
+    return await createImageBitmap(canvas)
+  } finally {
+    // Released at once — WebKit caps the canvas memory a page may hold.
+    canvas.width = 0
+    canvas.height = 0
+  }
 }
 
 /** Decodes File objects into ImageBitmaps, respecting EXIF orientation.
