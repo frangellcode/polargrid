@@ -6,6 +6,10 @@ import { useTranslation } from '../store/languageStore'
 const EASE = 'ease-[cubic-bezier(0.22,1,0.36,1)]'
 const CLOSE_MS = 250
 
+/** The last prices the App Store gave us, so a reopen shows them at once
+ *  while a fresh request confirms them in the background. */
+let lastProducts: TipProduct[] | null = null
+
 type Phase =
   | { kind: 'loading' }
   | { kind: 'ready'; products: TipProduct[]; buying: string | null; note: 'failed' | null }
@@ -47,19 +51,28 @@ export function TipJarModal({ open, onClose }: TipJarModalProps) {
     return () => cancelAnimationFrame(raf)
   }, [mounted, open])
 
-  // Asked fresh on every open rather than cached: prices follow the person's
-  // storefront, and a first attempt made offline should get a second chance.
+  // Asked fresh on every open: prices follow the person's storefront, and a
+  // first attempt made offline should get a second chance. Earlier prices
+  // stand in meanwhile so the card doesn't change height under their finger.
   useEffect(() => {
     if (!open) return
     let cancelled = false
-    setPhase({ kind: 'loading' })
+    setPhase(lastProducts ? { kind: 'ready', products: lastProducts, buying: null, note: null } : { kind: 'loading' })
     TipJar.getProducts({ productIds: TIP_PRODUCT_IDS })
       .then(({ products }) => {
         if (cancelled) return
-        setPhase(products.length > 0 ? { kind: 'ready', products, buying: null, note: null } : { kind: 'unavailable' })
+        if (products.length > 0) lastProducts = products
+        // Leave a purchase already under way alone; its prices are the same.
+        setPhase((prev) =>
+          prev.kind === 'ready' && prev.buying
+            ? prev
+            : products.length > 0
+              ? { kind: 'ready', products, buying: null, note: null }
+              : { kind: 'unavailable' },
+        )
       })
       .catch(() => {
-        if (!cancelled) setPhase({ kind: 'unavailable' })
+        if (!cancelled && !lastProducts) setPhase({ kind: 'unavailable' })
       })
     return () => {
       cancelled = true
@@ -106,7 +119,17 @@ export function TipJarModal({ open, onClose }: TipJarModalProps) {
             <p className="font-label text-xs leading-snug text-white/50">{tr.tipJar.body}</p>
           )}
 
-          {phase.kind === 'loading' && <p className="font-label text-xs text-white/40">{tr.tipJar.loading}</p>}
+          {/* One placeholder per tip, the same height as the real rows, so the
+              close button is already where it will stay when prices arrive. */}
+          {phase.kind === 'loading' && (
+            <div className="flex w-full flex-col gap-2" role="status" aria-label={tr.tipJar.loading}>
+              {TIP_PRODUCT_IDS.map((id) => (
+                <div key={id} className="font-label animate-pulse rounded-2xl bg-white/10 px-4 py-3 text-xs">
+                  &nbsp;
+                </div>
+              ))}
+            </div>
+          )}
           {phase.kind === 'unavailable' && <p className="font-label text-xs text-white/40">{tr.tipJar.unavailable}</p>}
 
           {phase.kind === 'ready' && (
