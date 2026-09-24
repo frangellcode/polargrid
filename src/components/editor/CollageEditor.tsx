@@ -1417,9 +1417,15 @@ export function CollageEditor() {
       <div className={`min-h-0 flex-1 p-4 ${swapPhase === 'exiting' ? 'view-exit' : ''}`}>
         <div
           key={swapKey}
-          className={`h-full ${swapPhase === 'mounting' ? 'opacity-0' : swapPhase === 'entering' ? 'view-enter' : ''}`}
+          className={`relative h-full ${swapPhase === 'entering' ? 'view-enter' : ''}`}
           onAnimationEnd={() => setSwapPhase((p) => (p === 'entering' ? 'idle' : p))}
         >
+          {/* Covered — NOT made invisible — while it paints for the first time.
+              An opacity:0 ancestor over the Konva canvas during its first, heavy
+              draw left a real iPhone showing none of it afterwards: a nine-photo
+              collage came up as a bare white frame. A cover in the background's
+              own colour hides the same moment without touching the canvas. */}
+          {swapPhase === 'mounting' && <div className="absolute inset-0 z-10 bg-ink-900" />}
         {hasContent ? (
           <CanvasStage
             ref={stageRef}
