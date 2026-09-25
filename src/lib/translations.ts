@@ -13,21 +13,8 @@ export const translations = {
       donateLabel: 'Help keep this app alive',
       donate: 'Donate',
       followUs: 'Follow us at',
-      /** App Store build only — replaces the PayPal link there. */
-      tipLabel: 'Enjoying PolarGrid?',
-      tip: 'Leave a tip',
       /** Shows the language you'd switch TO, not the current one. */
       langToggle: 'ES',
-    },
-    tipJar: {
-      title: 'Support PolarGrid',
-      body: 'PolarGrid is free and always will be. A tip helps keep it going — it unlocks nothing, every feature is already yours.',
-      loading: 'Loading…',
-      unavailable: 'Tips aren\u2019t available right now. Try again later.',
-      thanks: 'Thank you! Your support means a lot.',
-      pending: 'Your tip is waiting for approval. Thank you!',
-      failed: 'The purchase didn\u2019t go through. You weren\u2019t charged.',
-      close: 'Close',
     },
     app: {
       updating: 'Updating…',
@@ -182,19 +169,7 @@ export const translations = {
       donateLabel: 'Ayúdanos a mantener la app',
       donate: 'Donar',
       followUs: 'Síguenos en',
-      tipLabel: '¿Te gusta PolarGrid?',
-      tip: 'Deja una propina',
       langToggle: 'EN',
-    },
-    tipJar: {
-      title: 'Apoya a PolarGrid',
-      body: 'PolarGrid es gratis y siempre lo será. Una propina ayuda a mantenerla — no desbloquea nada, ya tienes todas las funciones.',
-      loading: 'Cargando…',
-      unavailable: 'Las propinas no están disponibles ahora. Inténtalo más tarde.',
-      thanks: '¡Gracias! Tu apoyo significa mucho.',
-      pending: 'Tu propina está esperando aprobación. ¡Gracias!',
-      failed: 'La compra no se completó. No se te cobró nada.',
-      close: 'Cerrar',
     },
     app: {
       updating: 'Actualizando…',

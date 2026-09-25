@@ -4,7 +4,6 @@ import Capacitor
 /// on its own, but a plugin living inside the app target has to be handed over.
 class MainViewController: CAPBridgeViewController {
     override open func capacitorDidLoad() {
-        bridge?.registerPluginInstance(TipJarPlugin())
         bridge?.registerPluginInstance(PhotoPickerPlugin())
         bridge?.registerPluginInstance(ImageComposerPlugin())
     }
