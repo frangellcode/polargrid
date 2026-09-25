@@ -13,6 +13,10 @@ export const translations = {
       donateLabel: 'Help keep this app alive',
       donate: 'Donate',
       followUs: 'Follow us at',
+      reportLabel: 'Something not working?',
+      report: 'Report a problem',
+      reportSubject: 'PolarGrid – Problem report',
+      reportPrompt: 'What happened? What were you doing when it went wrong?',
       /** Shows the language you'd switch TO, not the current one. */
       langToggle: 'ES',
     },
@@ -169,6 +173,10 @@ export const translations = {
       donateLabel: 'Ayúdanos a mantener la app',
       donate: 'Donar',
       followUs: 'Síguenos en',
+      reportLabel: '¿Algo no funciona?',
+      report: 'Reportar un problema',
+      reportSubject: 'PolarGrid – Reporte de problema',
+      reportPrompt: '¿Qué pasó? ¿Qué estabas haciendo cuando falló?',
       langToggle: 'EN',
     },
     app: {

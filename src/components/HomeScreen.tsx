@@ -3,6 +3,7 @@ import { useEditorStore } from '../store/editorStore'
 import { useUpdateStore } from '../store/updateStore'
 import { useLanguageStore, useTranslation } from '../store/languageStore'
 import { isNativeApp } from '../lib/native'
+import { reportProblem } from '../lib/reportProblem'
 import { FadeText } from './FadeText'
 import { Logo } from './Logo'
 import { IconInstagram, IconRefresh } from './editor/icons'
@@ -195,6 +196,15 @@ export function HomeScreen({
             <FadeText value={tr.home.donate} trigger={language} animateWidth className="font-semibold text-white" />
           </a>
         )}
+        <button
+          type="button"
+          onClick={() => reportProblem(language, { subject: tr.home.reportSubject, prompt: tr.home.reportPrompt })}
+          className="font-label flex items-center gap-2 rounded-full bg-white/10 py-2 pl-4 pr-3.5 text-[11px] font-light text-white/60 transition duration-200 hover:bg-white/15 active:scale-95"
+        >
+          <FadeText value={tr.home.reportLabel} trigger={language} animateWidth />
+          <span className="h-3.5 w-px bg-white/25" />
+          <FadeText value={tr.home.report} trigger={language} animateWidth className="font-semibold text-white" />
+        </button>
         <a
           href={INSTAGRAM_URL}
           target="_blank"
