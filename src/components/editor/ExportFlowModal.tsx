@@ -1,5 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { useTranslation } from '../../store/languageStore'
+import { afterFirstPaint } from '../../lib/afterFirstPaint'
 
 const EASE = 'ease-[cubic-bezier(0.22,1,0.36,1)]'
 /** Matches the closing transition below, so a caller can wait out the fade
@@ -77,8 +78,7 @@ export function ExportFlowModal({
   // animate from, so the card would snap in instead of easing.
   useEffect(() => {
     if (!mounted || !open) return
-    const raf = requestAnimationFrame(() => setVisible(true))
-    return () => cancelAnimationFrame(raf)
+    return afterFirstPaint(() => setVisible(true))
   }, [mounted, open])
 
   // Measured rather than left intrinsic: the card has to EASE from the height

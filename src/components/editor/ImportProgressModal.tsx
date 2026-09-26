@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react'
 import { useTranslation } from '../../store/languageStore'
+import { afterFirstPaint } from '../../lib/afterFirstPaint'
 
 const EASE = 'ease-[cubic-bezier(0.22,1,0.36,1)]'
 /** Matches the closing transition below, so the card unmounts after its fade
  *  rather than mid-way through it. */
-const IMPORT_CLOSE_MS = 250
+const IMPORT_CLOSE_MS = 300
 
 interface ImportProgressModalProps {
   open: boolean
@@ -48,8 +49,7 @@ export function ImportProgressModal({ open, done, total }: ImportProgressModalPr
   // to animate from, so the card would snap in instead of easing.
   useEffect(() => {
     if (!mounted || !open) return
-    const raf = requestAnimationFrame(() => setVisible(true))
-    return () => cancelAnimationFrame(raf)
+    return afterFirstPaint(() => setVisible(true))
   }, [mounted, open])
 
   if (!mounted) return null

@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react'
 import { useTranslation } from '../../store/languageStore'
+import { afterFirstPaint } from '../../lib/afterFirstPaint'
 
 const EASE = 'ease-[cubic-bezier(0.22,1,0.36,1)]'
-const CLOSE_MS = 250
+const CLOSE_MS = 300
 
 interface ConfirmDiscardModalProps {
   open: boolean
@@ -43,8 +44,7 @@ export function ConfirmDiscardModal({ open, onConfirm, onCancel }: ConfirmDiscar
   // to animate from, so the card would snap in instead of easing.
   useEffect(() => {
     if (!mounted || !open) return
-    const raf = requestAnimationFrame(() => setVisible(true))
-    return () => cancelAnimationFrame(raf)
+    return afterFirstPaint(() => setVisible(true))
   }, [mounted, open])
 
   if (!mounted) return null

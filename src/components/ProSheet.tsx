@@ -4,9 +4,10 @@ import type { ProProduct } from '../lib/pro'
 import { useProStore } from '../store/proStore'
 import { useTranslation } from '../store/languageStore'
 import { IconLock } from './editor/icons'
+import { afterFirstPaint } from '../lib/afterFirstPaint'
 
 const EASE = 'ease-[cubic-bezier(0.22,1,0.36,1)]'
-const CLOSE_MS = 250
+const CLOSE_MS = 300
 
 type Price = { kind: 'loading' } | { kind: 'ready'; product: ProProduct } | { kind: 'unavailable' }
 type Busy = null | 'buying' | 'restoring'
@@ -42,8 +43,7 @@ export function ProSheet() {
 
   useEffect(() => {
     if (!mounted || !open) return
-    const raf = requestAnimationFrame(() => setVisible(true))
-    return () => cancelAnimationFrame(raf)
+    return afterFirstPaint(() => setVisible(true))
   }, [mounted, open])
 
   // Asked fresh on every open: the price follows the person's storefront, and
@@ -133,16 +133,16 @@ export function ProSheet() {
           </ul>
 
           {note && note !== 'unlocked' && (
-            <p className={`font-label text-xs leading-snug ${note === 'failed' ? 'text-red-300' : 'text-white/60'}`}>{tr.pro[note]}</p>
+            <p key={note} className={`fade-in font-label text-xs leading-snug ${note === 'failed' ? 'text-red-300' : 'text-white/60'}`}>{tr.pro[note]}</p>
           )}
-          {done && <p className="font-label text-sm leading-snug text-white/80">{tr.pro.unlocked}</p>}
+          {done && <p className="fade-in font-label text-sm leading-snug text-white/80">{tr.pro.unlocked}</p>}
 
           <div className="flex w-full flex-col gap-2">
             {done ? (
               <button
                 type="button"
                 onClick={closePaywall}
-                className="font-label w-full rounded-2xl bg-white py-3 text-xs font-semibold uppercase tracking-wide text-ink-900 transition duration-200 hover:bg-white/90 active:scale-95"
+                className="fade-in font-label w-full rounded-2xl bg-white py-3 text-xs font-semibold uppercase tracking-wide text-ink-900 transition duration-200 hover:bg-white/90 active:scale-95"
               >
                 {tr.pro.done}
               </button>

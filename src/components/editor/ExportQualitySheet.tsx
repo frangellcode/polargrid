@@ -4,6 +4,7 @@ import { EXPORT_QUALITY_PRESETS } from '../../lib/exportQuality'
 import { useTranslation } from '../../store/languageStore'
 import { useProStore } from '../../store/proStore'
 import { IconLock } from './icons'
+import { afterFirstPaint } from '../../lib/afterFirstPaint'
 
 interface ExportQualitySheetProps {
   open: boolean
@@ -53,8 +54,7 @@ export function ExportQualitySheet({ open, defaultQuality, onClose, onExport }: 
   // after mount gives the browser a closed frame to animate away from.
   useEffect(() => {
     if (!mounted || !open) return
-    const raf = requestAnimationFrame(() => setVisible(true))
-    return () => cancelAnimationFrame(raf)
+    return afterFirstPaint(() => setVisible(true))
   }, [mounted, open])
 
   // Unmounted entirely while closed instead of just hidden via CSS — a
@@ -112,7 +112,7 @@ export function ExportQualitySheet({ open, defaultQuality, onClose, onExport }: 
                 <p className="font-label flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-white">
                   {tr.quality[preset.id].label}
                   {isLocked(preset.id) && (
-                    <span className="flex items-center gap-1 rounded-full bg-white px-1.5 py-0.5 text-[9px] text-ink-900">
+                    <span className="fade-in flex items-center gap-1 rounded-full bg-white px-1.5 py-0.5 text-[9px] text-ink-900">
                       <IconLock className="h-2.5 w-2.5" />
                       {tr.pro.locked}
                     </span>

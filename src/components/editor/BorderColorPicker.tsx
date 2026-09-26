@@ -67,7 +67,7 @@ export function BorderColorPicker({ value, onChange }: BorderColorPickerProps) {
               }`}
             >
               <span className="h-9 w-9 rounded-full border border-black/10" style={{ backgroundColor: color.hex }} />
-              {locked && <LockBadge />}
+              <LockBadge shown={locked} />
             </button>
           )
         })}
@@ -89,7 +89,7 @@ export function BorderColorPicker({ value, onChange }: BorderColorPickerProps) {
               {!custom && '+'}
             </span>
           </span>
-          {!isPro && <LockBadge />}
+          <LockBadge shown={!isPro} />
         </button>
 
         {!isNativeApp && (
@@ -108,9 +108,15 @@ export function BorderColorPicker({ value, onChange }: BorderColorPickerProps) {
   )
 }
 
-function LockBadge() {
+/** Always mounted and faded, so the badges melt away the moment Pro unlocks. */
+function LockBadge({ shown }: { shown: boolean }) {
   return (
-    <span className="absolute -right-0.5 -top-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-white text-ink-900 shadow">
+    <span
+      aria-hidden
+      className={`absolute -right-0.5 -top-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-white text-ink-900 shadow transition duration-300 ease-out ${
+        shown ? 'scale-100 opacity-100' : 'scale-50 opacity-0'
+      }`}
+    >
       <IconLock className="h-2.5 w-2.5" />
     </span>
   )
