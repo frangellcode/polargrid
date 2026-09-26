@@ -101,3 +101,23 @@ export function IconChevron({ className = 'h-4 w-4' }: IconProps) {
     </svg>
   )
 }
+
+/** Padlock — marks what PolarGrid Pro unlocks in the App Store build. */
+export function IconLock({ className = 'h-3.5 w-3.5' }: IconProps) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className={className}>
+      <rect x="5" y="11" width="14" height="10" rx="2" />
+      <path d="M8 11V8a4 4 0 0 1 8 0v3" />
+    </svg>
+  )
+}
+
+/** Triangle, half filled — the sharpness tool (the same glyph Photos uses). */
+export function IconSharpen({ className = 'h-5 w-5' }: IconProps) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" className={className}>
+      <path d="M12 3.5 21 20H3z" />
+      <path d="M12 3.5V20H3z" fill="currentColor" stroke="none" />
+    </svg>
+  )
+}

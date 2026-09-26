@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react'
 import type { ExportQuality } from '../../types'
 import { EXPORT_QUALITY_PRESETS } from '../../lib/exportQuality'
 import { useTranslation } from '../../store/languageStore'
+import { useProStore } from '../../store/proStore'
+import { IconLock } from './icons'
 
 interface ExportQualitySheetProps {
   open: boolean
@@ -21,13 +23,18 @@ export const CLOSE_MS = 300
 /** Bottom sheet shown when tapping Export: pick a quality, then confirm. */
 export function ExportQualitySheet({ open, defaultQuality, onClose, onExport }: ExportQualitySheetProps) {
   const tr = useTranslation()
-  const [selected, setSelected] = useState(defaultQuality)
+  const isPro = useProStore((s) => s.isPro)
+  const openPaywall = useProStore((s) => s.openPaywall)
+  // Maximum is PolarGrid Pro; without it the sheet opens on High instead.
+  const isLocked = (quality: ExportQuality) => !isPro && quality === 'native'
+  const usable = isLocked(defaultQuality) ? 'high' : defaultQuality
+  const [selected, setSelected] = useState(usable)
   const [mounted, setMounted] = useState(open)
   const [visible, setVisible] = useState(false)
 
   useEffect(() => {
-    if (open) setSelected(defaultQuality)
-  }, [open, defaultQuality])
+    if (open) setSelected(usable)
+  }, [open, usable])
 
   useEffect(() => {
     if (open) {
@@ -94,7 +101,7 @@ export function ExportQualitySheet({ open, defaultQuality, onClose, onExport }: 
             <button
               key={preset.id}
               type="button"
-              onClick={() => setSelected(preset.id)}
+              onClick={() => (isLocked(preset.id) ? openPaywall() : setSelected(preset.id))}
               className={`flex items-center justify-between rounded-2xl border px-4 py-3 text-left transition duration-200 active:scale-[0.98] ${
                 selected === preset.id
                   ? 'border-white bg-white/10'
@@ -102,7 +109,15 @@ export function ExportQualitySheet({ open, defaultQuality, onClose, onExport }: 
               }`}
             >
               <div>
-                <p className="font-label text-xs font-semibold uppercase tracking-wide text-white">{tr.quality[preset.id].label}</p>
+                <p className="font-label flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-white">
+                  {tr.quality[preset.id].label}
+                  {isLocked(preset.id) && (
+                    <span className="flex items-center gap-1 rounded-full bg-white px-1.5 py-0.5 text-[9px] text-ink-900">
+                      <IconLock className="h-2.5 w-2.5" />
+                      {tr.pro.locked}
+                    </span>
+                  )}
+                </p>
                 <p className="font-label text-xs text-white/45">{tr.quality[preset.id].hint}</p>
               </div>
               <div

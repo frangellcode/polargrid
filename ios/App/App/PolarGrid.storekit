@@ -1,0 +1,38 @@
+{
+  "identifier": "A7C1E0B2",
+  "nonRenewingSubscriptions": [],
+  "products": [
+    {
+      "displayPrice": "2.99",
+      "familyShareable": false,
+      "internalID": "3401856275",
+      "localizations": [
+        {
+          "description": "More border colours, maximum-quality export, grain and sharpness. One purchase, yours forever.",
+          "displayName": "PolarGrid Pro",
+          "locale": "en_US"
+        },
+        {
+          "description": "Más colores de borde, exportación en calidad máxima, grano y nitidez. Un solo pago, para siempre.",
+          "displayName": "PolarGrid Pro",
+          "locale": "es_ES"
+        }
+      ],
+      "productID": "com.frangellcode.polargrid.pro",
+      "referenceName": "PolarGrid Pro",
+      "type": "NonConsumable"
+    }
+  ],
+  "settings": {
+    "_applicationInternalID": "",
+    "_developerTeamID": "",
+    "_locale": "en_US",
+    "_storefront": "USA",
+    "_storeKitErrors": []
+  },
+  "subscriptionGroups": [],
+  "version": {
+    "major": 4,
+    "minor": 0
+  }
+}

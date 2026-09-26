@@ -20,6 +20,13 @@ export const BORDER_COLORS: BorderColorOption[] = [
 
 export const DEFAULT_BORDER_COLOR = 'white'
 
+/** A border colour is either a BORDER_COLORS id or, when picked freely, the
+ *  colour itself as "#rrggbb". */
+export function isCustomBorderColor(value: string): boolean {
+  return /^#[0-9a-f]{6}$/i.test(value)
+}
+
 export function getBorderColor(id: string): BorderColorOption {
+  if (isCustomBorderColor(id)) return { id, label: 'Custom', hex: id }
   return BORDER_COLORS.find((c) => c.id === id) ?? BORDER_COLORS[0]
 }

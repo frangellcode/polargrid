@@ -4,6 +4,7 @@ import { ASPECT_RATIOS } from './aspectRatios'
 import { capLongEdge, getMaxLongEdge } from './exportQuality'
 import { traceShapePath } from './shapeClip'
 import { drawGrainOverlay, seededRandom } from './grain'
+import { drawSharpened } from './sharpen'
 import { isNativeApp } from './native'
 import { readPhoto } from './photoSource'
 import { composeBands, resetNativeExports, shareFilesNatively, writeBand, writeExport } from './nativeSave'
@@ -42,6 +43,8 @@ async function drawPhotoInRect(
   grainIntensity = 0,
   /** Same seed on every band of one export, so the grain lines up across them. */
   grainSeed?: number,
+  /** 0..1 unsharp-mask amount, applied to the photo before the grain. */
+  sharpness = 0,
 ) {
   if (rectW <= 0 || rectH <= 0) return
   const bitmap = await createImageBitmap(await readPhoto(photo.file), { imageOrientation: 'from-image' })
@@ -53,7 +56,6 @@ async function drawPhotoInRect(
     traceShapePath(ctx, shape, rectW, rectH)
     ctx.clip()
     const draw = getImageDrawRect(rectW, rectH, photo.width, photo.height, transform, fit)
-    ctx.drawImage(bitmap, draw.x, draw.y, draw.width, draw.height)
     // Grain is drawn over the photo's own rect, intersected with the cell's own
     // bounds — NOT the raw draw size. In 'contain' fit the photo can letterbox
     // inside the cell smaller than it, which is why this isn't just rectW/rectH
@@ -71,6 +73,11 @@ async function drawPhotoInRect(
     const grainY = Math.max(0, draw.y)
     const grainW = Math.max(0, Math.min(rectW, draw.x + draw.width) - grainX)
     const grainH = Math.max(0, Math.min(rectH, draw.y + draw.height) - grainY)
+    if (sharpness > 0) {
+      drawSharpened(ctx, bitmap, draw, { x: grainX, y: grainY, width: grainW, height: grainH }, sharpness)
+    } else {
+      ctx.drawImage(bitmap, draw.x, draw.y, draw.width, draw.height)
+    }
     ctx.save()
     ctx.translate(grainX, grainY)
     drawGrainOverlay(ctx, grainW, grainH, grainIntensity, grainSeed === undefined ? Math.random : seededRandom(grainSeed))
@@ -340,6 +347,7 @@ async function startBorderImage(
   locked: boolean,
   grainIntensity: number,
   borderColorHex: string,
+  sharpness: number,
   filename: string,
   onProgress?: Progress,
 ): Promise<{ result: Promise<ExportedImage> }> {
@@ -373,6 +381,7 @@ async function startBorderImage(
         'rect',
         grainIntensity,
         grainSeed,
+        sharpness,
       )
       report(1)
     },
@@ -411,6 +420,8 @@ export async function renderBorderPhotoFiles(
   locked: boolean,
   grainIntensity: number,
   borderColorHex: string,
+  /** 0..1 unsharp-mask amount. */
+  sharpness: number,
   /** `done` photos are finished; `fraction` is the whole batch, 0..1. */
   onProgress?: (done: number, total: number, fraction: number) => void,
 ): Promise<ExportedImage[]> {
@@ -433,6 +444,7 @@ export async function renderBorderPhotoFiles(
       locked,
       grainIntensity,
       borderColorHex,
+      sharpness,
       `polargrid-border-${stamp}-${i + 1}.jpg`,
       (fraction) => {
         fractions[i] = fraction
@@ -502,6 +514,7 @@ export async function renderCollageGrid(
   shape: CellShape = 'rect',
   grainIntensity = 0,
   borderColorHex = '#ffffff',
+  sharpness = 0,
 ) {
   const refSize = computeOutputPixelSize(ratio, REF_LONG_EDGE)
   const refShortSide = Math.min(refSize.width, refSize.height)
@@ -566,7 +579,7 @@ export async function renderCollageGrid(
       // decode is closed before the next one is opened — see drawPhotoInRect.
       for (let k = 0; k < inBand.length; k++) {
         const c = inBand[k]
-        await drawPhotoInRect(ctx, c.photo, c.x, c.y, c.w, c.h, c.transform, 0, 'cover', shape, grainIntensity, grainSeed + c.i)
+        await drawPhotoInRect(ctx, c.photo, c.x, c.y, c.w, c.h, c.transform, 0, 'cover', shape, grainIntensity, grainSeed + c.i, sharpness)
         report((k + 1) / inBand.length)
       }
     },
@@ -583,6 +596,7 @@ export async function renderCollageFree(
   quality: ExportQuality = 'native',
   grainIntensity = 0,
   borderColorHex = '#ffffff',
+  sharpness = 0,
 ) {
   const refSize = computeOutputPixelSize(ratio, REF_LONG_EDGE)
 
@@ -621,7 +635,7 @@ export async function renderCollageFree(
       const inBand = items.filter((c) => reachesBand(band, c.y, c.w, c.h, c.item.rotation))
       for (let k = 0; k < inBand.length; k++) {
         const { i, item, photo, x, y, w, h } = inBand[k]
-        await drawPhotoInRect(ctx, photo, x, y, w, h, item.transform, item.rotation, 'cover', 'rect', grainIntensity, grainSeed + i)
+        await drawPhotoInRect(ctx, photo, x, y, w, h, item.transform, item.rotation, 'cover', 'rect', grainIntensity, grainSeed + i, sharpness)
         report((k + 1) / inBand.length)
       }
     },

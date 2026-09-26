@@ -21,6 +21,8 @@
 		A1B2C3D4E5F6000000000107 /* InfoPlist.strings in Resources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F6000000000106 /* InfoPlist.strings */; };
 		A1B2C3D4E5F6000000000201 /* ImageComposerPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F6000000000200 /* ImageComposerPlugin.swift */; };
 		A1B2C3D4E5F6000000000203 /* PhotoPickerPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F6000000000202 /* PhotoPickerPlugin.swift */; };
+		A1B2C3D4E5F6000000000301 /* ProPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F6000000000300 /* ProPlugin.swift */; };
+		A1B2C3D4E5F6000000000303 /* ColorPickerPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F6000000000302 /* ColorPickerPlugin.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -41,6 +43,9 @@
 		A1B2C3D4E5F6000000000109 /* es */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = es; path = es.lproj/InfoPlist.strings; sourceTree = "<group>"; };
 		A1B2C3D4E5F6000000000200 /* ImageComposerPlugin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImageComposerPlugin.swift; sourceTree = "<group>"; };
 		A1B2C3D4E5F6000000000202 /* PhotoPickerPlugin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhotoPickerPlugin.swift; sourceTree = "<group>"; };
+		A1B2C3D4E5F6000000000300 /* ProPlugin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProPlugin.swift; sourceTree = "<group>"; };
+		A1B2C3D4E5F6000000000302 /* ColorPickerPlugin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ColorPickerPlugin.swift; sourceTree = "<group>"; };
+		A1B2C3D4E5F600000000010A /* PolarGrid.storekit */ = {isa = PBXFileReference; lastKnownFileType = text; path = PolarGrid.storekit; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -79,10 +84,13 @@
 				50379B222058CBB4000EE86E /* capacitor.config.json */,
 				504EC3071FED79650016851F /* AppDelegate.swift */,
 				A1B2C3D4E5F6000000000102 /* MainViewController.swift */,
+				A1B2C3D4E5F6000000000300 /* ProPlugin.swift */,
+				A1B2C3D4E5F6000000000302 /* ColorPickerPlugin.swift */,
 				A1B2C3D4E5F6000000000202 /* PhotoPickerPlugin.swift */,
 				A1B2C3D4E5F6000000000200 /* ImageComposerPlugin.swift */,
 				A1B2C3D4E5F6000000000104 /* PrivacyInfo.xcprivacy */,
 				A1B2C3D4E5F6000000000106 /* InfoPlist.strings */,
+				A1B2C3D4E5F600000000010A /* PolarGrid.storekit */,
 				504EC30B1FED79650016851F /* Main.storyboard */,
 				504EC30E1FED79650016851F /* Assets.xcassets */,
 				504EC3101FED79650016851F /* LaunchScreen.storyboard */,
@@ -187,6 +195,8 @@
 				9582B6832FE993A70072D4E8 /* SceneDelegate.swift in Sources */,
 				A1B2C3D4E5F6000000000103 /* MainViewController.swift in Sources */,
 				A1B2C3D4E5F6000000000203 /* PhotoPickerPlugin.swift in Sources */,
+				A1B2C3D4E5F6000000000301 /* ProPlugin.swift in Sources */,
+				A1B2C3D4E5F6000000000303 /* ColorPickerPlugin.swift in Sources */,
 				A1B2C3D4E5F6000000000201 /* ImageComposerPlugin.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

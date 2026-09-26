@@ -23,9 +23,10 @@ import { ImportProgressModal } from './ImportProgressModal'
 import { ConfirmDiscardModal } from './ConfirmDiscardModal'
 import { BatchStrip } from './BatchStrip'
 import { WorkspaceBackgroundPicker } from './WorkspaceBackgroundPicker'
+import { ProLock } from '../ProLock'
 import { BorderColorPicker } from './BorderColorPicker'
 import { getBorderColor } from '../../lib/borderColors'
-import { IconCrop, IconDrop, IconFrame, IconGrain, IconSwatch } from './icons'
+import { IconCrop, IconDrop, IconFrame, IconGrain, IconSharpen, IconSwatch } from './icons'
 
 const PREVIEW_LONG_EDGE = 900
 // Reuses the app's own view-exit/view-enter pair (index.css) — the same
@@ -51,6 +52,7 @@ export function BorderEditor() {
     { id: 'bordes', label: tr.borderEditor.toolBorder, icon: <IconFrame /> },
     { id: 'color', label: tr.borderEditor.toolColor, icon: <IconSwatch /> },
     { id: 'grain', label: tr.borderEditor.toolGrain, icon: <IconGrain /> },
+    { id: 'sharpness', label: tr.borderEditor.toolSharpness, icon: <IconSharpen /> },
   ]
   const {
     photos,
@@ -66,6 +68,7 @@ export function BorderEditor() {
     setBorderTransform,
     setBorderExportQuality,
     setBorderGrain,
+    setBorderSharpness,
     setBorderColor,
     resetBorder,
     workspaceBackground,
@@ -333,6 +336,7 @@ export function BorderEditor() {
       border.locked,
       border.grainIntensity,
       borderColorHex,
+      border.sharpness,
       (done, total, progress) => setExportFlow((s) => (s ? { ...s, done, total, progress } : s)),
     )
     setExportFlow({ phase: 'ready', done: files.length, total: files.length, progress: 1, files })
@@ -491,6 +495,7 @@ export function BorderEditor() {
                 onTransformChange={setBorderTransform}
                 fit={fitMix}
                 grain={border.grainIntensity}
+                sharpness={border.sharpness}
               />
             </CanvasStage>
           ) : (
@@ -576,13 +581,27 @@ export function BorderEditor() {
           )}
 
           {activeTool === 'grain' && (
-            <BorderThicknessSlider
-              label={tr.borderEditor.grain}
-              value={border.grainIntensity}
-              onChange={setBorderGrain}
-              min={0}
-              max={1}
-            />
+            <ProLock>
+              <BorderThicknessSlider
+                label={tr.borderEditor.grain}
+                value={border.grainIntensity}
+                onChange={setBorderGrain}
+                min={0}
+                max={1}
+              />
+            </ProLock>
+          )}
+
+          {activeTool === 'sharpness' && (
+            <ProLock>
+              <BorderThicknessSlider
+                label={tr.borderEditor.sharpness}
+                value={border.sharpness}
+                onChange={setBorderSharpness}
+                min={0}
+                max={1}
+              />
+            </ProLock>
           )}
         </EditorBottomBar>
         </div>

@@ -29,8 +29,10 @@ import { ImportProgressModal } from './ImportProgressModal'
 import { ConfirmDiscardModal } from './ConfirmDiscardModal'
 import { ActionRow } from './ActionRow'
 import { WorkspaceBackgroundPicker } from './WorkspaceBackgroundPicker'
+import { ProLock } from '../ProLock'
+import { useSharpenedPreview } from '../../hooks/useSharpenedPreview'
 import { BorderColorPicker } from './BorderColorPicker'
-import { IconCrop, IconDrop, IconFrame, IconGrain, IconGrid, IconSwatch } from './icons'
+import { IconCrop, IconDrop, IconFrame, IconGrain, IconSharpen, IconGrid, IconSwatch } from './icons'
 import { GrainOverlay } from './GrainOverlay'
 
 const PREVIEW_LONG_EDGE = 900
@@ -43,6 +45,17 @@ const PREVIEW_LONG_EDGE = 900
 // triggers the content swap.
 const EXIT_MS = 200
 
+/** A free-mode photo's preview, sharpened — its own component so the hook
+ *  can run once per item inside FreeItemsLayer's map. */
+function SharpenedKonvaImage({
+  bitmap,
+  sharpness,
+  ...rect
+}: { bitmap: ImageBitmap; sharpness: number; x: number; y: number; width: number; height: number }) {
+  const image = useSharpenedPreview(bitmap, sharpness)
+  return <KonvaImage image={image as unknown as CanvasImageSource} {...rect} />
+}
+
 interface FreeItemsLayerProps {
   outputWidth: number
   outputHeight: number
@@ -50,6 +63,8 @@ interface FreeItemsLayerProps {
   onSelect: (id: string | null) => void
   /** 0..1 film-grain amount applied to every item at once, 0 = no overlay. */
   grain: number
+  /** 0..1 unsharp-mask amount applied to every item at once, 0 = off. */
+  sharpness: number
 }
 
 /** How small and how large a free item may be made, as a fraction of the
@@ -109,7 +124,7 @@ interface HandleDrag {
  * the preview rotated about the top-left corner — the same collage came out
  * of the export differently from how it looked on screen.
  */
-function FreeItemsLayer({ outputWidth, outputHeight, selectedId, onSelect, grain }: FreeItemsLayerProps) {
+function FreeItemsLayer({ outputWidth, outputHeight, selectedId, onSelect, grain, sharpness }: FreeItemsLayerProps) {
   const { collage, photos, updateFreeItem } = useEditorStore()
   const nodeRefs = useRef<Record<string, Konva.Group>>({})
   // Non-null for the whole life of a two-finger gesture on one item. Scale is
@@ -458,8 +473,9 @@ function FreeItemsLayer({ outputWidth, outputHeight, selectedId, onSelect, grain
             }}
           >
             <Rect width={w} height={h} fill="#f8fafc" />
-            <KonvaImage
-              image={photo.previewBitmap as unknown as CanvasImageSource}
+            <SharpenedKonvaImage
+              bitmap={photo.previewBitmap}
+              sharpness={sharpness}
               x={draw.x}
               y={draw.y}
               width={draw.width}
@@ -595,6 +611,8 @@ interface GridCellsLayerProps {
   shape: CellShape
   /** 0..1 film-grain amount applied to every cell at once, 0 = no overlay. */
   grain: number
+  /** 0..1 unsharp-mask amount applied to every cell at once, 0 = off. */
+  sharpness: number
   onCellTransformChange: (cellId: string, transform: PhotoTransform) => void
   onEmptyCellClick: (cellId: string) => void
   /** The cell whose photo is selected — the one Replace/Remove act on. */
@@ -687,6 +705,7 @@ function GridCellsLayer({
   gutterPx,
   shape,
   grain,
+  sharpness,
   onCellTransformChange,
   onEmptyCellClick,
   selectedCellId,
@@ -849,6 +868,7 @@ function GridCellsLayer({
               animateLayout={animateCells}
               shape={shape}
               grain={grain}
+              sharpness={sharpness}
               photo={photo}
               transform={assignment.transform}
               opacity={isGhosted ? 0.12 : 1}
@@ -916,6 +936,7 @@ function GridCellsLayer({
               height={draggedRect.h}
               shape={shape}
               grain={grain}
+              sharpness={sharpness}
               photo={photo}
               transform={assignment.transform}
               interactive={false}
@@ -948,6 +969,7 @@ function GridCellsLayer({
                 height={ah}
                 shape={shape}
                 grain={grain}
+                sharpness={sharpness}
                 photo={swapAnim.photoA}
                 transform={swapAnim.transformA}
                 interactive={false}
@@ -962,6 +984,7 @@ function GridCellsLayer({
                 height={bh}
                 shape={shape}
                 grain={grain}
+                sharpness={sharpness}
                 photo={swapAnim.photoB}
                 transform={swapAnim.transformB}
                 interactive={false}
@@ -988,12 +1011,14 @@ export function CollageEditor() {
     // which editor you were in.
     { id: 'color', label: tr.borderEditor.toolColor, icon: <IconSwatch /> },
     { id: 'grain', label: tr.collageEditor.toolGrain, icon: <IconGrain /> },
+    { id: 'sharpness', label: tr.collageEditor.toolSharpness, icon: <IconSharpen /> },
   ]
   const FREE_TOOLS: BottomBarTool[] = [
     { id: 'workspace', label: tr.tools.workspace, icon: <IconDrop /> },
     { id: 'formato', label: tr.collageEditor.toolAspect, icon: <IconCrop /> },
     { id: 'color', label: tr.borderEditor.toolColor, icon: <IconSwatch /> },
     { id: 'grain', label: tr.collageEditor.toolGrain, icon: <IconGrain /> },
+    { id: 'sharpness', label: tr.collageEditor.toolSharpness, icon: <IconSharpen /> },
   ]
   const store = useEditorStore()
   const { photos, collage } = store
@@ -1333,8 +1358,9 @@ export function CollageEditor() {
               collage.shape,
               collage.grainIntensity,
               borderColorHex,
+              collage.sharpness,
             )
-          : await renderCollageFree(onProgress, collage.freeItems, photos, ratio, quality, collage.grainIntensity, borderColorHex)
+          : await renderCollageFree(onProgress, collage.freeItems, photos, ratio, quality, collage.grainIntensity, borderColorHex, collage.sharpness)
       setExportFlow({ phase: 'ready', progress: 1, files: [file] })
     } catch {
       // Nothing upstream ever surfaced a failed export — it just quietly
@@ -1466,6 +1492,7 @@ export function CollageEditor() {
                   gutterPx={gutterPx}
                   shape={collage.shape}
                   grain={collage.grainIntensity}
+                  sharpness={collage.sharpness}
                   onCellTransformChange={(cellId, t) => store.setCellTransform(cellId, t)}
                   onEmptyCellClick={(cellId) => {
                     setPendingCellId(cellId)
@@ -1483,6 +1510,7 @@ export function CollageEditor() {
                   selectedId={selectedFreeId}
                   onSelect={setSelectedFreeId}
                   grain={collage.grainIntensity}
+                  sharpness={collage.sharpness}
                 />
               )}
           </CanvasStage>
@@ -1723,13 +1751,27 @@ export function CollageEditor() {
           )}
 
           {activeToolId === 'grain' && (
-            <BorderThicknessSlider
-              label={tr.collageEditor.grain}
-              value={collage.grainIntensity}
-              onChange={store.setCollageGrain}
-              min={0}
-              max={1}
-            />
+            <ProLock>
+              <BorderThicknessSlider
+                label={tr.collageEditor.grain}
+                value={collage.grainIntensity}
+                onChange={store.setCollageGrain}
+                min={0}
+                max={1}
+              />
+            </ProLock>
+          )}
+
+          {activeToolId === 'sharpness' && (
+            <ProLock>
+              <BorderThicknessSlider
+                label={tr.collageEditor.sharpness}
+                value={collage.sharpness}
+                onChange={store.setCollageSharpness}
+                min={0}
+                max={1}
+              />
+            </ProLock>
           )}
         </EditorBottomBar>
         </div>

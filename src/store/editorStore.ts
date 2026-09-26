@@ -40,7 +40,9 @@ interface BorderState {
   exportQuality: ExportQuality
   /** 0..1 film-grain amount, 0 = off. */
   grainIntensity: number
-  /** BORDER_COLORS id — the border's own fill color, not the workspace backdrop. */
+  /** 0..1 unsharp-mask amount, 0 = off. */
+  sharpness: number
+  /** BORDER_COLORS id or a custom "#rrggbb" — the border's own fill color, not the workspace backdrop. */
   borderColor: string
 }
 
@@ -60,7 +62,9 @@ interface CollageState {
   exportQuality: ExportQuality
   /** 0..1 film-grain amount applied to every photo at once, 0 = off. */
   grainIntensity: number
-  /** BORDER_COLORS id — the outer border/gutter fill color, not the workspace backdrop. */
+  /** 0..1 unsharp-mask amount applied to every photo at once, 0 = off. */
+  sharpness: number
+  /** BORDER_COLORS id or a custom "#rrggbb" — the outer border/gutter fill color, not the workspace backdrop. */
   borderColor: string
 }
 
@@ -89,6 +93,7 @@ interface EditorStoreState {
   setBorderTransform: (transform: PhotoTransform) => void
   setBorderExportQuality: (quality: ExportQuality) => void
   setBorderGrain: (intensity: number) => void
+  setBorderSharpness: (amount: number) => void
   setBorderColor: (id: string) => void
 
   setCollageLayoutMode: (mode: CollageLayoutMode) => void
@@ -105,6 +110,7 @@ interface EditorStoreState {
   setGutterPct: (pct: number) => void
   setCollageExportQuality: (quality: ExportQuality) => void
   setCollageGrain: (intensity: number) => void
+  setCollageSharpness: (amount: number) => void
   setCollageBorderColor: (id: string) => void
   assignPhotoToCell: (cellId: string, photoId: string | null) => void
   /** Empties ONE grid cell, leaving the template's shape alone so the gap it
@@ -227,6 +233,7 @@ function createInitialBorderState(): BorderState {
     transform: { ...DEFAULT_TRANSFORM },
     exportQuality: DEFAULT_EXPORT_QUALITY,
     grainIntensity: 0,
+    sharpness: 0,
     borderColor: DEFAULT_BORDER_COLOR,
   }
 }
@@ -246,6 +253,7 @@ function createInitialCollageState(): CollageState {
     freeItems: [],
     exportQuality: DEFAULT_EXPORT_QUALITY,
     grainIntensity: 0,
+    sharpness: 0,
     borderColor: DEFAULT_BORDER_COLOR,
   }
 }
@@ -348,6 +356,9 @@ export const useEditorStore = create<EditorStoreState>((set, get) => ({
 
   setBorderGrain: (intensity) =>
     set((state) => ({ border: { ...state.border, grainIntensity: intensity } })),
+
+  setBorderSharpness: (amount) =>
+    set((state) => ({ border: { ...state.border, sharpness: amount } })),
 
   setBorderColor: (id) =>
     set((state) => ({ border: { ...state.border, borderColor: id } })),
@@ -514,6 +525,9 @@ export const useEditorStore = create<EditorStoreState>((set, get) => ({
 
   setCollageGrain: (intensity) =>
     set((state) => ({ collage: { ...state.collage, grainIntensity: intensity } })),
+
+  setCollageSharpness: (amount) =>
+    set((state) => ({ collage: { ...state.collage, sharpness: amount } })),
 
   setCollageBorderColor: (id) =>
     set((state) => ({ collage: { ...state.collage, borderColor: id } })),

@@ -6,6 +6,7 @@ import { clampTransform, getImageDrawRect, MAX_ZOOM } from '../../lib/cropMath'
 import { shapeRadiusRatio, traceRoundedRectPath } from '../../lib/shapeClip'
 import { useAnimatedNumber } from '../../hooks/useAnimatedNumber'
 import { GrainOverlay } from './GrainOverlay'
+import { useSharpenedPreview } from '../../hooks/useSharpenedPreview'
 
 interface PhotoCellProps {
   x: number
@@ -32,6 +33,8 @@ interface PhotoCellProps {
   shape?: CellShape
   /** 0..1 film-grain amount over this photo, 0/undefined = no overlay drawn. */
   grain?: number
+  /** 0..1 unsharp-mask amount on this photo's preview, 0/undefined = off. */
+  sharpness?: number
   /** Fades the whole cell — used to dim the source cell nearly out of sight
    *  while it's being long-press-dragged (or mid-swap-flight), without
    *  disturbing the grid's layout by actually removing it. */
@@ -75,10 +78,12 @@ export function PhotoCell({
   animateLayout = false,
   shape = 'rect',
   grain = 0,
+  sharpness = 0,
   opacity = 1,
   interactive = true,
   onLongPressStart,
 }: PhotoCellProps) {
+  const previewImage = useSharpenedPreview(photo?.previewBitmap ?? null, sharpness)
   // Non-null for the whole life of a two-finger gesture. Zoom is derived from
   // the CURRENT finger spread against the spread at pick-up (an absolute
   // ratio), not accumulated frame by frame: the incremental version had to
@@ -435,7 +440,7 @@ export function PhotoCell({
     >
       <KonvaImage
         ref={imageRef}
-        image={photo.previewBitmap as unknown as CanvasImageSource}
+        image={(previewImage ?? photo.previewBitmap) as unknown as CanvasImageSource}
         x={draw.x}
         y={draw.y}
         width={draw.width}

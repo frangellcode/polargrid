@@ -6,6 +6,8 @@ import { useTranslation } from './store/languageStore'
 import { HomeScreen } from './components/HomeScreen'
 import { BorderEditor } from './components/editor/BorderEditor'
 import { CollageEditor } from './components/editor/CollageEditor'
+import { ProSheet } from './components/ProSheet'
+import { isNativeApp } from './lib/native'
 import { flushSync } from 'react-dom'
 import { useUpdateStore } from './store/updateStore'
 import type { AppMode } from './types'
@@ -521,6 +523,8 @@ function App() {
           </span>
         </div>
       )}
+
+      {isNativeApp && <ProSheet />}
     </div>
   )
 }

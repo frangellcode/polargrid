@@ -12,6 +12,7 @@ import './index.css'
 import App from './App.tsx'
 import { isNativeApp } from './lib/native'
 import { initServiceWorkerUpdates } from './lib/pwaUpdate'
+import { useProStore } from './store/proStore'
 
 // Deploy marker: a real statement, not a comment — comments get stripped by
 // the production minifier, so earlier "marker" commits never actually
@@ -22,6 +23,7 @@ console.log(`[PolarGrid] build marker: deploy-test-5, built ${new Date().toISOSt
 // The App Store delivers the native build's updates; a service worker there
 // would only be a second, competing cache of the same files.
 if (!isNativeApp) initServiceWorkerUpdates()
+useProStore.getState().init()
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
