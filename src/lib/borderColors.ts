@@ -11,7 +11,6 @@ export interface BorderColorOption {
 export const BORDER_COLORS: BorderColorOption[] = [
   { id: 'white', label: 'White', hex: '#ffffff' },
   { id: 'onyx', label: 'Onyx', hex: '#1c1c1e' },
-  { id: 'graphite', label: 'Graphite', hex: '#6e6a65' },
   { id: 'forest', label: 'Forest', hex: '#2f3a2e' },
   { id: 'wine', label: 'Wine', hex: '#5c2a2e' },
   { id: 'navy', label: 'Night', hex: '#232b3a' },

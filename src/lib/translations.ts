@@ -127,7 +127,7 @@ export const translations = {
     pro: {
       title: 'PolarGrid Pro',
       subtitle: 'One purchase, yours forever. No subscription.',
-      features: ['Six more border colours', 'Maximum-quality export', 'Film grain', 'Sharpness'],
+      features: ['Maximum-quality export', 'Unlimited border colours', 'Film grain', 'Sharpness'],
       unlock: (price: string) => `Unlock for ${price}`,
       loadingPrice: 'Loading…',
       unavailable: 'Pro isn\u2019t available right now. Try again later.',
@@ -166,7 +166,6 @@ export const translations = {
     borderColors: {
       white: 'White',
       onyx: 'Onyx',
-      graphite: 'Graphite',
       forest: 'Forest',
       wine: 'Wine',
       navy: 'Night',
@@ -303,7 +302,7 @@ export const translations = {
     pro: {
       title: 'PolarGrid Pro',
       subtitle: 'Un solo pago, para siempre. Sin suscripción.',
-      features: ['Seis colores de borde más', 'Exportación en calidad máxima', 'Grano de película', 'Nitidez'],
+      features: ['Exportación en calidad máxima', 'Colores de borde ilimitados', 'Grano de película', 'Nitidez'],
       unlock: (price: string) => `Desbloquear por ${price}`,
       loadingPrice: 'Cargando…',
       unavailable: 'Pro no está disponible ahora. Inténtalo más tarde.',
@@ -342,7 +341,6 @@ export const translations = {
     borderColors: {
       white: 'Blanco',
       onyx: 'Ónix',
-      graphite: 'Grafito',
       forest: 'Bosque',
       wine: 'Vino',
       navy: 'Noche',
