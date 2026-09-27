@@ -140,6 +140,10 @@ export const translations = {
       failed: 'The purchase didn\u2019t go through. You weren\u2019t charged.',
       done: 'Done',
       locked: 'Pro',
+      exampleBefore: 'Before',
+      exampleAfter: 'After',
+      exampleWeb: 'Web',
+      exampleMaximum: 'Maximum',
     },
     exportSheet: {
       close: 'Close',
@@ -315,6 +319,10 @@ export const translations = {
       failed: 'La compra no se completó. No se te cobró nada.',
       done: 'Listo',
       locked: 'Pro',
+      exampleBefore: 'Antes',
+      exampleAfter: 'Después',
+      exampleWeb: 'Web',
+      exampleMaximum: 'Máxima',
     },
     exportSheet: {
       close: 'Cerrar',

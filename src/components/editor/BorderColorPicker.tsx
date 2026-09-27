@@ -27,7 +27,7 @@ export function BorderColorPicker({ value, onChange }: BorderColorPickerProps) {
 
   const pickCustom = async () => {
     if (!isPro) {
-      openPaywall()
+      openPaywall('colors')
       return
     }
     if (!isNativeApp) {
@@ -59,7 +59,7 @@ export function BorderColorPicker({ value, onChange }: BorderColorPickerProps) {
             <button
               key={color.id}
               type="button"
-              onClick={() => (locked ? openPaywall() : onChange(color.id))}
+              onClick={() => (locked ? openPaywall('colors') : onChange(color.id))}
               title={label}
               aria-label={label}
               className={`relative flex h-11 w-11 items-center justify-center rounded-full ring-2 transition duration-200 active:scale-90 ${

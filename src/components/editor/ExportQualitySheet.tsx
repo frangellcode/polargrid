@@ -101,7 +101,7 @@ export function ExportQualitySheet({ open, defaultQuality, onClose, onExport }: 
             <button
               key={preset.id}
               type="button"
-              onClick={() => (isLocked(preset.id) ? openPaywall() : setSelected(preset.id))}
+              onClick={() => (isLocked(preset.id) ? openPaywall('quality') : setSelected(preset.id))}
               className={`flex items-center justify-between rounded-2xl border px-4 py-3 text-left transition duration-200 active:scale-[0.98] ${
                 selected === preset.id
                   ? 'border-white bg-white/10'

@@ -23,7 +23,6 @@ import { ImportProgressModal } from './ImportProgressModal'
 import { ConfirmDiscardModal } from './ConfirmDiscardModal'
 import { BatchStrip } from './BatchStrip'
 import { WorkspaceBackgroundPicker } from './WorkspaceBackgroundPicker'
-import { ProLock } from '../ProLock'
 import { BorderColorPicker } from './BorderColorPicker'
 import { getBorderColor } from '../../lib/borderColors'
 import { IconCrop, IconDrop, IconFrame, IconGrain, IconSharpen, IconSwatch } from './icons'
@@ -51,8 +50,8 @@ export function BorderEditor() {
     { id: 'aspecto', label: tr.borderEditor.toolAspect, icon: <IconCrop /> },
     { id: 'bordes', label: tr.borderEditor.toolBorder, icon: <IconFrame /> },
     { id: 'color', label: tr.borderEditor.toolColor, icon: <IconSwatch /> },
-    { id: 'grain', label: tr.borderEditor.toolGrain, icon: <IconGrain /> },
-    { id: 'sharpness', label: tr.borderEditor.toolSharpness, icon: <IconSharpen /> },
+    { id: 'grain', label: tr.borderEditor.toolGrain, icon: <IconGrain />, pro: 'grain' },
+    { id: 'sharpness', label: tr.borderEditor.toolSharpness, icon: <IconSharpen />, pro: 'sharpness' },
   ]
   const {
     photos,
@@ -581,27 +580,23 @@ export function BorderEditor() {
           )}
 
           {activeTool === 'grain' && (
-            <ProLock>
-              <BorderThicknessSlider
-                label={tr.borderEditor.grain}
-                value={border.grainIntensity}
-                onChange={setBorderGrain}
-                min={0}
-                max={1}
-              />
-            </ProLock>
+            <BorderThicknessSlider
+              label={tr.borderEditor.grain}
+              value={border.grainIntensity}
+              onChange={setBorderGrain}
+              min={0}
+              max={1}
+            />
           )}
 
           {activeTool === 'sharpness' && (
-            <ProLock>
-              <BorderThicknessSlider
-                label={tr.borderEditor.sharpness}
-                value={border.sharpness}
-                onChange={setBorderSharpness}
-                min={0}
-                max={1}
-              />
-            </ProLock>
+            <BorderThicknessSlider
+              label={tr.borderEditor.sharpness}
+              value={border.sharpness}
+              onChange={setBorderSharpness}
+              min={0}
+              max={1}
+            />
           )}
         </EditorBottomBar>
         </div>

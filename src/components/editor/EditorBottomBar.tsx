@@ -1,10 +1,16 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
+import { useProStore } from '../../store/proStore'
+import type { ProFeature } from '../../store/proStore'
+import { IconLock } from './icons'
 
 export interface BottomBarTool {
   id: string
   label: string
   icon: ReactNode
+  /** A PolarGrid Pro tool: without Pro its button wears a lock and opens the
+   *  paywall on this feature's example instead of the panel. */
+  pro?: ProFeature
 }
 
 interface EditorBottomBarProps {
@@ -41,6 +47,8 @@ const MAX_PANEL_VIEWPORT_SHARE = 0.45
  */
 export function EditorBottomBar({ tools, activeId, onSelect, children }: EditorBottomBarProps) {
   const open = activeId != null
+  const isPro = useProStore((s) => s.isPro)
+  const openPaywall = useProStore((s) => s.openPaywall)
   const contentRef = useRef<HTMLDivElement>(null)
   const [height, setHeight] = useState(0)
   // Re-read on resize AND on orientation change: rotating a phone changes the
@@ -88,19 +96,31 @@ export function EditorBottomBar({ tools, activeId, onSelect, children }: EditorB
       <div className="flex items-stretch justify-around gap-1 px-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-2">
         {tools.map((tool) => {
           const active = tool.id === activeId
+          const locked = tool.pro !== undefined && !isPro
           return (
             <button
               key={tool.id}
               type="button"
-              onClick={() => onSelect(active ? null : tool.id)}
+              onClick={() => (locked && tool.pro ? openPaywall(tool.pro) : onSelect(active ? null : tool.id))}
               className="font-label group flex flex-1 flex-col items-center gap-1 rounded-xl py-1 text-[10px] font-semibold uppercase tracking-wide transition"
             >
               <span
-                className={`flex h-10 w-10 items-center justify-center rounded-full transition duration-200 group-active:scale-90 ${
+                className={`relative flex h-10 w-10 items-center justify-center rounded-full transition duration-200 group-active:scale-90 ${
                   active ? 'bg-white text-ink-900' : 'bg-white/10 text-white/60'
                 }`}
               >
                 {tool.icon}
+                {tool.pro !== undefined && (
+                  // Always mounted and faded, so it melts away when Pro unlocks.
+                  <span
+                    aria-hidden
+                    className={`absolute -right-0.5 -top-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-white text-ink-900 shadow transition duration-300 ease-out ${
+                      locked ? 'scale-100 opacity-100' : 'scale-50 opacity-0'
+                    }`}
+                  >
+                    <IconLock className="h-2.5 w-2.5" />
+                  </span>
+                )}
               </span>
               <span className={`transition-colors duration-200 ${active ? 'text-white' : 'text-white/45'}`}>
                 {tool.label}

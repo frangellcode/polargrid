@@ -1,9 +1,12 @@
 import { useEffect, useState } from 'react'
 import { Pro } from '../lib/pro'
 import type { ProProduct } from '../lib/pro'
-import { useProStore } from '../store/proStore'
+import { PRO_FEATURES, useProStore } from '../store/proStore'
+import type { ProFeature } from '../store/proStore'
+import { useEditorStore } from '../store/editorStore'
+import type { LoadedPhoto } from '../types'
+import { ProPreview } from './ProPreview'
 import { useTranslation } from '../store/languageStore'
-import { IconLock } from './editor/icons'
 import { afterFirstPaint } from '../lib/afterFirstPaint'
 
 const EASE = 'ease-[cubic-bezier(0.22,1,0.36,1)]'
@@ -25,6 +28,17 @@ export function ProSheet() {
   const open = useProStore((s) => s.paywallOpen)
   const closePaywall = useProStore((s) => s.closePaywall)
   const setPro = useProStore((s) => s.setPro)
+  const paywallFeature = useProStore((s) => s.paywallFeature)
+  const [feature, setFeature] = useState<ProFeature>(paywallFeature)
+  // The example uses the photo being edited: the border's, or the first one
+  // placed in the collage.
+  const photo = useEditorStore((s): LoadedPhoto | null => {
+    const id =
+      s.mode === 'border'
+        ? s.border.photoId
+        : (s.collage.assignments.find((a) => a.photoId)?.photoId ?? s.collage.freeItems[0]?.photoId)
+    return (id && s.photos[id]) || null
+  })
   const [mounted, setMounted] = useState(open)
   const [visible, setVisible] = useState(false)
   const [price, setPrice] = useState<Price>({ kind: 'loading' })
@@ -53,6 +67,7 @@ export function ProSheet() {
     if (!open) return
     let cancelled = false
     setNote(null)
+    setFeature(paywallFeature)
     setPrice((prev) => (prev.kind === 'ready' ? prev : { kind: 'loading' }))
     Pro.getProduct()
       .then((product) => {
@@ -64,7 +79,7 @@ export function ProSheet() {
     return () => {
       cancelled = true
     }
-  }, [open])
+  }, [open, paywallFeature])
 
   const buy = async () => {
     if (busy || price.kind !== 'ready') return
@@ -113,24 +128,32 @@ export function ProSheet() {
       <div className="absolute inset-0 bg-black/65" onClick={busy ? undefined : closePaywall} />
 
       <div
-        className={`relative w-full max-w-xs overflow-hidden rounded-3xl border border-white/10 bg-ink-900 p-6 shadow-2xl transition-all duration-300 ${EASE} ${
+        className={`relative max-h-[92vh] w-full max-w-sm overflow-y-auto overscroll-contain rounded-3xl border border-white/10 bg-ink-900 p-5 shadow-2xl transition-all duration-300 ${EASE} ${
           visible ? 'translate-y-0 scale-100 opacity-100' : 'translate-y-3 scale-95 opacity-0'
         }`}
       >
-        <div className="flex flex-col items-center gap-5 text-center">
+        <div className="flex flex-col items-center gap-4 text-center">
           <div className="flex flex-col items-center gap-1.5">
             <p className="font-display text-base font-semibold text-white">{tr.pro.title}</p>
             <p className="font-label text-xs leading-snug text-white/50">{tr.pro.subtitle}</p>
           </div>
 
-          <ul className="flex w-full flex-col gap-2 text-left">
-            {tr.pro.features.map((feature) => (
-              <li key={feature} className="font-label flex items-center gap-2.5 rounded-2xl bg-white/5 px-4 py-2.5 text-xs text-white/80">
-                <IconLock className="h-3.5 w-3.5 shrink-0 text-white/40" />
-                {feature}
-              </li>
+          {photo && <ProPreview feature={feature} photo={photo} />}
+
+          <div className="grid w-full grid-cols-2 gap-2">
+            {PRO_FEATURES.map((id, i) => (
+              <button
+                key={id}
+                type="button"
+                onClick={() => setFeature(id)}
+                className={`font-label rounded-2xl px-3 py-2.5 text-left text-[11px] leading-tight transition duration-200 active:scale-95 ${
+                  feature === id ? 'bg-white text-ink-900' : 'bg-white/5 text-white/75 hover:bg-white/10'
+                }`}
+              >
+                {tr.pro.features[i]}
+              </button>
             ))}
-          </ul>
+          </div>
 
           {note && note !== 'unlocked' && (
             <p key={note} className={`fade-in font-label text-xs leading-snug ${note === 'failed' ? 'text-red-300' : 'text-white/60'}`}>{tr.pro[note]}</p>

@@ -3,12 +3,18 @@ import { isNativeApp } from '../lib/native'
 import { Pro } from '../lib/pro'
 import type { ProProduct } from '../lib/pro'
 
+/** What Pro unlocks, in the order the paywall lists it. */
+export const PRO_FEATURES = ['quality', 'colors', 'grain', 'sharpness'] as const
+export type ProFeature = (typeof PRO_FEATURES)[number]
+
 interface ProStoreState {
   /** The web build has no store and keeps everything unlocked. The App Store
    *  build starts locked and asks StoreKit on launch. */
   isPro: boolean
   paywallOpen: boolean
-  openPaywall: () => void
+  /** The example the paywall opens on — whichever locked thing was tapped. */
+  paywallFeature: ProFeature
+  openPaywall: (feature?: ProFeature) => void
   closePaywall: () => void
   /** Called once from main.tsx on native. */
   init: () => void
@@ -19,7 +25,8 @@ interface ProStoreState {
 export const useProStore = create<ProStoreState>((set) => ({
   isPro: !isNativeApp,
   paywallOpen: false,
-  openPaywall: () => set({ paywallOpen: true }),
+  paywallFeature: 'quality',
+  openPaywall: (feature = 'quality') => set({ paywallOpen: true, paywallFeature: feature }),
   closePaywall: () => set({ paywallOpen: false }),
   setPro: (isPro) => set({ isPro }),
   init: () => {

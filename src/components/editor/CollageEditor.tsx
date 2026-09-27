@@ -29,7 +29,6 @@ import { ImportProgressModal } from './ImportProgressModal'
 import { ConfirmDiscardModal } from './ConfirmDiscardModal'
 import { ActionRow } from './ActionRow'
 import { WorkspaceBackgroundPicker } from './WorkspaceBackgroundPicker'
-import { ProLock } from '../ProLock'
 import { useSharpenedPreview } from '../../hooks/useSharpenedPreview'
 import { BorderColorPicker } from './BorderColorPicker'
 import { IconCrop, IconDrop, IconFrame, IconGrain, IconSharpen, IconGrid, IconSwatch } from './icons'
@@ -1010,15 +1009,15 @@ export function CollageEditor() {
     // own tab there, so the one setting lived somewhere different depending on
     // which editor you were in.
     { id: 'color', label: tr.borderEditor.toolColor, icon: <IconSwatch /> },
-    { id: 'grain', label: tr.collageEditor.toolGrain, icon: <IconGrain /> },
-    { id: 'sharpness', label: tr.collageEditor.toolSharpness, icon: <IconSharpen /> },
+    { id: 'grain', label: tr.collageEditor.toolGrain, icon: <IconGrain />, pro: 'grain' },
+    { id: 'sharpness', label: tr.collageEditor.toolSharpness, icon: <IconSharpen />, pro: 'sharpness' },
   ]
   const FREE_TOOLS: BottomBarTool[] = [
     { id: 'workspace', label: tr.tools.workspace, icon: <IconDrop /> },
     { id: 'formato', label: tr.collageEditor.toolAspect, icon: <IconCrop /> },
     { id: 'color', label: tr.borderEditor.toolColor, icon: <IconSwatch /> },
-    { id: 'grain', label: tr.collageEditor.toolGrain, icon: <IconGrain /> },
-    { id: 'sharpness', label: tr.collageEditor.toolSharpness, icon: <IconSharpen /> },
+    { id: 'grain', label: tr.collageEditor.toolGrain, icon: <IconGrain />, pro: 'grain' },
+    { id: 'sharpness', label: tr.collageEditor.toolSharpness, icon: <IconSharpen />, pro: 'sharpness' },
   ]
   const store = useEditorStore()
   const { photos, collage } = store
@@ -1751,27 +1750,23 @@ export function CollageEditor() {
           )}
 
           {activeToolId === 'grain' && (
-            <ProLock>
-              <BorderThicknessSlider
-                label={tr.collageEditor.grain}
-                value={collage.grainIntensity}
-                onChange={store.setCollageGrain}
-                min={0}
-                max={1}
-              />
-            </ProLock>
+            <BorderThicknessSlider
+              label={tr.collageEditor.grain}
+              value={collage.grainIntensity}
+              onChange={store.setCollageGrain}
+              min={0}
+              max={1}
+            />
           )}
 
           {activeToolId === 'sharpness' && (
-            <ProLock>
-              <BorderThicknessSlider
-                label={tr.collageEditor.sharpness}
-                value={collage.sharpness}
-                onChange={store.setCollageSharpness}
-                min={0}
-                max={1}
-              />
-            </ProLock>
+            <BorderThicknessSlider
+              label={tr.collageEditor.sharpness}
+              value={collage.sharpness}
+              onChange={store.setCollageSharpness}
+              min={0}
+              max={1}
+            />
           )}
         </EditorBottomBar>
         </div>
