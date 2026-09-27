@@ -29,6 +29,12 @@ public class ProPlugin: CAPPlugin, CAPBridgedPlugin {
     /// is an older build got the app when everything was free.
     static let firstProBuild = 3
 
+    /// TEMPORARY — TestFlight builds for the developer's own use while the Pro
+    /// product isn't live in the sandbox yet. MUST be false in any build sent
+    /// to App Review: App Review runs in the sandbox too, and would see
+    /// everything already unlocked with no purchase to test.
+    static let grantProForTesting = true
+
     @MainActor private var product: Product?
     private var updatesTask: Task<Void, Never>?
 
@@ -54,6 +60,7 @@ public class ProPlugin: CAPPlugin, CAPBridgedPlugin {
 
     /// True when the person owns Pro or first downloaded a free-for-all build.
     static func hasEntitlement() async -> Bool {
+        if grantProForTesting { return true }
         for await result in Transaction.currentEntitlements {
             if case .verified(let transaction) = result,
                transaction.productID == productId,
