@@ -9,6 +9,8 @@ import { useImageBitmap } from '../../hooks/useImageBitmap'
 import { easeInOutCubic, useAnimatedColor, useAnimatedNumber, useIsReflowing } from '../../hooks/useAnimatedNumber'
 import { COLLAGE_ASPECT_RATIOS } from '../../lib/aspectRatios'
 import { computeOutputPixelSize, flipTransform, getImageDrawRect, rotateTransform } from '../../lib/cropMath'
+import { gridCellRect, gridKey, gridLines, moveGridLine } from '../../lib/gridLayout'
+import type { GridLines } from '../../lib/gridLayout'
 import { snapRotation } from '../../lib/rotationSnap'
 import { MAX_PHOTO_MB, screenPhotoFiles } from '../../lib/photoInput'
 import { holdForSheetClose, holdImportCard } from '../../lib/uiTiming'
@@ -604,9 +606,12 @@ interface GridCellsLayerProps {
   animateCells: boolean
   contentX: number
   contentY: number
-  cellW: number
-  cellH: number
   gutterPx: number
+  contentW: number
+  contentH: number
+  /** Where the grid lines sit (even split unless the person dragged them). */
+  lines: GridLines
+  onLinesChange: (lines: GridLines) => void
   shape: CellShape
   /** 0..1 film-grain amount applied to every cell at once, 0 = no overlay. */
   grain: number
@@ -699,9 +704,11 @@ function GridCellsLayer({
   animateCells,
   contentX,
   contentY,
-  cellW,
-  cellH,
   gutterPx,
+  contentW,
+  contentH,
+  lines,
+  onLinesChange,
   shape,
   grain,
   sharpness,
@@ -719,10 +726,7 @@ function GridCellsLayer({
     const assignment = assignments[i]
     if (!assignment) return
     cellRects.set(assignment.cellId, {
-      x: contentX + cell.col * (cellW + gutterPx),
-      y: contentY + cell.row * (cellH + gutterPx),
-      w: cellW * cell.colSpan + gutterPx * (cell.colSpan - 1),
-      h: cellH * cell.rowSpan + gutterPx * (cell.rowSpan - 1),
+      ...gridCellRect(cell, template, lines, { x: contentX, y: contentY, w: contentW, h: contentH }, gutterPx),
       colSpan: cell.colSpan,
       rowSpan: cell.rowSpan,
     })
@@ -993,6 +997,61 @@ function GridCellsLayer({
           </>
         )
       })()}
+
+      {/* Resize handles on the selected cell's inner edges — drag one and
+          that grid line moves: this cell grows, its neighbours shrink, and
+          the template's structure stays as it was. */}
+      {selectedCellId && !dragState && !swapAnim && (() => {
+        const index = assignments.findIndex((a) => a.cellId === selectedCellId)
+        const cell = template.cells[index]
+        const rect = cellRects.get(selectedCellId)
+        if (!cell || !rect) return null
+        const size = Math.min(contentW, contentH)
+        const long = size * 0.1
+        const thick = size * 0.022
+        const availW = contentW - gutterPx * (template.cols - 1)
+        const availH = contentH - gutterPx * (template.rows - 1)
+        const edges: { axis: 'x' | 'y'; line: number; cx: number; cy: number }[] = []
+        if (cell.col > 0) edges.push({ axis: 'x', line: cell.col, cx: rect.x - gutterPx / 2, cy: rect.y + rect.h / 2 })
+        if (cell.col + cell.colSpan < template.cols)
+          edges.push({ axis: 'x', line: cell.col + cell.colSpan, cx: rect.x + rect.w + gutterPx / 2, cy: rect.y + rect.h / 2 })
+        if (cell.row > 0) edges.push({ axis: 'y', line: cell.row, cx: rect.x + rect.w / 2, cy: rect.y - gutterPx / 2 })
+        if (cell.row + cell.rowSpan < template.rows)
+          edges.push({ axis: 'y', line: cell.row + cell.rowSpan, cx: rect.x + rect.w / 2, cy: rect.y + rect.h + gutterPx / 2 })
+        return edges.map((edge) => {
+          const w = edge.axis === 'x' ? thick : long
+          const h = edge.axis === 'x' ? long : thick
+          return (
+            <Group
+              key={`${edge.axis}${edge.line}`}
+              x={edge.cx}
+              y={edge.cy}
+              draggable
+              onDragMove={(e) => {
+                const node = e.target
+                // Slide along one axis only.
+                if (edge.axis === 'x') node.y(edge.cy)
+                else node.x(edge.cx)
+                const position =
+                  edge.axis === 'x'
+                    ? (node.x() - contentX - edge.line * gutterPx + gutterPx / 2) / availW
+                    : (node.y() - contentY - edge.line * gutterPx + gutterPx / 2) / availH
+                onLinesChange(moveGridLine(template, lines, edge.axis, edge.line, position))
+              }}
+              onDragEnd={(e) => {
+                // Snap back onto wherever the line actually ended up (it
+                // stops at the minimum size even if the finger kept going).
+                e.target.x(edge.cx)
+                e.target.y(edge.cy)
+              }}
+            >
+              {/* Generous invisible hit area; the pill is what's drawn. */}
+              <Rect x={-Math.max(w, size * 0.07) / 2} y={-Math.max(h, size * 0.07) / 2} width={Math.max(w, size * 0.07)} height={Math.max(h, size * 0.07)} fill="transparent" />
+              <Rect x={-w / 2} y={-h / 2} width={w} height={h} cornerRadius={thick / 2} fill="#ffffff" shadowColor="#000" shadowOpacity={0.35} shadowBlur={6} />
+            </Group>
+          )
+        })
+      })()}
     </Group>
   )
 }
@@ -1168,8 +1227,6 @@ export function CollageEditor() {
   const contentY = outerBorderPx
   const contentW = outputWidth - outerBorderPx * 2
   const contentH = outputHeight - outerBorderPx * 2
-  const cellW = (contentW - gutterPx * (template.cols - 1)) / template.cols
-  const cellH = (contentH - gutterPx * (template.rows - 1)) / template.rows
 
   // animateLayout is now ONLY for re-tiles that leave the canvas size alone —
   // switching template, transposing it, adding/removing a photo. Those change
@@ -1487,9 +1544,11 @@ export function CollageEditor() {
                   animateCells={animateCells}
                   contentX={contentX}
                   contentY={contentY}
-                  cellW={cellW}
-                  cellH={cellH}
                   gutterPx={gutterPx}
+                  contentW={contentW}
+                  contentH={contentH}
+                  lines={gridLines(template, collage.gridSizes)}
+                  onLinesChange={(next) => store.setCollageGridSizes({ key: gridKey(template), ...next })}
                   shape={collage.shape}
                   grain={collage.grainIntensity}
                   sharpness={collage.sharpness}
