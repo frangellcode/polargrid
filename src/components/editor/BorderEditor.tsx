@@ -5,7 +5,7 @@ import { useEditorStore } from '../../store/editorStore'
 import { useTranslation } from '../../store/languageStore'
 import { useImageBitmap } from '../../hooks/useImageBitmap'
 import { useAnimatedColor, useAnimatedNumber } from '../../hooks/useAnimatedNumber'
-import { computeOutputPixelSize } from '../../lib/cropMath'
+import { computeOutputPixelSize, orientedSize } from '../../lib/cropMath'
 import { MAX_PHOTO_MB, screenPhotoFiles } from '../../lib/photoInput'
 import { holdForSheetClose, holdImportCard } from '../../lib/uiTiming'
 import { isNativeApp } from '../../lib/native'
@@ -23,9 +23,10 @@ import { ImportProgressModal } from './ImportProgressModal'
 import { ConfirmDiscardModal } from './ConfirmDiscardModal'
 import { BatchStrip } from './BatchStrip'
 import { WorkspaceBackgroundPicker } from './WorkspaceBackgroundPicker'
+import { RotateControls } from './RotateControls'
 import { BorderColorPicker } from './BorderColorPicker'
 import { getBorderColor } from '../../lib/borderColors'
-import { IconCrop, IconDrop, IconFrame, IconGrain, IconSharpen, IconSwatch } from './icons'
+import { IconCrop, IconDrop, IconFrame, IconGrain, IconRotate, IconSharpen, IconSwatch } from './icons'
 
 const PREVIEW_LONG_EDGE = 900
 // Reuses the app's own view-exit/view-enter pair (index.css) — the same
@@ -48,6 +49,7 @@ export function BorderEditor() {
   const TOOLS: BottomBarTool[] = [
     { id: 'workspace', label: tr.tools.workspace, icon: <IconDrop /> },
     { id: 'aspecto', label: tr.borderEditor.toolAspect, icon: <IconCrop /> },
+    { id: 'rotate', label: tr.borderEditor.toolRotate, icon: <IconRotate /> },
     { id: 'bordes', label: tr.borderEditor.toolBorder, icon: <IconFrame /> },
     { id: 'color', label: tr.borderEditor.toolColor, icon: <IconSwatch /> },
     { id: 'grain', label: tr.borderEditor.toolGrain, icon: <IconGrain />, pro: 'grain' },
@@ -223,9 +225,10 @@ export function BorderEditor() {
   }, [border.batchPhotoIds])
 
   const ratio = useMemo(() => {
-    const fallback = photo ? photo.width / photo.height : 1
+    const shown = photo ? orientedSize(photo.width, photo.height, border.transform) : null
+    const fallback = shown ? shown.width / shown.height : 1
     return resolveRatio(border.aspectRatioId, fallback, border.ratioOrientation)
-  }, [border.aspectRatioId, border.ratioOrientation, photo])
+  }, [border.aspectRatioId, border.ratioOrientation, photo, border.transform])
 
   const { width: targetWidth, height: targetHeight } = useMemo(
     () => computeOutputPixelSize(ratio, PREVIEW_LONG_EDGE),
@@ -328,7 +331,10 @@ export function BorderEditor() {
       // the first one, so a batch of mixed orientations was quietly being
       // flattened to whatever the first photo was), and with a numeric preset
       // the fallback is ignored and they all come out identical anyway.
-      (p) => resolveRatio(border.aspectRatioId, p.width / p.height, border.ratioOrientation),
+      (p) => {
+        const shown = orientedSize(p.width, p.height, border.transform)
+        return resolveRatio(border.aspectRatioId, shown.width / shown.height, border.ratioOrientation)
+      },
       border.borderThicknessPct,
       border.transform,
       quality,
@@ -570,6 +576,8 @@ export function BorderEditor() {
               onChange={setBorderThickness}
             />
           )}
+
+          {activeTool === 'rotate' && <RotateControls transform={border.transform} onChange={setBorderTransform} />}
 
           {activeTool === 'workspace' && (
             <WorkspaceBackgroundPicker value={workspaceBackground} onChange={setWorkspaceBackground} />

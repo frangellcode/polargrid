@@ -8,7 +8,7 @@ import { useTranslation } from '../../store/languageStore'
 import { useImageBitmap } from '../../hooks/useImageBitmap'
 import { easeInOutCubic, useAnimatedColor, useAnimatedNumber, useIsReflowing } from '../../hooks/useAnimatedNumber'
 import { COLLAGE_ASPECT_RATIOS } from '../../lib/aspectRatios'
-import { computeOutputPixelSize, getImageDrawRect } from '../../lib/cropMath'
+import { computeOutputPixelSize, flipTransform, getImageDrawRect, rotateTransform } from '../../lib/cropMath'
 import { snapRotation } from '../../lib/rotationSnap'
 import { MAX_PHOTO_MB, screenPhotoFiles } from '../../lib/photoInput'
 import { holdForSheetClose, holdImportCard } from '../../lib/uiTiming'
@@ -31,7 +31,7 @@ import { ActionRow } from './ActionRow'
 import { WorkspaceBackgroundPicker } from './WorkspaceBackgroundPicker'
 import { useSharpenedPreview } from '../../hooks/useSharpenedPreview'
 import { BorderColorPicker } from './BorderColorPicker'
-import { IconCrop, IconDrop, IconFrame, IconGrain, IconSharpen, IconGrid, IconSwatch } from './icons'
+import { IconCrop, IconDrop, IconFrame, IconFlip, IconGrain, IconRotate, IconSharpen, IconGrid, IconSwatch } from './icons'
 import { GrainOverlay } from './GrainOverlay'
 
 const PREVIEW_LONG_EDGE = 900
@@ -1572,6 +1572,27 @@ export function CollageEditor() {
       <ActionRow open={collage.layoutMode === 'grid' && hasContent && !!selectedCellId}>
         <p className="font-label text-[11px] leading-snug text-white/40">{tr.collageEditor.gridCellHint}</p>
         <div className="flex shrink-0 items-center gap-2">
+          {/* Turn and mirror the selected cell's photo — free, like Replace. */}
+          {(
+            [
+              { label: tr.borderEditor.rotateRight, icon: <IconRotate className="h-4 w-4" />, apply: (t: PhotoTransform) => rotateTransform(t, 1) },
+              { label: tr.borderEditor.flipHorizontal, icon: <IconFlip className="h-4 w-4" />, apply: (t: PhotoTransform) => flipTransform(t, 'h') },
+            ] as const
+          ).map((action) => (
+            <button
+              key={action.label}
+              type="button"
+              aria-label={action.label}
+              title={action.label}
+              onClick={() => {
+                const assignment = cellId ? collage.assignments.find((a) => a.cellId === cellId) : undefined
+                if (assignment) store.setCellTransform(assignment.cellId, action.apply(assignment.transform))
+              }}
+              className="flex h-7 w-7 items-center justify-center rounded-full bg-white/10 text-white transition duration-200 hover:bg-white/15 active:scale-90"
+            >
+              {action.icon}
+            </button>
+          ))}
           <button
             type="button"
             onClick={() => {

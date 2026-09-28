@@ -1,3 +1,6 @@
+import { drawOrientedImage } from './cropMath'
+import type { PhotoTransform } from '../types'
+
 /**
  * Sharpness: a classic unsharp mask, out = photo + amount · (photo − blurred).
  *
@@ -125,6 +128,8 @@ export function drawSharpened(
   /** The photo's visible part in ctx's current coordinates (cell ∩ draw). */
   visible: { x: number; y: number; width: number; height: number },
   sharpness: number,
+  /** For the photo's turn and flips. */
+  transform: PhotoTransform,
 ) {
   const m = ctx.getTransform()
   // Device-space box around the visible part, clamped to this canvas (a band).
@@ -150,7 +155,7 @@ export function drawSharpened(
   const scratch = document.createElement('canvas')
   const sctx = scratch.getContext('2d', { willReadFrequently: true })
   if (!sctx) {
-    ctx.drawImage(bitmap, draw.x, draw.y, draw.width, draw.height)
+    drawOrientedImage(ctx, bitmap, draw, transform)
     return
   }
   try {
@@ -170,7 +175,7 @@ export function drawSharpened(
         sctx.imageSmoothingEnabled = true
         sctx.imageSmoothingQuality = 'high'
         sctx.setTransform(m.a, m.b, m.c, m.d, m.e - (tx - margin), m.f - (ty - margin))
-        sctx.drawImage(bitmap, draw.x, draw.y, draw.width, draw.height)
+        drawOrientedImage(sctx, bitmap, draw, transform)
         const image = sctx.getImageData(0, 0, sw, sh)
         unsharpMask(image, radius, amount)
         sctx.putImageData(image, 0, 0)

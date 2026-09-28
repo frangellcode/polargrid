@@ -340,7 +340,18 @@ export const useEditorStore = create<EditorStoreState>((set, get) => ({
 
   setBorderLocked: (locked) =>
     set((state) => ({
-      border: { ...state.border, locked, transform: { ...DEFAULT_TRANSFORM } },
+      // A fresh crop for the new mode, but the photo stays turned and
+      // flipped the way it was — that's orientation, not framing.
+      border: {
+        ...state.border,
+        locked,
+        transform: clampTransform({
+          ...DEFAULT_TRANSFORM,
+          turns: state.border.transform.turns,
+          flipH: state.border.transform.flipH,
+          flipV: state.border.transform.flipV,
+        }),
+      },
     })),
 
   setBorderThickness: (pct) =>

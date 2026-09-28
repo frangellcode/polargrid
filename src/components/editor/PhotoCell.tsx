@@ -2,11 +2,12 @@ import { useEffect, useRef, useState } from 'react'
 import { Group, Image as KonvaImage, Shape, Text } from 'react-konva'
 import type Konva from 'konva'
 import type { CellShape, LoadedPhoto, PhotoFit, PhotoTransform } from '../../types'
-import { clampTransform, getImageDrawRect, MAX_ZOOM } from '../../lib/cropMath'
+import { clampTransform, getImageDrawRect, MAX_ZOOM, orientedSize } from '../../lib/cropMath'
 import { shapeRadiusRatio, traceRoundedRectPath } from '../../lib/shapeClip'
 import { useAnimatedNumber } from '../../hooks/useAnimatedNumber'
 import { GrainOverlay } from './GrainOverlay'
 import { useSharpenedPreview } from '../../hooks/useSharpenedPreview'
+import { useOrientedPreview } from '../../hooks/useOrientedPreview'
 
 /** WebKit's non-standard GestureEvent (trackpad and touch pinches). */
 type GestureLikeEvent = Event & { scale: number; rotation: number; clientX: number; clientY: number }
@@ -86,7 +87,8 @@ export function PhotoCell({
   interactive = true,
   onLongPressStart,
 }: PhotoCellProps) {
-  const previewImage = useSharpenedPreview(photo?.previewBitmap ?? null, sharpness)
+  const orientedImage = useOrientedPreview(photo?.previewBitmap ?? null, transform)
+  const previewImage = useSharpenedPreview(orientedImage, sharpness)
   // Non-null for the whole life of a two-finger gesture. Zoom is derived from
   // the CURRENT finger spread against the spread at pick-up (an absolute
   // ratio), not accumulated frame by frame: the incremental version had to
@@ -224,7 +226,8 @@ export function PhotoCell({
     )
   }
 
-  const draw = getImageDrawRect(width, height, photo.width, photo.height, transform, fit)
+  const shown = orientedSize(photo.width, photo.height, transform)
+  const draw = getImageDrawRect(width, height, shown.width, shown.height, transform, fit)
 
   // Konva's dragBoundFunc receives/returns ABSOLUTE (stage) coordinates, which are
   // in canvas-pixel space — i.e. our virtual (unscaled) coordinates multiplied by
@@ -274,7 +277,7 @@ export function PhotoCell({
     const centeredY = (height - drawH) / 2
     const offsetX = slackX === 0 ? 0 : (centeredX - e.target.x()) / slackX
     const offsetY = slackY === 0 ? 0 : (centeredY - e.target.y()) / slackY
-    onTransformChange(clampTransform({ zoom: liveZoomRef.current, offsetX, offsetY }))
+    onTransformChange(clampTransform({ ...transformRef.current, zoom: liveZoomRef.current, offsetX, offsetY }))
     setInteracting(false)
   }
 
@@ -289,7 +292,7 @@ export function PhotoCell({
   // the store only gets the final value once, when the gesture ends.
   const applyLiveZoom = (zoom: number) => {
     liveZoomRef.current = zoom
-    const liveDraw = getImageDrawRect(width, height, photo.width, photo.height, { ...transformRef.current, zoom }, fit)
+    const liveDraw = getImageDrawRect(width, height, shown.width, shown.height, { ...transformRef.current, zoom }, fit)
     const node = imageRef.current
     if (node) {
       node.x(liveDraw.x)

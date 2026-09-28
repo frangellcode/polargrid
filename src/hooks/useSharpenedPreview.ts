@@ -11,8 +11,10 @@ const SETTLE_MS = 90
  * the untouched bitmap at 0, and keeps showing the previous result while a new
  * amount is being worked out so the photo never flickers back to unsharpened.
  */
-export function useSharpenedPreview<T extends ImageBitmap | null>(bitmap: T, sharpness: number): CanvasImageSource | T {
-  const [result, setResult] = useState<{ bitmap: ImageBitmap; canvas: HTMLCanvasElement } | null>(null)
+type Source = CanvasImageSource & { width: number; height: number }
+
+export function useSharpenedPreview<T extends Source | null>(bitmap: T, sharpness: number): CanvasImageSource | T {
+  const [result, setResult] = useState<{ bitmap: Source; canvas: HTMLCanvasElement } | null>(null)
 
   useEffect(() => {
     if (sharpness <= 0 || !bitmap) {
@@ -21,7 +23,7 @@ export function useSharpenedPreview<T extends ImageBitmap | null>(bitmap: T, sha
     }
     const t = setTimeout(() => {
       const canvas = sharpenedPreview(bitmap, sharpness)
-      if (canvas) setResult({ bitmap: bitmap as ImageBitmap, canvas })
+      if (canvas) setResult({ bitmap: bitmap as Source, canvas })
     }, SETTLE_MS)
     return () => clearTimeout(t)
   }, [bitmap, sharpness])

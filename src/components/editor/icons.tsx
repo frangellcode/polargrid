@@ -121,3 +121,24 @@ export function IconSharpen({ className = 'h-5 w-5' }: IconProps) {
     </svg>
   )
 }
+
+/** Arrow turning clockwise — a quarter turn. Mirror it with `-scale-x-100` for counter-clockwise. */
+export function IconRotate({ className = 'h-5 w-5' }: IconProps) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" className={className}>
+      <path d="M20 12a8 8 0 1 1-2.3-5.6" />
+      <path d="M20 4v4.5h-4.5" />
+    </svg>
+  )
+}
+
+/** Two halves mirrored across a line — flip. Rotate it 90° for the vertical flip. */
+export function IconFlip({ className = 'h-5 w-5' }: IconProps) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" className={className}>
+      <path d="M12 3v18" strokeDasharray="2 2.5" />
+      <path d="M9 7 4 17h5z" />
+      <path d="M15 7l5 10h-5z" fill="currentColor" />
+    </svg>
+  )
+}

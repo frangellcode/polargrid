@@ -68,7 +68,79 @@ export function clampTransform(transform: PhotoTransform): PhotoTransform {
   const zoom = Math.min(MAX_ZOOM, Math.max(1, transform.zoom))
   const offsetX = Math.min(1, Math.max(-1, transform.offsetX))
   const offsetY = Math.min(1, Math.max(-1, transform.offsetY))
-  return { zoom, offsetX, offsetY }
+  const clamped: PhotoTransform = { zoom, offsetX, offsetY }
+  // Orientation rides along only when set, so an untouched transform stays
+  // exactly the three fields it always was.
+  const turns = (((transform.turns ?? 0) % 4) + 4) % 4
+  if (turns) clamped.turns = turns
+  if (transform.flipH) clamped.flipH = true
+  if (transform.flipV) clamped.flipV = true
+  return clamped
+}
+
+/** How a photo is turned and mirrored, in the terms a canvas or Konva node
+ *  needs: rotate by `degrees`, then scale by (scaleX, scaleY) in the
+ *  rotated image's own axes. The flips are stored as seen on screen, so on a
+ *  quarter turn they swap axes. */
+export function photoOrientation(transform: PhotoTransform) {
+  const turns = (((transform.turns ?? 0) % 4) + 4) % 4
+  const swapped = turns % 2 === 1
+  const screenX = transform.flipH ? -1 : 1
+  const screenY = transform.flipV ? -1 : 1
+  return {
+    turns,
+    degrees: turns * 90,
+    swapped,
+    scaleX: swapped ? screenY : screenX,
+    scaleY: swapped ? screenX : screenY,
+    identity: turns === 0 && !transform.flipH && !transform.flipV,
+  }
+}
+
+/** The photo's width and height as it appears once turned. */
+export function orientedSize(width: number, height: number, transform: PhotoTransform) {
+  return photoOrientation(transform).swapped ? { width: height, height: width } : { width, height }
+}
+
+/** Turns a transform a quarter clockwise (or counter-clockwise). The pan is
+ *  re-centred: an offset measured along one axis means nothing along the
+ *  other. Zoom is kept. */
+export function rotateTransform(transform: PhotoTransform, direction: 1 | -1): PhotoTransform {
+  return clampTransform({ ...transform, offsetX: 0, offsetY: 0, turns: (transform.turns ?? 0) + direction })
+}
+
+export function flipTransform(transform: PhotoTransform, axis: 'h' | 'v'): PhotoTransform {
+  return clampTransform(
+    axis === 'h'
+      ? { ...transform, flipH: !transform.flipH, offsetX: -transform.offsetX }
+      : { ...transform, flipV: !transform.flipV, offsetY: -transform.offsetY },
+  )
+}
+
+/**
+ * Draws `source` into the rect `draw` (coordinates of the photo as it appears
+ * once turned) honouring the transform's turn and flips. With no orientation
+ * it's a plain drawImage, so nothing changes for untouched photos.
+ */
+export function drawOrientedImage(
+  ctx: CanvasRenderingContext2D,
+  source: CanvasImageSource,
+  draw: { x: number; y: number; width: number; height: number },
+  transform: PhotoTransform,
+) {
+  const o = photoOrientation(transform)
+  if (o.identity) {
+    ctx.drawImage(source, draw.x, draw.y, draw.width, draw.height)
+    return
+  }
+  const w = o.swapped ? draw.height : draw.width
+  const h = o.swapped ? draw.width : draw.height
+  ctx.save()
+  ctx.translate(draw.x + draw.width / 2, draw.y + draw.height / 2)
+  ctx.rotate((o.degrees * Math.PI) / 180)
+  ctx.scale(o.scaleX, o.scaleY)
+  ctx.drawImage(source, -w / 2, -h / 2, w, h)
+  ctx.restore()
 }
 
 /**

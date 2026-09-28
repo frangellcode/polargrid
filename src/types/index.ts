@@ -59,6 +59,11 @@ export interface PhotoTransform {
   offsetY: number
   /** zoom multiplier on top of the base cover-fit scale (>= 1) */
   zoom: number
+  /** Quarter turns clockwise, 0..3. Absent = 0. */
+  turns?: number
+  /** Mirrored left-right / top-bottom, as seen after the turn. */
+  flipH?: boolean
+  flipV?: boolean
 }
 
 export interface CellAssignment {

@@ -1,5 +1,5 @@
 import type { CellAssignment, CellShape, ExportQuality, FreeItem, GridTemplate, LoadedPhoto, Orientation, PhotoFit, PhotoTransform } from '../types'
-import { computeNativeCanvasSize, computeNativeCanvasSizeContain, computeOutputPixelSize, getImageDrawRect } from './cropMath'
+import { computeNativeCanvasSize, computeNativeCanvasSizeContain, computeOutputPixelSize, drawOrientedImage, getImageDrawRect, orientedSize } from './cropMath'
 import { ASPECT_RATIOS } from './aspectRatios'
 import { capLongEdge, getMaxLongEdge } from './exportQuality'
 import { traceShapePath } from './shapeClip'
@@ -55,7 +55,8 @@ async function drawPhotoInRect(
     ctx.translate(-rectW / 2, -rectH / 2)
     traceShapePath(ctx, shape, rectW, rectH)
     ctx.clip()
-    const draw = getImageDrawRect(rectW, rectH, photo.width, photo.height, transform, fit)
+    const shown = orientedSize(photo.width, photo.height, transform)
+    const draw = getImageDrawRect(rectW, rectH, shown.width, shown.height, transform, fit)
     // Grain is drawn over the photo's own rect, intersected with the cell's own
     // bounds — NOT the raw draw size. In 'contain' fit the photo can letterbox
     // inside the cell smaller than it, which is why this isn't just rectW/rectH
@@ -74,9 +75,9 @@ async function drawPhotoInRect(
     const grainW = Math.max(0, Math.min(rectW, draw.x + draw.width) - grainX)
     const grainH = Math.max(0, Math.min(rectH, draw.y + draw.height) - grainY)
     if (sharpness > 0) {
-      drawSharpened(ctx, bitmap, draw, { x: grainX, y: grainY, width: grainW, height: grainH }, sharpness)
+      drawSharpened(ctx, bitmap, draw, { x: grainX, y: grainY, width: grainW, height: grainH }, sharpness, transform)
     } else {
-      ctx.drawImage(bitmap, draw.x, draw.y, draw.width, draw.height)
+      drawOrientedImage(ctx, bitmap, draw, transform)
     }
     ctx.save()
     ctx.translate(grainX, grainY)
@@ -357,7 +358,8 @@ async function startBorderImage(
   // instead — as this used to — meant a thicker border ate into the same
   // pixel budget as the photo, so "High"/"Web" got visibly softer just from
   // adding a border. This way the border only ever adds pixels on top.
-  const { width: effPhotoW, height: effPhotoH } = capLongEdge(photo.width, photo.height, getMaxLongEdge(quality))
+  const shown = orientedSize(photo.width, photo.height, transform)
+  const { width: effPhotoW, height: effPhotoH } = capLongEdge(shown.width, shown.height, getMaxLongEdge(quality))
   const { width, height } = sizeFn(effPhotoW, effPhotoH, ratio, borderThicknessPct, transform.zoom)
   const borderPx = borderThicknessPct * Math.min(width, height)
   const grainSeed = Math.floor(Math.random() * 2 ** 32)
@@ -533,7 +535,8 @@ export async function renderCollageGrid(
     const w = refCellW * cell.colSpan + refGutterPx * (cell.colSpan - 1)
     const h = refCellH * cell.rowSpan + refGutterPx * (cell.rowSpan - 1)
     const zoom = Math.max(1, assignment.transform.zoom)
-    fits.push(Math.min(photo.width / w, photo.height / h) / zoom)
+    const shown = orientedSize(photo.width, photo.height, assignment.transform)
+    fits.push(Math.min(shown.width / w, shown.height / h) / zoom)
   })
 
   const native = computeOutputPixelSize(ratio, nativeCollageLongEdge(fits))
