@@ -13,6 +13,7 @@ import type {
 } from '../types'
 import { DEFAULT_ASPECT_RATIO_ID } from '../lib/aspectRatios'
 import { DEFAULT_TRANSFORM, clampTransform } from '../lib/cropMath'
+import type { GridSizes } from '../lib/gridLayout'
 import { GRID_TEMPLATES, MAX_COLLAGE_PHOTOS, MIN_COLLAGE_PHOTOS, getTemplatesForCount } from '../lib/collageTemplates'
 import { DEFAULT_EXPORT_QUALITY } from '../lib/exportQuality'
 import { DEFAULT_WORKSPACE_BACKGROUND } from '../lib/workspaceBackgrounds'
@@ -64,6 +65,8 @@ interface CollageState {
   grainIntensity: number
   /** 0..1 unsharp-mask amount applied to every photo at once, 0 = off. */
   sharpness: number
+  /** Where the person dragged the grid lines to; null = even split. */
+  gridSizes: GridSizes | null
   /** BORDER_COLORS id or a custom "#rrggbb" — the outer border/gutter fill color, not the workspace backdrop. */
   borderColor: string
 }
@@ -111,6 +114,7 @@ interface EditorStoreState {
   setCollageExportQuality: (quality: ExportQuality) => void
   setCollageGrain: (intensity: number) => void
   setCollageSharpness: (amount: number) => void
+  setCollageGridSizes: (sizes: GridSizes | null) => void
   setCollageBorderColor: (id: string) => void
   assignPhotoToCell: (cellId: string, photoId: string | null) => void
   /** Empties ONE grid cell, leaving the template's shape alone so the gap it
@@ -254,6 +258,7 @@ function createInitialCollageState(): CollageState {
     exportQuality: DEFAULT_EXPORT_QUALITY,
     grainIntensity: 0,
     sharpness: 0,
+    gridSizes: null,
     borderColor: DEFAULT_BORDER_COLOR,
   }
 }
@@ -539,6 +544,9 @@ export const useEditorStore = create<EditorStoreState>((set, get) => ({
 
   setCollageSharpness: (amount) =>
     set((state) => ({ collage: { ...state.collage, sharpness: amount } })),
+
+  setCollageGridSizes: (sizes) =>
+    set((state) => ({ collage: { ...state.collage, gridSizes: sizes } })),
 
   setCollageBorderColor: (id) =>
     set((state) => ({ collage: { ...state.collage, borderColor: id } })),

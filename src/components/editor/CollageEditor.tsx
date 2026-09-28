@@ -1358,6 +1358,7 @@ export function CollageEditor() {
               collage.grainIntensity,
               borderColorHex,
               collage.sharpness,
+              collage.gridSizes,
             )
           : await renderCollageFree(onProgress, collage.freeItems, photos, ratio, quality, collage.grainIntensity, borderColorHex, collage.sharpness)
       setExportFlow({ phase: 'ready', progress: 1, files: [file] })

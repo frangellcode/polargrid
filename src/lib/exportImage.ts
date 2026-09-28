@@ -3,6 +3,8 @@ import { computeNativeCanvasSize, computeNativeCanvasSizeContain, computeOutputP
 import { ASPECT_RATIOS } from './aspectRatios'
 import { capLongEdge, getMaxLongEdge } from './exportQuality'
 import { traceShapePath } from './shapeClip'
+import { gridCellRect, gridLines } from './gridLayout'
+import type { GridSizes } from './gridLayout'
 import { drawGrainOverlay, seededRandom } from './grain'
 import { drawSharpened } from './sharpen'
 import { isNativeApp } from './native'
@@ -517,23 +519,22 @@ export async function renderCollageGrid(
   grainIntensity = 0,
   borderColorHex = '#ffffff',
   sharpness = 0,
+  gridSizes: GridSizes | null = null,
 ) {
+  const lines = gridLines(template, gridSizes)
   const refSize = computeOutputPixelSize(ratio, REF_LONG_EDGE)
   const refShortSide = Math.min(refSize.width, refSize.height)
   const refOuterBorderPx = outerBorderPct * refShortSide
   const refGutterPx = gutterPct * refShortSide
   const refContentW = refSize.width - refOuterBorderPx * 2
   const refContentH = refSize.height - refOuterBorderPx * 2
-  const refCellW = (refContentW - refGutterPx * (template.cols - 1)) / template.cols
-  const refCellH = (refContentH - refGutterPx * (template.rows - 1)) / template.rows
 
   const fits: number[] = []
   template.cells.forEach((cell, i) => {
     const assignment = assignments[i]
     const photo = assignment?.photoId ? photos[assignment.photoId] : null
     if (!photo) return
-    const w = refCellW * cell.colSpan + refGutterPx * (cell.colSpan - 1)
-    const h = refCellH * cell.rowSpan + refGutterPx * (cell.rowSpan - 1)
+    const { w, h } = gridCellRect(cell, template, lines, { x: 0, y: 0, w: refContentW, h: refContentH }, refGutterPx)
     const zoom = Math.max(1, assignment.transform.zoom)
     const shown = orientedSize(photo.width, photo.height, assignment.transform)
     fits.push(Math.min(shown.width / w, shown.height / h) / zoom)
@@ -551,9 +552,6 @@ export async function renderCollageGrid(
   const contentW = width - outerBorderPx * 2
   const contentH = height - outerBorderPx * 2
 
-  const cellW = (contentW - gutterPx * (template.cols - 1)) / template.cols
-  const cellH = (contentH - gutterPx * (template.rows - 1)) / template.rows
-
   if (isNativeApp) await resetNativeExports()
   const grainSeed = Math.floor(Math.random() * 2 ** 32)
   const cells = template.cells.flatMap((cell, i) => {
@@ -564,10 +562,7 @@ export async function renderCollageGrid(
       i,
       photo,
       transform: assignment.transform,
-      x: contentX + cell.col * (cellW + gutterPx),
-      y: contentY + cell.row * (cellH + gutterPx),
-      w: cellW * cell.colSpan + gutterPx * (cell.colSpan - 1),
-      h: cellH * cell.rowSpan + gutterPx * (cell.rowSpan - 1),
+      ...gridCellRect(cell, template, lines, { x: contentX, y: contentY, w: contentW, h: contentH }, gutterPx),
     }]
   })
   const { result } = await startRender(
