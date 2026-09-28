@@ -8,6 +8,9 @@ import { useAnimatedNumber } from '../../hooks/useAnimatedNumber'
 import { GrainOverlay } from './GrainOverlay'
 import { useSharpenedPreview } from '../../hooks/useSharpenedPreview'
 
+/** WebKit's non-standard GestureEvent (trackpad and touch pinches). */
+type GestureLikeEvent = Event & { scale: number; rotation: number; clientX: number; clientY: number }
+
 interface PhotoCellProps {
   x: number
   y: number
@@ -160,6 +163,37 @@ export function PhotoCell({
     }
   }, [])
 
+  // Trackpad pinch (iPad with a Magic Keyboard/trackpad, Safari on a Mac).
+  // WebKit reports it as its own gesturestart/change/end events carrying a
+  // `scale` — not as touches, and not as wheel events — so neither the touch
+  // pinch nor the wheel zoom above ever saw it. Listened for on the stage's
+  // container, and only taken when the pointer is over this cell. The
+  // handlers live in a ref so the listeners, bound once, always run the
+  // current render's code.
+  const groupRef = useRef<Konva.Group>(null)
+  const gestureHandlers = useRef<{
+    start: (e: GestureLikeEvent) => void
+    change: (e: GestureLikeEvent) => void
+    end: (e: GestureLikeEvent) => void
+  } | null>(null)
+  const hasPhoto = photo != null
+  useEffect(() => {
+    if (!interactive || !hasPhoto) return
+    const container = groupRef.current?.getStage()?.container()
+    if (!container) return
+    const start = (e: Event) => gestureHandlers.current?.start(e as GestureLikeEvent)
+    const change = (e: Event) => gestureHandlers.current?.change(e as GestureLikeEvent)
+    const end = (e: Event) => gestureHandlers.current?.end(e as GestureLikeEvent)
+    container.addEventListener('gesturestart', start)
+    container.addEventListener('gesturechange', change)
+    container.addEventListener('gestureend', end)
+    return () => {
+      container.removeEventListener('gesturestart', start)
+      container.removeEventListener('gesturechange', change)
+      container.removeEventListener('gestureend', end)
+    }
+  }, [interactive, hasPhoto])
+
   if (width <= 0 || height <= 0) return null
 
   if (!photo) {
@@ -280,6 +314,41 @@ export function PhotoCell({
       setInteracting(false)
       onTransformChange(clampTransform({ ...transformRef.current, zoom: liveZoomRef.current }))
     }, 200)
+  }
+
+  const trackpadPinch = useRef<{ startZoom: number } | null>(null)
+  gestureHandlers.current = {
+    start: (e) => {
+      // A finger pinch on a touchscreen fires these too, alongside the
+      // touches beginPinch already follows — leave that one to it.
+      if (pinch.current) return
+      const group = groupRef.current
+      const stage = group?.getStage()
+      if (!group || !stage) return
+      stage.setPointersPositions(e as unknown as MouseEvent)
+      const pos = stage.getPointerPosition()
+      const rect = group.getClientRect()
+      if (!pos || pos.x < rect.x || pos.x > rect.x + rect.width || pos.y < rect.y || pos.y > rect.y + rect.height) return
+      e.preventDefault()
+      imageRef.current?.stopDrag()
+      clearHold()
+      trackpadPinch.current = { startZoom: transformRef.current.zoom }
+      liveZoomRef.current = transformRef.current.zoom
+      setInteracting(true)
+    },
+    change: (e) => {
+      const active = trackpadPinch.current
+      if (!active) return
+      e.preventDefault()
+      applyLiveZoom(Math.min(MAX_ZOOM, Math.max(1, active.startZoom * e.scale)))
+    },
+    end: (e) => {
+      if (!trackpadPinch.current) return
+      e.preventDefault()
+      trackpadPinch.current = null
+      setInteracting(false)
+      onTransformChange(clampTransform({ ...transformRef.current, zoom: liveZoomRef.current }))
+    },
   }
 
   const touchSpread = (touches: TouchList) =>
@@ -424,6 +493,7 @@ export function PhotoCell({
 
   return (
     <Group
+      ref={groupRef}
       x={x}
       y={y}
       opacity={opacity}
