@@ -8,6 +8,7 @@ import { useAnimatedNumber } from '../../hooks/useAnimatedNumber'
 import { GrainOverlay } from './GrainOverlay'
 import { useSharpenedPreview } from '../../hooks/useSharpenedPreview'
 import { useOrientedPreview } from '../../hooks/useOrientedPreview'
+import { isNativeApp } from '../../lib/native'
 
 /** WebKit's non-standard GestureEvent (trackpad and touch pinches). */
 type GestureLikeEvent = Event & { scale: number; rotation: number; clientX: number; clientY: number }
@@ -183,13 +184,47 @@ export function PhotoCell({
     if (!interactive || !hasPhoto) return
     const container = groupRef.current?.getStage()?.container()
     if (!container) return
-    const start = (e: Event) => gestureHandlers.current?.start(e as GestureLikeEvent)
-    const change = (e: Event) => gestureHandlers.current?.change(e as GestureLikeEvent)
-    const end = (e: Event) => gestureHandlers.current?.end(e as GestureLikeEvent)
+    const handlers = () => gestureHandlers.current
+
+    if (isNativeApp) {
+      // The app forwards trackpad pinches itself (MainViewController.swift);
+      // finger pinches never come this way, so they can't reach another cell.
+      const onTrackpad = (e: Event) => {
+        const { phase, scale, x, y } = (e as CustomEvent<{ phase: string; scale: number; x: number; y: number }>).detail
+        const event = { scale, rotation: 0, clientX: x, clientY: y, preventDefault() {} } as unknown as GestureLikeEvent
+        if (phase === 'start') handlers()?.start(event)
+        else if (phase === 'change') handlers()?.change(event)
+        else handlers()?.end(event)
+      }
+      window.addEventListener('trackpadpinch', onTrackpad)
+      return () => window.removeEventListener('trackpadpinch', onTrackpad)
+    }
+
+    // Web (Safari on a Mac): WebKit's gesture events. A finger pinch on a
+    // touchscreen fires them too — with the pointer wherever a finger landed,
+    // which could be over a neighbouring cell — so they're ignored while any
+    // finger is down; touch pinches are the touch handler's alone.
+    let fingers = 0
+    const onTouches = (e: TouchEvent) => {
+      fingers = e.touches.length
+    }
+    const guard = (fn: 'start' | 'change' | 'end') => (e: Event) => {
+      if (fingers > 0) return
+      handlers()?.[fn](e as GestureLikeEvent)
+    }
+    const start = guard('start')
+    const change = guard('change')
+    const end = guard('end')
+    container.addEventListener('touchstart', onTouches, { capture: true, passive: true })
+    container.addEventListener('touchend', onTouches, { capture: true, passive: true })
+    container.addEventListener('touchcancel', onTouches, { capture: true, passive: true })
     container.addEventListener('gesturestart', start)
     container.addEventListener('gesturechange', change)
     container.addEventListener('gestureend', end)
     return () => {
+      container.removeEventListener('touchstart', onTouches, { capture: true })
+      container.removeEventListener('touchend', onTouches, { capture: true })
+      container.removeEventListener('touchcancel', onTouches, { capture: true })
       container.removeEventListener('gesturestart', start)
       container.removeEventListener('gesturechange', change)
       container.removeEventListener('gestureend', end)
