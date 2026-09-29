@@ -1126,7 +1126,9 @@ export function CollageEditor() {
   // Opens on Aspect, like the border editor: the canvas shape is the first
   // thing anyone decides, and an empty panel area read as nothing to do.
   const [activeTool, setActiveTool] = useState<string | null>('formato')
-  const [gutterLinked, setGutterLinked] = useState(false)
+  // On by default: the space between photos follows the outer border, so the
+  // two stay the same width until the person unlinks them.
+  const [gutterLinked, setGutterLinked] = useState(true)
   const [uploadError, setUploadError] = useState<string | null>(null)
   const [exportError, setExportError] = useState<string | null>(null)
   // Non-null for exactly as long as a selection is being decoded — see

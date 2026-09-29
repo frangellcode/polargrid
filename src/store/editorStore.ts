@@ -20,7 +20,10 @@ import { DEFAULT_WORKSPACE_BACKGROUND } from '../lib/workspaceBackgrounds'
 import { DEFAULT_BORDER_COLOR } from '../lib/borderColors'
 
 export const DEFAULT_BORDER_PCT = 0.04
-export const DEFAULT_GUTTER_PCT = 0.015
+/** A collage starts with a 2% outer border and the same 2% between photos —
+ *  the gutter is linked to the border by default (see CollageEditor). */
+export const DEFAULT_COLLAGE_BORDER_PCT = 0.02
+export const DEFAULT_GUTTER_PCT = DEFAULT_COLLAGE_BORDER_PCT
 
 
 interface BorderState {
@@ -250,7 +253,7 @@ function createInitialCollageState(): CollageState {
     shape: 'rect',
     orientation: 'vertical',
     assignments: buildAssignmentsForCount(4),
-    outerBorderPct: DEFAULT_BORDER_PCT,
+    outerBorderPct: DEFAULT_COLLAGE_BORDER_PCT,
     gutterPct: DEFAULT_GUTTER_PCT,
     aspectRatioId: '9-16',
     ratioOrientation: 'vertical',
