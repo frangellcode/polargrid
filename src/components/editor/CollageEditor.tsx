@@ -1007,8 +1007,8 @@ function GridCellsLayer({
         const rect = cellRects.get(selectedCellId)
         if (!cell || !rect) return null
         const size = Math.min(contentW, contentH)
-        const long = size * 0.1
-        const thick = size * 0.022
+        const long = size * 0.12
+        const thick = size * 0.03
         const availW = contentW - gutterPx * (template.cols - 1)
         const availH = contentH - gutterPx * (template.rows - 1)
         const edges: { axis: 'x' | 'y'; line: number; cx: number; cy: number }[] = []
@@ -1047,7 +1047,21 @@ function GridCellsLayer({
             >
               {/* Generous invisible hit area; the pill is what's drawn. */}
               <Rect x={-Math.max(w, size * 0.07) / 2} y={-Math.max(h, size * 0.07) / 2} width={Math.max(w, size * 0.07)} height={Math.max(h, size * 0.07)} fill="transparent" />
-              <Rect x={-w / 2} y={-h / 2} width={w} height={h} cornerRadius={thick / 2} fill="#ffffff" shadowColor="#000" shadowOpacity={0.35} shadowBlur={6} />
+              {/* Dark with a white rim and a shadow, so it reads on a white
+                  border, a black one and anything in between. */}
+              <Rect
+                x={-w / 2}
+                y={-h / 2}
+                width={w}
+                height={h}
+                cornerRadius={thick / 2}
+                fill="#1c1c1e"
+                stroke="#ffffff"
+                strokeWidth={thick * 0.28}
+                shadowColor="#000"
+                shadowOpacity={0.45}
+                shadowBlur={8}
+              />
             </Group>
           )
         })
