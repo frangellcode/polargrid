@@ -10,6 +10,10 @@ import { useSharpenedPreview } from '../../hooks/useSharpenedPreview'
 import { useOrientedPreview } from '../../hooks/useOrientedPreview'
 import { isNativeApp } from '../../lib/native'
 
+/** The one cell currently being pinched (its pinch ref), across every
+ *  PhotoCell on screen — see beginPinch. */
+let activePinchCell: { current: unknown } | null = null
+
 /** WebKit's non-standard GestureEvent (trackpad and touch pinches). */
 type GestureLikeEvent = Event & { scale: number; rotation: number; clientX: number; clientY: number }
 
@@ -161,6 +165,7 @@ export function PhotoCell({
     return () => {
       pinchCleanup.current?.()
       pinchCleanup.current = null
+      if (activePinchCell === pinch) activePinchCell = null
       clearTimeout(wheelIdleTimer.current)
       clearTimeout(holdTimer.current)
     }
@@ -398,6 +403,7 @@ export function PhotoCell({
   const endPinch = (commit: boolean) => {
     if (!pinch.current) return
     pinch.current = null
+    if (activePinchCell === pinch) activePinchCell = null
     pinchCleanup.current?.()
     pinchCleanup.current = null
     setPinching(false)
@@ -437,6 +443,18 @@ export function PhotoCell({
     if (!container || pinch.current) return
     const startDist = touchSpread(e.evt.touches)
     if (!(startDist > 0)) return
+
+    // One pinch, one photo. With both fingers landing in the same instant on
+    // two different cells, Konva hands the touchstart to each of them — and
+    // both used to zoom. Only the cell holding the point between the two
+    // fingers takes the gesture, and only if no other cell already has.
+    if (activePinchCell && activePinchCell !== pinch) return
+    const box = container.getBoundingClientRect()
+    const [a, b] = [e.evt.touches[0], e.evt.touches[1]]
+    const mid = { x: (a.clientX + b.clientX) / 2 - box.left, y: (a.clientY + b.clientY) / 2 - box.top }
+    const own = groupRef.current?.getClientRect()
+    if (!own || mid.x < own.x || mid.x > own.x + own.width || mid.y < own.y || mid.y > own.y + own.height) return
+    activePinchCell = pinch
 
     // Before anything else: end the one-finger pan that's already underway.
     // Konva's drag rewrites the node's x/y on every pointer move, so left
