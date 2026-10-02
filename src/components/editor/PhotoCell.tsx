@@ -1,10 +1,10 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { Group, Image as KonvaImage, Shape, Text } from 'react-konva'
 import type Konva from 'konva'
 import type { CellShape, LoadedPhoto, PhotoFit, PhotoTransform } from '../../types'
-import { clampTransform, getImageDrawRect, MAX_ZOOM, orientedSize } from '../../lib/cropMath'
+import { clampTransform, getImageDrawRect, MAX_ZOOM, orientedSize, photoOrientation } from '../../lib/cropMath'
 import { shapeRadiusRatio, traceRoundedRectPath } from '../../lib/shapeClip'
-import { useAnimatedNumber } from '../../hooks/useAnimatedNumber'
+import { easeInOutCubic, useAnimatedNumber } from '../../hooks/useAnimatedNumber'
 import { GrainOverlay } from './GrainOverlay'
 import { useSharpenedPreview } from '../../hooks/useSharpenedPreview'
 import { useOrientedPreview } from '../../hooks/useOrientedPreview'
@@ -13,6 +13,15 @@ import { isNativeApp } from '../../lib/native'
 /** The one cell currently being pinched (its pinch ref), across every
  *  PhotoCell on screen — see beginPinch. */
 let activePinchCell: { current: unknown } | null = null
+
+const TURN_MS = 420
+const FLIP_MS = 380
+
+/** Where the photo sits mid turn/flip, relative to the cell's centre: drawn
+ *  at its new orientation, then rotated by `deg`, scaled by `k` (times the
+ *  mirror `sx`/`sy`), and moved by (tx, ty). All at rest = the identity. */
+interface OrientationPose { deg: number; k: number; sx: number; sy: number; tx: number; ty: number }
+const REST_POSE: OrientationPose = { deg: 0, k: 1, sx: 1, sy: 1, tx: 0, ty: 0 }
 
 /** WebKit's non-standard GestureEvent (trackpad and touch pinches). */
 type GestureLikeEvent = Event & { scale: number; rotation: number; clientX: number; clientY: number }
@@ -58,6 +67,9 @@ interface PhotoCellProps {
    *  photo in place. Never wired when `interactive` is false or there's no
    *  photo (nothing to pick up). */
   onLongPressStart?: (evt: Konva.KonvaEventObject<MouseEvent | TouchEvent>) => void
+  /** Animate a quarter turn or flip of the photo inside the cell (default).
+   *  Off when the caller turns the whole canvas itself instead. */
+  animateOrientation?: boolean
 }
 
 /** How long a still press has to be held before it's treated as "pick this
@@ -91,6 +103,7 @@ export function PhotoCell({
   opacity = 1,
   interactive = true,
   onLongPressStart,
+  animateOrientation = true,
 }: PhotoCellProps) {
   const orientedImage = useOrientedPreview(photo?.previewBitmap ?? null, transform)
   const previewImage = useSharpenedPreview(orientedImage, sharpness)
@@ -236,6 +249,139 @@ export function PhotoCell({
     }
   }, [interactive, hasPhoto])
 
+  // ---- Turn / flip animation ------------------------------------------------
+  // The oriented preview swaps in the same render as the new transform, so on
+  // its own a turn or flip just happened. Instead, the image (inside `poseRef`)
+  // starts posed so that its NEW orientation looks exactly like the old one —
+  // turned back a quarter and scaled to the old size, or mirrored back — and
+  // eases to rest. Driven straight on the Konva node, like the live zoom, so
+  // it costs no React renders.
+  const poseRef = useRef<Konva.Group>(null)
+  const pose = useRef<OrientationPose>(REST_POSE)
+  const poseFrame = useRef<number | undefined>(undefined)
+  const orient = photoOrientation(transform)
+  const orientKey = `${orient.turns}|${transform.flipH ? 1 : 0}|${transform.flipV ? 1 : 0}`
+  const shownNow = photo ? orientedSize(photo.width, photo.height, transform) : null
+  const drawNow = shownNow ? getImageDrawRect(width, height, shownNow.width, shownNow.height, transform, fit) : null
+  const coverFit = fit === 'cover' || fit === 0
+  const lastDrawn = useRef<{ key: string; photoId: string | undefined; draw: NonNullable<typeof drawNow> } | null>(null)
+
+  const applyPose = (p: OrientationPose, cover: { w: number; h: number; draw: NonNullable<typeof drawNow> } | null) => {
+    const node = poseRef.current
+    if (!node) return
+    const rad = (p.deg * Math.PI) / 180
+    const cos = Math.cos(rad)
+    const sin = Math.sin(rad)
+    let k = p.k
+    // Mid-turn a cover-fit photo would leave the cell's corners bare. Grow it
+    // just enough that every corner stays on the photo, like a crop tool's
+    // straighten does.
+    if (cover) {
+      const { w, h, draw } = cover
+      const x0 = draw.x - w / 2
+      const x1 = x0 + draw.width
+      const y0 = draw.y - h / 2
+      const y1 = y0 + draw.height
+      for (const [cx, cy] of [[-w / 2, -h / 2], [w / 2, -h / 2], [-w / 2, h / 2], [w / 2, h / 2]]) {
+        const qx = cx - p.tx
+        const qy = cy - p.ty
+        const u = cos * qx + sin * qy
+        const v = -sin * qx + cos * qy
+        if (u > 0 && x1 > 0) k = Math.max(k, u / x1)
+        if (u < 0 && x0 < 0) k = Math.max(k, u / x0)
+        if (v > 0 && y1 > 0) k = Math.max(k, v / y1)
+        if (v < 0 && y0 < 0) k = Math.max(k, v / y0)
+      }
+    }
+    pose.current = { ...p, k }
+    // About the cell centre C: visual = C + t + M(p - C), M = rotate·scale.
+    const cx = width / 2
+    const cy = height / 2
+    const ax = k * p.sx
+    const ay = k * p.sy
+    const mcx = cos * ax * cx - sin * ay * cy
+    const mcy = sin * ax * cx + cos * ay * cy
+    node.setAttrs({ x: cx + p.tx - mcx, y: cy + p.ty - mcy, rotation: p.deg, scaleX: ax, scaleY: ay })
+    node.getLayer()?.batchDraw()
+  }
+
+  useLayoutEffect(() => {
+    const prev = lastDrawn.current
+    lastDrawn.current = drawNow ? { key: orientKey, photoId: photo?.id, draw: drawNow } : null
+    if (!prev || !drawNow || prev.key === orientKey || prev.photoId !== photo?.id) return
+    if (!animateOrientation) return
+    const [prevTurns, prevFlipH, prevFlipV] = prev.key.split('|').map(Number)
+    const turnDelta = (((orient.turns - prevTurns) % 4) + 4) % 4
+    const dir = turnDelta === 1 ? 1 : turnDelta === 3 ? -1 : 0
+    const flipX = (transform.flipH ? 1 : 0) !== prevFlipH
+    const flipY = (transform.flipV ? 1 : 0) !== prevFlipV
+    if (turnDelta === 2 || (dir === 0 && !flipX && !flipY)) return
+
+    // The pose that makes the new image look like the old one: rotate back
+    // a quarter and scale to the old width, or mirror back; then move its
+    // centre onto the old centre.
+    const deg0 = -90 * dir
+    const k0 = dir !== 0 ? prev.draw.width / drawNow.height : 1
+    const sx0 = flipX ? -1 : 1
+    const sy0 = flipY ? -1 : 1
+    const rad0 = (deg0 * Math.PI) / 180
+    const nx = drawNow.x + drawNow.width / 2 - width / 2
+    const ny = drawNow.y + drawNow.height / 2 - height / 2
+    const ox = prev.draw.x + prev.draw.width / 2 - width / 2
+    const oy = prev.draw.y + prev.draw.height / 2 - height / 2
+    let start: OrientationPose = {
+      deg: deg0,
+      k: k0,
+      sx: sx0,
+      sy: sy0,
+      tx: ox - k0 * (Math.cos(rad0) * sx0 * nx - Math.sin(rad0) * sy0 * ny),
+      ty: oy - k0 * (Math.sin(rad0) * sx0 * nx + Math.cos(rad0) * sy0 * ny),
+    }
+    // A tap while a turn is still running carries on from where the photo is
+    // rather than jumping: compose with the pose on screen. Only a pure turn
+    // composes cleanly (a half-done mirror isn't a rotation), so a flip still
+    // in flight just restarts.
+    const cur = pose.current
+    if (poseFrame.current !== undefined && cur.sx === 1 && cur.sy === 1) {
+      const r = (cur.deg * Math.PI) / 180
+      start = {
+        deg: cur.deg + start.deg,
+        k: cur.k * start.k,
+        sx: start.sx,
+        sy: start.sy,
+        tx: cur.tx + cur.k * (Math.cos(r) * start.tx - Math.sin(r) * start.ty),
+        ty: cur.ty + cur.k * (Math.sin(r) * start.tx + Math.cos(r) * start.ty),
+      }
+    }
+    if (poseFrame.current !== undefined) cancelAnimationFrame(poseFrame.current)
+
+    const turning = start.deg !== 0
+    const duration = turning ? TURN_MS : FLIP_MS
+    const cover = turning && coverFit ? { w: width, h: height, draw: drawNow } : null
+    const began = performance.now()
+    const step = (now: number) => {
+      const t = Math.min(1, (now - began) / duration)
+      const e = easeInOutCubic(t)
+      const lerp = (a: number, b: number) => a + (b - a) * e
+      applyPose(
+        { deg: lerp(start.deg, 0), k: lerp(start.k, 1), sx: lerp(start.sx, 1), sy: lerp(start.sy, 1), tx: lerp(start.tx, 0), ty: lerp(start.ty, 0) },
+        cover,
+      )
+      if (t < 1) {
+        poseFrame.current = requestAnimationFrame(step)
+      } else {
+        poseFrame.current = undefined
+        applyPose(REST_POSE, null)
+      }
+    }
+    applyPose(start, cover)
+    poseFrame.current = requestAnimationFrame(step)
+  })
+
+  useEffect(() => () => {
+    if (poseFrame.current !== undefined) cancelAnimationFrame(poseFrame.current)
+  }, [])
+
   if (width <= 0 || height <= 0) return null
 
   if (!photo) {
@@ -266,8 +412,8 @@ export function PhotoCell({
     )
   }
 
-  const shown = orientedSize(photo.width, photo.height, transform)
-  const draw = getImageDrawRect(width, height, shown.width, shown.height, transform, fit)
+  const shown = shownNow ?? orientedSize(photo.width, photo.height, transform)
+  const draw = drawNow ?? getImageDrawRect(width, height, shown.width, shown.height, transform, fit)
 
   // Konva's dragBoundFunc receives/returns ABSOLUTE (stage) coordinates, which are
   // in canvas-pixel space — i.e. our virtual (unscaled) coordinates multiplied by
@@ -564,6 +710,7 @@ export function PhotoCell({
       onMouseMove={handleHoldCheckMove}
       onMouseUp={clearHold}
     >
+      <Group ref={poseRef}>
       <KonvaImage
         ref={imageRef}
         image={(previewImage ?? photo.previewBitmap) as unknown as CanvasImageSource}
@@ -583,6 +730,7 @@ export function PhotoCell({
         }}
         onDragEnd={handleDragEnd}
       />
+      </Group>
       {/* Inside the clip, so it follows the cell's own rounded corners, and
           drawn last so no photo covers it. Two strokes: a dark one under a
           dashed white one, which stays legible over a photo of any colour. */}

@@ -17,9 +17,9 @@ interface ActionRowProps {
  * (flex-1) lost that height in a single frame and the whole collage jumped
  * smaller — CanvasStage recomputes its scale from the container, so the photos
  * visibly snapped down the instant a tap landed. Animating this row's own
- * height instead means the canvas is squeezed over ~300ms and the stage follows
- * it frame by frame, which reads as the picture easing back rather than
- * flinching.
+ * height instead means the canvas is squeezed over ~300ms, which reads as the
+ * picture easing back rather than flinching (CanvasStage scales its existing
+ * render along with it and redraws once the height settles).
  *
  * Same duration and curve as the tool panel above it, so the two behave alike.
  */

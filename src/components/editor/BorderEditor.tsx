@@ -5,7 +5,7 @@ import { useEditorStore } from '../../store/editorStore'
 import { useTranslation } from '../../store/languageStore'
 import { useImageBitmap } from '../../hooks/useImageBitmap'
 import { useAnimatedColor, useAnimatedNumber } from '../../hooks/useAnimatedNumber'
-import { computeOutputPixelSize, orientedSize } from '../../lib/cropMath'
+import { computeOutputPixelSize, orientedSize, photoOrientation } from '../../lib/cropMath'
 import { MAX_PHOTO_MB, screenPhotoFiles } from '../../lib/photoInput'
 import { holdForSheetClose, holdImportCard } from '../../lib/uiTiming'
 import { isNativeApp } from '../../lib/native'
@@ -249,8 +249,39 @@ export function BorderEditor() {
   //   event during a drag restarts PhotoCell's own tween before the last one
   //   finishes, so it's perpetually chasing the live slider value instead of
   //   tracking it. A slider should track 1:1 with zero added lag anyway.
-  const outputWidth = useAnimatedNumber(targetWidth)
-  const outputHeight = useAnimatedNumber(targetHeight)
+  // A quarter turn of a photo on "Original" turns the frame with it
+  // (landscape <-> portrait). Tweening width and height for that made the
+  // photo turn at once and the frame catch up a beat later, and never looked
+  // like a rotation. Instead the size lands at once and CanvasStage rotates
+  // the whole canvas — frame and photo as one piece — into it. A turn that
+  // keeps the frame's shape (a fixed ratio) is PhotoCell's to animate.
+  const turns = photoOrientation(border.transform).turns
+  const orientKey = `${turns}|${border.transform.flipH ? 1 : 0}|${border.transform.flipV ? 1 : 0}`
+  const sizeKey = `${targetWidth}x${targetHeight}`
+  const [turnState, setTurnState] = useState({ turns, orientKey, photoId: photo?.id, key: 0, dir: 1 as 1 | -1, sizeKey, instantFor: '' })
+  if (orientKey !== turnState.orientKey || photo?.id !== turnState.photoId) {
+    const delta = (((turns - turnState.turns) % 4) + 4) % 4
+    const [prevW, prevH] = turnState.sizeKey.split('x').map(Number)
+    const frameTurned =
+      photo?.id === turnState.photoId &&
+      (delta === 1 || delta === 3) &&
+      targetWidth !== targetHeight &&
+      targetWidth > targetHeight !== prevW > prevH
+    setTurnState({
+      turns,
+      orientKey,
+      photoId: photo?.id,
+      key: frameTurned ? turnState.key + 1 : turnState.key,
+      dir: delta === 3 ? -1 : 1,
+      sizeKey,
+      instantFor: frameTurned ? sizeKey : '',
+    })
+  } else if (sizeKey !== turnState.sizeKey) {
+    setTurnState({ ...turnState, sizeKey, instantFor: '' })
+  }
+  const sizeInstant = turnState.instantFor === sizeKey
+  const outputWidth = useAnimatedNumber(targetWidth, undefined, sizeInstant)
+  const outputHeight = useAnimatedNumber(targetHeight, undefined, sizeInstant)
   // The border's thickness is a proportion of the canvas's SHORT side, and
   // `Math.min(outputWidth, outputHeight)` is the wrong way to get that during
   // a transition: min() of two crossing tweens peaks at the moment the canvas
@@ -264,7 +295,7 @@ export function BorderEditor() {
   // past the canvas mid-animation. Note this is the ratio's tween only; the
   // thickness slider feeds borderThicknessPct straight through below, so it
   // still tracks 1:1 with no added lag.
-  const shortSide = useAnimatedNumber(Math.min(targetWidth, targetHeight))
+  const shortSide = useAnimatedNumber(Math.min(targetWidth, targetHeight), undefined, sizeInstant)
   // Animates the cover<->contain blend itself (not just a CSS transition on the
   // toggle) so the photo's crop eases smoothly instead of snapping when Locked/
   // Unlocked is switched.
@@ -489,8 +520,10 @@ export function BorderEditor() {
               outputWidth={outputWidth}
               outputHeight={outputHeight}
               background={animatedBorderColorHex}
+              turn={turnState}
             >
               <PhotoCell
+                animateOrientation={!sizeInstant}
                 x={borderPx}
                 y={borderPx}
                 width={outputWidth - borderPx * 2}

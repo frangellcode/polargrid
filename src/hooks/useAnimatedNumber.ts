@@ -45,10 +45,15 @@ export function useAnimatedColor(target: string, duration = 320): string {
   return value
 }
 
-/** Smoothly tweens a numeric value whenever `target` changes, instead of snapping to it. */
-export function useAnimatedNumber(target: number, duration = 320): number {
+/** Smoothly tweens a numeric value whenever `target` changes, instead of snapping to it.
+ *  `instant` makes a change that arrives with it set land in the same render —
+ *  for when something else is animating that change (see CanvasStage's turn). */
+export function useAnimatedNumber(target: number, duration = 320, instant = false): number {
   const [value, setValue] = useState(target)
   const rafRef = useRef<number | undefined>(undefined)
+
+  // During render, so not even one frame shows the old value.
+  if (instant && value !== target) setValue(target)
 
   useEffect(() => {
     const from = value
