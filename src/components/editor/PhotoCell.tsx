@@ -2,12 +2,11 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { Group, Image as KonvaImage, Shape, Text } from 'react-konva'
 import type Konva from 'konva'
 import type { CellShape, LoadedPhoto, PhotoFit, PhotoTransform } from '../../types'
-import { clampTransform, getImageDrawRect, MAX_ZOOM, orientedSize, photoOrientation } from '../../lib/cropMath'
+import { clampTransform, drawOrientedImage, getImageDrawRect, MAX_ZOOM, orientedSize, photoOrientation } from '../../lib/cropMath'
 import { shapeRadiusRatio, traceRoundedRectPath } from '../../lib/shapeClip'
 import { easeInOutCubic, useAnimatedNumber } from '../../hooks/useAnimatedNumber'
 import { GrainOverlay } from './GrainOverlay'
 import { useSharpenedPreview } from '../../hooks/useSharpenedPreview'
-import { useOrientedPreview } from '../../hooks/useOrientedPreview'
 import { isNativeApp } from '../../lib/native'
 
 /** The one cell currently being pinched (its pinch ref), across every
@@ -105,8 +104,14 @@ export function PhotoCell({
   onLongPressStart,
   animateOrientation = true,
 }: PhotoCellProps) {
-  const orientedImage = useOrientedPreview(photo?.previewBitmap ?? null, transform)
-  const previewImage = useSharpenedPreview(orientedImage, sharpness)
+  // Sharpened as it comes, never turned: an unsharp mask doesn't care which
+  // way up the photo is, so a turn or flip reuses the same result and costs
+  // nothing. The turn itself happens at draw time (see the KonvaImage's
+  // sceneFunc) rather than in a pre-turned copy — building that copy meant a
+  // new full-size canvas on every tap, plus re-sharpening it, which on a
+  // phone holding a whole collage froze the screen for about a second before
+  // the turn could even start.
+  const previewImage = useSharpenedPreview(photo?.previewBitmap ?? null, sharpness)
   // Non-null for the whole life of a two-finger gesture. Zoom is derived from
   // the CURRENT finger spread against the spread at pick-up (an absolute
   // ratio), not accumulated frame by frame: the incremental version had to
@@ -358,8 +363,12 @@ export function PhotoCell({
     const turning = start.deg !== 0
     const duration = turning ? TURN_MS : FLIP_MS
     const cover = turning && coverFit ? { w: width, h: height, draw: drawNow } : null
-    const began = performance.now()
+    // Timed from the first frame actually drawn, not from now: if the phone
+    // is slow to get that frame out, the turn starts late rather than
+    // skipping its opening.
+    let began: number | undefined
     const step = (now: number) => {
+      began ??= now
       const t = Math.min(1, (now - began) / duration)
       const e = easeInOutCubic(t)
       const lerp = (a: number, b: number) => a + (b - a) * e
@@ -718,6 +727,11 @@ export function PhotoCell({
         y={draw.y}
         width={draw.width}
         height={draw.height}
+        sceneFunc={(ctx, node) => {
+          const image = node.getAttr('image') as CanvasImageSource | undefined
+          if (!image) return
+          drawOrientedImage(ctx._context, image, { x: 0, y: 0, width: node.width(), height: node.height() }, transform)
+        }}
         // Off for the duration of a pinch so Konva can't restart the pan that
         // beginPinch just stopped — dropping the mousedown/touchstart listener
         // it installs is the only thing that keeps a second finger landing
