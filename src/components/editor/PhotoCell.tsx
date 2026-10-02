@@ -12,6 +12,8 @@ import { isNativeApp } from '../../lib/native'
 /** The one cell currently being pinched (its pinch ref), across every
  *  PhotoCell on screen — see beginPinch. */
 let activePinchCell: { current: unknown } | null = null
+/** Same, for a trackpad pinch. */
+let activeTrackpadCell: { current: unknown } | null = null
 
 const TURN_MS = 420
 const FLIP_MS = 380
@@ -119,6 +121,8 @@ export function PhotoCell({
   // overshoot away and un-pinching then did nothing until you'd given back the
   // slack you never saw applied — the gesture felt stuck at the ends.
   const pinch = useRef<{ startDist: number; startZoom: number } | null>(null)
+  // The trackpad's counterpart (see gestureHandlers below).
+  const trackpadPinch = useRef<{ startZoom: number } | null>(null)
   // Removes whatever native listeners the in-flight pinch installed. Held in a
   // ref (rather than rebuilt from props) so teardown always removes the exact
   // function identities that were added.
@@ -184,6 +188,7 @@ export function PhotoCell({
       pinchCleanup.current?.()
       pinchCleanup.current = null
       if (activePinchCell === pinch) activePinchCell = null
+      if (activeTrackpadCell === trackpadPinch) activeTrackpadCell = null
       clearTimeout(wheelIdleTimer.current)
       clearTimeout(holdTimer.current)
     }
@@ -197,6 +202,21 @@ export function PhotoCell({
   // handlers live in a ref so the listeners, bound once, always run the
   // current render's code.
   const groupRef = useRef<Konva.Group>(null)
+  // Whether a point in stage pixels (getPointerPosition's space) is on THIS
+  // cell. Measured off the cell's own rect, never group.getClientRect(): that
+  // is the bounds of what's inside, and a cover-fit photo always overhangs
+  // its cell (more so once zoomed) — Konva ignores the clipFunc there — so
+  // near a shared edge two neighbours both claimed the same pinch and both
+  // zoomed.
+  const cellSizeRef = useRef({ width: 0, height: 0 })
+  const containsStagePoint = (pos: { x: number; y: number }) => {
+    const group = groupRef.current
+    if (!group) return false
+    const t = group.getAbsoluteTransform()
+    const a = t.point({ x: 0, y: 0 })
+    const b = t.point({ x: cellSizeRef.current.width, y: cellSizeRef.current.height })
+    return pos.x >= Math.min(a.x, b.x) && pos.x <= Math.max(a.x, b.x) && pos.y >= Math.min(a.y, b.y) && pos.y <= Math.max(a.y, b.y)
+  }
   const gestureHandlers = useRef<{
     start: (e: GestureLikeEvent) => void
     change: (e: GestureLikeEvent) => void
@@ -391,6 +411,8 @@ export function PhotoCell({
     if (poseFrame.current !== undefined) cancelAnimationFrame(poseFrame.current)
   }, [])
 
+  cellSizeRef.current = { width, height }
+
   if (width <= 0 || height <= 0) return null
 
   if (!photo) {
@@ -514,7 +536,6 @@ export function PhotoCell({
     }, 200)
   }
 
-  const trackpadPinch = useRef<{ startZoom: number } | null>(null)
   gestureHandlers.current = {
     start: (e) => {
       // A finger pinch on a touchscreen fires these too, alongside the
@@ -523,10 +544,11 @@ export function PhotoCell({
       const group = groupRef.current
       const stage = group?.getStage()
       if (!group || !stage) return
+      if (activeTrackpadCell && activeTrackpadCell !== trackpadPinch) return
       stage.setPointersPositions(e as unknown as MouseEvent)
       const pos = stage.getPointerPosition()
-      const rect = group.getClientRect()
-      if (!pos || pos.x < rect.x || pos.x > rect.x + rect.width || pos.y < rect.y || pos.y > rect.y + rect.height) return
+      if (!pos || !containsStagePoint(pos)) return
+      activeTrackpadCell = trackpadPinch
       e.preventDefault()
       imageRef.current?.stopDrag()
       clearHold()
@@ -544,6 +566,7 @@ export function PhotoCell({
       if (!trackpadPinch.current) return
       e.preventDefault()
       trackpadPinch.current = null
+      if (activeTrackpadCell === trackpadPinch) activeTrackpadCell = null
       setInteracting(false)
       onTransformChange(clampTransform({ ...transformRef.current, zoom: liveZoomRef.current }))
     },
@@ -605,10 +628,12 @@ export function PhotoCell({
     // fingers takes the gesture, and only if no other cell already has.
     if (activePinchCell && activePinchCell !== pinch) return
     const box = container.getBoundingClientRect()
+    // Client px -> stage px; they differ while CanvasStage is CSS-scaling
+    // its render during a resize.
+    const k = box.width > 0 ? container.clientWidth / box.width : 1
     const [a, b] = [e.evt.touches[0], e.evt.touches[1]]
-    const mid = { x: (a.clientX + b.clientX) / 2 - box.left, y: (a.clientY + b.clientY) / 2 - box.top }
-    const own = groupRef.current?.getClientRect()
-    if (!own || mid.x < own.x || mid.x > own.x + own.width || mid.y < own.y || mid.y > own.y + own.height) return
+    const mid = { x: ((a.clientX + b.clientX) / 2 - box.left) * k, y: ((a.clientY + b.clientY) / 2 - box.top) * k }
+    if (!containsStagePoint(mid)) return
     activePinchCell = pinch
 
     // Before anything else: end the one-finger pan that's already underway.
