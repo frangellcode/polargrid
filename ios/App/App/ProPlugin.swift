@@ -33,7 +33,7 @@ public class ProPlugin: CAPPlugin, CAPBridgedPlugin {
     /// product isn't live in the sandbox yet. MUST be false in any build sent
     /// to App Review: App Review runs in the sandbox too, and would see
     /// everything already unlocked with no purchase to test.
-    static let grantProForTesting = true
+    static let grantProForTesting = false
 
     @MainActor private var product: Product?
     private var updatesTask: Task<Void, Never>?
