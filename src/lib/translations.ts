@@ -70,6 +70,8 @@ export const translations = {
       dropBatchLabel: 'Tap to upload a batch',
       dropBatchHint: (n: number, mb: number) =>
         `up to ${n} photos under ${mb} MB, same adjustment applied to all`,
+      dropBatchHintPro: (n: number, pro: number, mb: number) =>
+        `up to ${n} photos under ${mb} MB (${pro} with Pro), same adjustment applied to all`,
       batchCount: (n: number) => `${n} photos selected — this adjustment will be applied to all of them on export`,
       batchNote: (n: number) => `same adjustment\nfor all ${n}`,
       batchThumb: (n: number) => `Preview photo ${n}`,
@@ -137,7 +139,7 @@ export const translations = {
     pro: {
       title: 'PolarGrid Pro',
       subtitle: 'One purchase, yours forever. No subscription.',
-      features: ['Maximum-quality export', 'Unlimited border colours', 'Film grain', 'Sharpness'],
+      features: ['Maximum-quality export', 'Unlimited border colours', 'Film grain', 'Sharpness', 'Batches of up to 15 photos'],
       unlock: (price: string) => `Unlock for ${price}`,
       loadingPrice: 'Loading…',
       unavailable: 'Pro isn\u2019t available right now. Try again later.',
@@ -150,6 +152,7 @@ export const translations = {
       failed: 'The purchase didn\u2019t go through. You weren\u2019t charged.',
       done: 'Done',
       locked: 'Pro',
+      exampleBatch: (n: number) => `${n} photos, one edit`,
       exampleBefore: 'Before',
       exampleAfter: 'After',
       exampleWeb: 'Web',
@@ -259,6 +262,8 @@ export const translations = {
       dropBatchLabel: 'Toca para subir por lotes',
       dropBatchHint: (n: number, mb: number) =>
         `hasta ${n} fotos de menos de ${mb} MB, mismo ajuste para todas`,
+      dropBatchHintPro: (n: number, pro: number, mb: number) =>
+        `hasta ${n} fotos de menos de ${mb} MB (${pro} con Pro), mismo ajuste para todas`,
       batchCount: (n: number) => `${n} fotos seleccionadas — este ajuste se aplicará a todas al exportar`,
       batchNote: (n: number) => `mismo ajuste\npara las ${n}`,
       batchThumb: (n: number) => `Ver la foto ${n}`,
@@ -326,7 +331,7 @@ export const translations = {
     pro: {
       title: 'PolarGrid Pro',
       subtitle: 'Un solo pago, para siempre. Sin suscripción.',
-      features: ['Exportación en calidad máxima', 'Colores de borde ilimitados', 'Grano de película', 'Nitidez'],
+      features: ['Exportación en calidad máxima', 'Colores de borde ilimitados', 'Grano de película', 'Nitidez', 'Lotes de hasta 15 fotos'],
       unlock: (price: string) => `Desbloquear por ${price}`,
       loadingPrice: 'Cargando…',
       unavailable: 'Pro no está disponible ahora. Inténtalo más tarde.',
@@ -339,6 +344,7 @@ export const translations = {
       failed: 'La compra no se completó. No se te cobró nada.',
       done: 'Listo',
       locked: 'Pro',
+      exampleBatch: (n: number) => `${n} fotos, un solo ajuste`,
       exampleBefore: 'Antes',
       exampleAfter: 'Después',
       exampleWeb: 'Web',

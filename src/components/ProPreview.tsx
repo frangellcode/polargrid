@@ -43,8 +43,38 @@ function prepare(canvas: HTMLCanvasElement, width: number, height: number) {
 }
 
 /** Draws the before / after pair for one of the split examples. */
+/** Fifteen bordered copies of the photo, the way a Pro batch comes out. */
+const BATCH_COLS = 3
+const BATCH_ROWS = 5
+function drawBatch(canvas: HTMLCanvasElement, source: LoadedPhoto['previewBitmap'], width: number, height: number) {
+  const ctx = prepare(canvas, width, height)
+  ctx.fillStyle = '#1b2233'
+  ctx.fillRect(0, 0, width, height)
+  const gap = width * 0.035
+  const tileW = (width - gap * (BATCH_COLS + 1)) / BATCH_COLS
+  const tileH = (height - gap * (BATCH_ROWS + 1)) / BATCH_ROWS
+  const pad = Math.min(tileW, tileH) * 0.08
+  const innerW = tileW - pad * 2
+  const innerH = tileH - pad * 2
+  const srcAspect = source.width / source.height
+  const innerAspect = innerW / innerH
+  const sw = srcAspect > innerAspect ? source.height * innerAspect : source.width
+  const sh = srcAspect > innerAspect ? source.height : source.width / innerAspect
+  const sx = (source.width - sw) / 2
+  const sy = (source.height - sh) / 2
+  for (let r = 0; r < BATCH_ROWS; r++) {
+    for (let c = 0; c < BATCH_COLS; c++) {
+      const x = gap + c * (tileW + gap)
+      const y = gap + r * (tileH + gap)
+      ctx.fillStyle = '#ffffff'
+      ctx.fillRect(x, y, tileW, tileH)
+      ctx.drawImage(source, sx, sy, sw, sh, x + pad, y + pad, innerW, innerH)
+    }
+  }
+}
+
 async function drawSplit(
-  feature: Exclude<ProFeature, 'colors'>,
+  feature: Exclude<ProFeature, 'colors' | 'batch'>,
   photo: LoadedPhoto,
   beforeCanvas: HTMLCanvasElement,
   afterCanvas: HTMLCanvasElement,
@@ -114,6 +144,7 @@ export function ProPreview({ feature, photo }: ProPreviewProps) {
   const beforeRef = useRef<HTMLCanvasElement>(null)
   const afterRef = useRef<HTMLCanvasElement>(null)
   const photoRef = useRef<HTMLCanvasElement>(null)
+  const batchRef = useRef<HTMLCanvasElement>(null)
   const [split, setSplit] = useState(55)
   // Which example is actually drawn right now — trails `feature` until the new
   // one is ready, so a switch is a crossfade rather than a flash of empty box.
@@ -138,8 +169,14 @@ export function ProPreview({ feature, photo }: ProPreviewProps) {
       return
     }
 
+    if (feature === 'batch') {
+      if (batchRef.current) drawBatch(batchRef.current, photo.previewBitmap, width, height)
+      setShown('batch')
+      return
+    }
+
     // Fades the old split out while the new one draws, then back in.
-    setShown((prev) => (prev === 'colors' ? prev : null))
+    setShown((prev) => (prev === 'colors' || prev === 'batch' ? prev : null))
     drawSplit(feature, photo, before, after, width, height, () => cancelled)
       .then((drawn) => {
         if (drawn && !cancelled) {
@@ -155,7 +192,7 @@ export function ProPreview({ feature, photo }: ProPreviewProps) {
 
   // Released on the way out — WebKit caps the canvas memory a page may hold.
   useEffect(() => {
-    const canvases = [beforeRef.current, afterRef.current, photoRef.current]
+    const canvases = [beforeRef.current, afterRef.current, photoRef.current, batchRef.current]
     return () => {
       for (const c of canvases) {
         if (!c) continue
@@ -178,7 +215,7 @@ export function ProPreview({ feature, photo }: ProPreviewProps) {
     setSplit(Math.max(4, Math.min(96, ((e.clientX - rect.left) / rect.width) * 100)))
   }
 
-  const splitShown = shown !== null && shown !== 'colors'
+  const splitShown = shown !== null && shown !== 'colors' && shown !== 'batch'
   const labels =
     shown === 'quality' ? [tr.pro.exampleWeb, tr.pro.exampleMaximum] : [tr.pro.exampleBefore, tr.pro.exampleAfter]
   const layer = 'absolute inset-0 transition-opacity duration-300 ease-out'
@@ -220,6 +257,14 @@ export function ProPreview({ feature, photo }: ProPreviewProps) {
         style={{ backgroundColor: COLOR_CYCLE[colorIndex], transition: 'opacity 300ms ease-out, background-color 700ms ease-in-out' }}
       >
         <canvas ref={photoRef} className="h-full w-full object-cover" />
+      </div>
+
+      {/* Batch example: a sheet of fifteen bordered copies. */}
+      <div className={`${layer} ${shown === 'batch' ? 'opacity-100' : 'opacity-0'}`}>
+        <canvas ref={batchRef} className="absolute inset-0 h-full w-full" />
+        <span className="font-label absolute bottom-2 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full bg-black/55 px-2 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-white">
+          {tr.pro.exampleBatch(BATCH_COLS * BATCH_ROWS)}
+        </span>
       </div>
 
       {/* Watermark over the whole example — the real thing is the export. */}

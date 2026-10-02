@@ -16,6 +16,7 @@ import { AspectRatioPicker } from './AspectRatioPicker'
 import { BorderThicknessSlider } from './BorderThicknessSlider'
 import { CanvasStage, type CanvasStageHandle } from './CanvasStage'
 import { PhotoCell } from './PhotoCell'
+import { useIsPro, useProStore } from '../../store/proStore'
 import { Dropzone } from './Dropzone'
 import { EditorBottomBar, type BottomBarTool } from './EditorBottomBar'
 import { ExportFlowModal, type ExportFlowPhase } from './ExportFlowModal'
@@ -42,10 +43,19 @@ const EXIT_MS = 200
 // ceiling that a photo could come back black. Five leaves real headroom.
 // The App Store build writes each photo to disk the moment it's rendered and
 // keeps only its path, so fifteen costs it no more than one.
-const MAX_BORDER_BATCH_PHOTOS = isNativeApp ? 15 : 5
+//
+// In the app, batches past five are a Pro feature.
+const FREE_BORDER_BATCH_PHOTOS = 5
+const PRO_BORDER_BATCH_PHOTOS = isNativeApp ? 15 : FREE_BORDER_BATCH_PHOTOS
 
 export function BorderEditor() {
   const tr = useTranslation()
+  const isPro = useIsPro()
+  const openPaywall = useProStore((s) => s.openPaywall)
+  const MAX_BORDER_BATCH_PHOTOS = isPro ? PRO_BORDER_BATCH_PHOTOS : FREE_BORDER_BATCH_PHOTOS
+  // Without Pro the picker still lets you choose the full Pro amount, so a
+  // bigger selection can meet the paywall instead of a silent cap.
+  const pickerBatchLimit = PRO_BORDER_BATCH_PHOTOS
   const TOOLS: BottomBarTool[] = [
     { id: 'workspace', label: tr.tools.workspace, icon: <IconDrop /> },
     { id: 'aspecto', label: tr.borderEditor.toolAspect, icon: <IconCrop /> },
@@ -334,6 +344,7 @@ export function BorderEditor() {
     if (!images) return
     if (images.length > MAX_BORDER_BATCH_PHOTOS) {
       setUploadError(tr.borderEditor.batchTooMany(MAX_BORDER_BATCH_PHOTOS))
+      if (images.length <= PRO_BORDER_BATCH_PHOTOS) openPaywall('batch')
       return
     }
     const loaded = await decode(images)
@@ -446,7 +457,7 @@ export function BorderEditor() {
         canExport={!!photo}
         uploadLabel={photo ? tr.borderEditor.changePhoto : tr.borderEditor.uploadPhoto}
         multiple={isBatch}
-        maxPhotos={isBatch ? MAX_BORDER_BATCH_PHOTOS : 1}
+        maxPhotos={isBatch ? pickerBatchLimit : 1}
       />
 
       {/* Carried by the SAME swap as the canvas and the bottom bar below —
@@ -546,11 +557,15 @@ export function BorderEditor() {
               />
               <Dropzone
                 label={tr.borderEditor.dropBatchLabel}
-                hint={tr.borderEditor.dropBatchHint(MAX_BORDER_BATCH_PHOTOS, MAX_PHOTO_MB)}
+                hint={
+                  MAX_BORDER_BATCH_PHOTOS < PRO_BORDER_BATCH_PHOTOS
+                    ? tr.borderEditor.dropBatchHintPro(MAX_BORDER_BATCH_PHOTOS, PRO_BORDER_BATCH_PHOTOS, MAX_PHOTO_MB)
+                    : tr.borderEditor.dropBatchHint(MAX_BORDER_BATCH_PHOTOS, MAX_PHOTO_MB)
+                }
                 error={uploadError}
                 onFiles={handleBatchUpload}
                 multiple
-                maxPhotos={MAX_BORDER_BATCH_PHOTOS}
+                maxPhotos={pickerBatchLimit}
               />
             </div>
           )}

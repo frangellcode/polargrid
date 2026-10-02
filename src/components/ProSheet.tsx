@@ -147,6 +147,8 @@ export function ProSheet() {
                 type="button"
                 onClick={() => setFeature(id)}
                 className={`font-label rounded-2xl px-3 py-2.5 text-left text-[11px] leading-tight transition duration-200 active:scale-95 ${
+                  PRO_FEATURES.length % 2 === 1 && i === PRO_FEATURES.length - 1 ? 'col-span-2' : ''
+                } ${
                   feature === id ? 'bg-white text-ink-900' : 'bg-white/5 text-white/75 hover:bg-white/10'
                 }`}
               >
