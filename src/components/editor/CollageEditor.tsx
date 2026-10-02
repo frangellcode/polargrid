@@ -21,6 +21,7 @@ import { getBorderColor } from '../../lib/borderColors'
 import { Toolbar, type ToolbarHandle } from './Toolbar'
 import { AspectRatioPicker } from './AspectRatioPicker'
 import { BorderThicknessSlider } from './BorderThicknessSlider'
+import { SegmentedToggle } from './SegmentedToggle'
 import { GridTemplatePicker } from './GridTemplatePicker'
 import { CanvasStage, type CanvasStageHandle } from './CanvasStage'
 import { PhotoCell } from './PhotoCell'
@@ -1731,48 +1732,27 @@ export function CollageEditor() {
 
           {activeToolId === 'plantilla' && (
             <>
-              <div>
-                <p className="font-label mb-2 text-center text-xs font-semibold uppercase tracking-wider text-white/40">{tr.collageEditor.orientation}</p>
-                <div className="flex justify-center gap-2">
-                  {(['vertical', 'horizontal'] as const).map((o) => (
-                    <button
-                      key={o}
-                      type="button"
-                      onClick={() => store.setCollageOrientation(o)}
-                      className={`font-label rounded-full px-4 py-1.5 text-xs font-semibold uppercase tracking-wide transition duration-200 active:scale-90 ${
-                        collage.orientation === o
-                          ? 'bg-white text-ink-900'
-                          : 'bg-white/10 text-white/70 hover:bg-white/15'
-                      }`}
-                    >
-                      {o === 'vertical' ? tr.collageEditor.vertical : tr.collageEditor.horizontal}
-                    </button>
-                  ))}
-                </div>
-              </div>
-              <div>
-                <p className="font-label mb-2 text-center text-xs font-semibold uppercase tracking-wider text-white/40">{tr.collageEditor.shape}</p>
-                <div className="flex justify-center gap-2">
-                  {(
-                    [
-                      { shape: 'rect' as const, label: tr.collageEditor.rectangular },
-                      { shape: 'rounded' as const, label: tr.collageEditor.rounded },
-                    ]
-                  ).map(({ shape, label }) => (
-                    <button
-                      key={shape}
-                      type="button"
-                      onClick={() => store.setCollageShape(shape)}
-                      className={`font-label rounded-full px-4 py-1.5 text-xs font-semibold uppercase tracking-wide transition duration-200 active:scale-90 ${
-                        collage.shape === shape
-                          ? 'bg-white text-ink-900'
-                          : 'bg-white/10 text-white/70 hover:bg-white/15'
-                      }`}
-                    >
-                      {label}
-                    </button>
-                  ))}
-                </div>
+              {/* Orientation and shape side by side, as two sliding toggles —
+                  stacked with a heading each they took four rows of height
+                  from the collage above. */}
+              <div className="flex flex-wrap items-center justify-center gap-x-2 gap-y-2">
+                <SegmentedToggle
+                  options={[
+                    { value: 'vertical', label: tr.collageEditor.vertical },
+                    { value: 'horizontal', label: tr.collageEditor.horizontal },
+                  ]}
+                  value={collage.orientation}
+                  onChange={store.setCollageOrientation}
+                />
+                <span aria-hidden className="h-5 w-px bg-white/15" />
+                <SegmentedToggle
+                  options={[
+                    { value: 'rect', label: tr.collageEditor.rectangular },
+                    { value: 'rounded', label: tr.collageEditor.rounded },
+                  ]}
+                  value={collage.shape}
+                  onChange={store.setCollageShape}
+                />
               </div>
               <div>
                 <p className="font-label mb-2 text-center text-xs font-semibold uppercase tracking-wider text-white/40">

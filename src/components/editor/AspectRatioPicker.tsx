@@ -52,7 +52,7 @@ export function AspectRatioPicker({
       </div>
 
       {(onOrientationChange || extra) && (
-        <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-2">
+        <div className="flex flex-wrap items-center justify-center gap-x-2 gap-y-2">
           {onOrientationChange && (
             <div className={`transition-opacity duration-200 ${orientable ? '' : 'pointer-events-none opacity-30'}`} aria-disabled={!orientable}>
               <SegmentedToggle
