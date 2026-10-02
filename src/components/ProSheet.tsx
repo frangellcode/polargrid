@@ -10,6 +10,9 @@ import { useTranslation } from '../store/languageStore'
 import { afterFirstPaint } from '../lib/afterFirstPaint'
 
 const EASE = 'ease-[cubic-bezier(0.22,1,0.36,1)]'
+/** Closing gets an even curve: the opening one does nearly all its work in
+ *  the first frames, which on the way out read as the sheet vanishing at once. */
+const EASE_CLOSE = 'ease-[cubic-bezier(0.4,0,0.2,1)]'
 const CLOSE_MS = 300
 
 type Price = { kind: 'loading' } | { kind: 'ready'; product: ProProduct } | { kind: 'unavailable' }
@@ -121,15 +124,17 @@ export function ProSheet() {
 
   return (
     <div
-      className={`fixed inset-0 z-50 flex items-center justify-center px-4 transition-opacity duration-300 ${EASE} ${
+      className={`fixed inset-0 z-50 flex items-center justify-center px-4 transition-opacity duration-300 ${visible ? EASE : EASE_CLOSE} ${
         visible ? 'opacity-100' : 'pointer-events-none opacity-0'
       }`}
     >
       <div className="absolute inset-0 bg-black/65" onClick={busy ? undefined : closePaywall} />
 
       <div
-        className={`relative max-h-[92vh] w-full max-w-sm overflow-y-auto overscroll-contain rounded-3xl border border-white/10 bg-ink-900 p-5 shadow-2xl transition-all duration-300 ${EASE} ${
-          visible ? 'translate-y-0 scale-100 opacity-100' : 'translate-y-3 scale-95 opacity-0'
+        className={`relative max-h-[92vh] w-full max-w-sm overflow-y-auto overscroll-contain rounded-3xl border border-white/10 bg-ink-900 p-5 shadow-2xl transition-transform duration-300 ${visible ? EASE : EASE_CLOSE} ${
+          // Only the wrapper above fades — fading this too multiplied the two
+          // and emptied the sheet in a couple of frames.
+          visible ? 'translate-y-0 scale-100' : 'translate-y-3 scale-95'
         }`}
       >
         <div className="flex flex-col items-center gap-4 text-center">
@@ -146,8 +151,8 @@ export function ProSheet() {
                 key={id}
                 type="button"
                 onClick={() => setFeature(id)}
-                className={`font-label rounded-2xl px-3 py-2.5 text-left text-[11px] leading-tight transition duration-200 active:scale-95 ${
-                  PRO_FEATURES.length % 2 === 1 && i === PRO_FEATURES.length - 1 ? 'col-span-2' : ''
+                className={`font-label rounded-2xl px-3 py-2.5 text-[11px] leading-tight transition duration-200 active:scale-95 ${
+                  PRO_FEATURES.length % 2 === 1 && i === PRO_FEATURES.length - 1 ? 'col-span-2 text-center' : 'text-left'
                 } ${
                   feature === id ? 'bg-white text-ink-900' : 'bg-white/5 text-white/75 hover:bg-white/10'
                 }`}
@@ -162,7 +167,9 @@ export function ProSheet() {
           )}
           {done && <p className="fade-in font-label text-sm leading-snug text-white/80">{tr.pro.unlocked}</p>}
 
-          <div className="flex w-full flex-col gap-2">
+          {/* A touch closer than the card's other gaps: still apart from the
+              list of what's included, but clearly the end of the same card. */}
+          <div className="-mt-1 flex w-full flex-col gap-2">
             {done ? (
               <button
                 type="button"

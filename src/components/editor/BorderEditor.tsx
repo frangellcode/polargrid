@@ -25,6 +25,7 @@ import { ConfirmDiscardModal } from './ConfirmDiscardModal'
 import { BatchStrip } from './BatchStrip'
 import { WorkspaceBackgroundPicker } from './WorkspaceBackgroundPicker'
 import { RotateControls } from './RotateControls'
+import { SegmentedToggle } from './SegmentedToggle'
 import { BorderColorPicker } from './BorderColorPicker'
 import { getBorderColor } from '../../lib/borderColors'
 import { IconCrop, IconDrop, IconFrame, IconGrain, IconRotate, IconSharpen, IconSwatch } from './icons'
@@ -590,26 +591,20 @@ export function BorderEditor() {
                 onChange={setBorderAspectRatio}
                 orientation={border.ratioOrientation}
                 onOrientationChange={setBorderRatioOrientation}
+                extra={
+                  <SegmentedToggle
+                    options={[
+                      { value: true, label: tr.borderEditor.locked },
+                      { value: false, label: tr.borderEditor.unlocked },
+                    ]}
+                    value={border.locked}
+                    onChange={setBorderLocked}
+                  />
+                }
               />
-              <div className="mt-3 flex flex-col items-center gap-1.5">
-                <div className="flex justify-center gap-2">
-                  {([true, false] as const).map((isLocked) => (
-                    <button
-                      key={String(isLocked)}
-                      type="button"
-                      onClick={() => setBorderLocked(isLocked)}
-                      className={`font-label rounded-full px-4 py-1.5 text-xs font-semibold uppercase tracking-wide transition duration-200 active:scale-90 ${
-                        border.locked === isLocked
-                          ? 'bg-white text-ink-900'
-                          : 'bg-white/10 text-white/70 hover:bg-white/15'
-                      }`}
-                    >
-                      {isLocked ? tr.borderEditor.locked : tr.borderEditor.unlocked}
-                    </button>
-                  ))}
-                </div>
+              <div className="flex flex-col items-center">
                 {!border.locked && (
-                  <p className="fade-in font-label max-w-[220px] text-center text-[11px] text-white/40">
+                  <p className="fade-in font-label mt-2 max-w-[220px] text-center text-[11px] text-white/40">
                     {tr.borderEditor.unlockedHint}
                   </p>
                 )}

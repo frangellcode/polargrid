@@ -17,7 +17,7 @@ const WEB_LONG_EDGE = 1080
 /** Border colours the colour example cycles through: the palette, then a few
  *  a custom pick could land on. */
 const COLOR_CYCLE = [...BORDER_COLORS.map((c) => c.hex), '#d9a441', '#7a8b6f', '#b85c5c']
-const COLOR_STEP_MS = 1400
+const COLOR_STEP_MS = 700
 
 type Crop = { sx: number; sy: number; sw: number; sh: number }
 
@@ -43,10 +43,70 @@ function prepare(canvas: HTMLCanvasElement, width: number, height: number) {
 }
 
 /** Draws the before / after pair for one of the split examples. */
-/** Fifteen bordered copies of the photo, the way a Pro batch comes out. */
+/** A Pro batch as it comes out: fifteen different photos, each in the same
+ *  white border. Not the person's own photo fifteen times over — repeated, it
+ *  read as duplicates rather than as fifteen photos edited at once — but
+ *  small drawn landscapes, each in its own light. */
 const BATCH_COLS = 3
 const BATCH_ROWS = 5
-function drawBatch(canvas: HTMLCanvasElement, source: LoadedPhoto['previewBitmap'], width: number, height: number) {
+/** Sky top, sky bottom, far hills, near hills, sun/moon. */
+const BATCH_SCENES: [string, string, string, string, string][] = [
+  ['#f6a65a', '#fde3b0', '#b4636a', '#5b3550', '#fff4d6'],
+  ['#1b2a4a', '#4a5f8f', '#2b3a5c', '#141d33', '#f2f0e6'],
+  ['#7ec8e3', '#d6f0fa', '#4f8a6b', '#2f5d45', '#ffffff'],
+  ['#e85d75', '#f9b384', '#8c3b5a', '#4a2140', '#ffe2b8'],
+  ['#9bb7d4', '#e9eef4', '#9aa7b8', '#6d7a8c', '#ffffff'],
+  ['#f2c14e', '#f7e2a8', '#c97b3d', '#8a4b2a', '#fff7dc'],
+  ['#2e1f47', '#8d4f8a', '#4b2c5e', '#24163a', '#ffd9a8'],
+  ['#5fb3b3', '#c8ece6', '#3b7f7a', '#245652', '#fefefe'],
+  ['#ff8a5b', '#ffd29d', '#a6544a', '#5a2e33', '#fff1d0'],
+  ['#3d5a80', '#98c1d9', '#29486b', '#16304d', '#e0fbfc'],
+  ['#c3d9a5', '#f1f5e1', '#7da36b', '#4c7043', '#fffbe8'],
+  ['#d4a5a5', '#f5e1da', '#9e7a7a', '#6b4f57', '#fff6f0'],
+  ['#0f2027', '#2c5364', '#203a43', '#0b161b', '#cfe8ef'],
+  ['#ffb7a1', '#fff0e0', '#d98c7a', '#9c5b55', '#ffffff'],
+  ['#6a8caf', '#c9d6e3', '#4e6b88', '#2e4560', '#fdf6e3'],
+]
+
+function drawScene(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, i: number) {
+  const [skyTop, skyBottom, far, near, sun] = BATCH_SCENES[i % BATCH_SCENES.length]
+  const rand = (n: number) => {
+    const v = Math.sin((i + 1) * 12.9898 + n * 78.233) * 43758.5453
+    return v - Math.floor(v)
+  }
+  ctx.save()
+  ctx.beginPath()
+  ctx.rect(x, y, w, h)
+  ctx.clip()
+  const sky = ctx.createLinearGradient(0, y, 0, y + h)
+  sky.addColorStop(0, skyTop)
+  sky.addColorStop(1, skyBottom)
+  ctx.fillStyle = sky
+  ctx.fillRect(x, y, w, h)
+  ctx.fillStyle = sun
+  ctx.beginPath()
+  ctx.arc(x + w * (0.2 + rand(1) * 0.6), y + h * (0.22 + rand(2) * 0.2), Math.min(w, h) * (0.09 + rand(3) * 0.05), 0, Math.PI * 2)
+  ctx.fill()
+  const ridge = (color: string, base: number, amp: number, seed: number) => {
+    ctx.fillStyle = color
+    ctx.beginPath()
+    ctx.moveTo(x, y + h)
+    const steps = 6
+    for (let s = 0; s <= steps; s++) {
+      const px = x + (w * s) / steps
+      const py = y + h * (base - amp * Math.abs(Math.sin(seed + s * (1.1 + rand(seed) * 0.8))))
+      ctx.lineTo(px, py)
+    }
+    ctx.lineTo(x + w, y + h)
+    ctx.closePath()
+    ctx.fill()
+  }
+  ridge(far, 0.68, 0.22, 4)
+  ridge(near, 0.86, 0.16, 7)
+  ctx.restore()
+}
+
+function drawBatch(canvas: HTMLCanvasElement, width: number, height: number) {
   const ctx = prepare(canvas, width, height)
   ctx.fillStyle = '#1b2233'
   ctx.fillRect(0, 0, width, height)
@@ -54,21 +114,13 @@ function drawBatch(canvas: HTMLCanvasElement, source: LoadedPhoto['previewBitmap
   const tileW = (width - gap * (BATCH_COLS + 1)) / BATCH_COLS
   const tileH = (height - gap * (BATCH_ROWS + 1)) / BATCH_ROWS
   const pad = Math.min(tileW, tileH) * 0.08
-  const innerW = tileW - pad * 2
-  const innerH = tileH - pad * 2
-  const srcAspect = source.width / source.height
-  const innerAspect = innerW / innerH
-  const sw = srcAspect > innerAspect ? source.height * innerAspect : source.width
-  const sh = srcAspect > innerAspect ? source.height : source.width / innerAspect
-  const sx = (source.width - sw) / 2
-  const sy = (source.height - sh) / 2
   for (let r = 0; r < BATCH_ROWS; r++) {
     for (let c = 0; c < BATCH_COLS; c++) {
       const x = gap + c * (tileW + gap)
       const y = gap + r * (tileH + gap)
       ctx.fillStyle = '#ffffff'
       ctx.fillRect(x, y, tileW, tileH)
-      ctx.drawImage(source, sx, sy, sw, sh, x + pad, y + pad, innerW, innerH)
+      drawScene(ctx, x + pad, y + pad, tileW - pad * 2, tileH - pad * 2, r * BATCH_COLS + c)
     }
   }
 }
@@ -117,7 +169,7 @@ async function drawSplit(
   before.drawImage(source, crop.sx, crop.sy, crop.sw, crop.sh, 0, 0, width, height)
   after.drawImage(source, crop.sx, crop.sy, crop.sw, crop.sh, 0, 0, width, height)
   if (feature === 'grain') {
-    drawGrainOverlay(after, width, height, 0.75)
+    drawGrainOverlay(after, width, height, 0.4)
   } else {
     const image = after.getImageData(0, 0, width, height)
     unsharpMask(image, sharpenRadiusFor(Math.max(width, height)), sharpenAmount(0.9))
@@ -170,7 +222,7 @@ export function ProPreview({ feature, photo }: ProPreviewProps) {
     }
 
     if (feature === 'batch') {
-      if (batchRef.current) drawBatch(batchRef.current, photo.previewBitmap, width, height)
+      if (batchRef.current) drawBatch(batchRef.current, width, height)
       setShown('batch')
       return
     }
@@ -223,8 +275,10 @@ export function ProPreview({ feature, photo }: ProPreviewProps) {
   return (
     <div
       ref={boxRef}
-      className="relative w-full touch-none select-none overflow-hidden rounded-2xl bg-white/5"
-      style={{ aspectRatio: `${ASPECT}` }}
+      className="relative mx-auto w-full touch-none select-none overflow-hidden rounded-2xl bg-white/5"
+      // Capped by height as well: at full card width a 4:5 example took most
+      // of a phone's screen and pushed the card to its edges.
+      style={{ aspectRatio: `${ASPECT}`, maxWidth: `calc(34vh * ${ASPECT})` }}
       onPointerDown={(e) => {
         if (!splitShown) return
         e.currentTarget.setPointerCapture(e.pointerId)
@@ -254,7 +308,7 @@ export function ProPreview({ feature, photo }: ProPreviewProps) {
       {/* Colour example: the photo framed in a border that keeps changing. */}
       <div
         className={`${layer} p-[9%] ${shown === 'colors' ? 'opacity-100' : 'opacity-0'}`}
-        style={{ backgroundColor: COLOR_CYCLE[colorIndex], transition: 'opacity 300ms ease-out, background-color 700ms ease-in-out' }}
+        style={{ backgroundColor: COLOR_CYCLE[colorIndex], transition: 'opacity 300ms ease-out, background-color 350ms ease-in-out' }}
       >
         <canvas ref={photoRef} className="h-full w-full object-cover" />
       </div>

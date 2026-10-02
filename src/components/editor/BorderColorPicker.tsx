@@ -50,7 +50,8 @@ export function BorderColorPicker({ value, onChange }: BorderColorPickerProps) {
   return (
     <div>
       <p className="font-label mb-2 text-center text-xs font-semibold uppercase tracking-wider text-white/40">{tr.pickers.borderColor}</p>
-      <div className="flex flex-wrap justify-center gap-3">
+      {/* One row, always — see WorkspaceBackgroundPicker. */}
+      <div className="mx-auto grid max-w-[340px] gap-2" style={{ gridTemplateColumns: `repeat(${BORDER_COLORS.length + 1}, minmax(0, 1fr))` }}>
         {BORDER_COLORS.map((color) => {
           const active = value === color.id
           const locked = !isPro && color.id !== 'white'
@@ -62,11 +63,11 @@ export function BorderColorPicker({ value, onChange }: BorderColorPickerProps) {
               onClick={() => (locked ? openPaywall('colors') : onChange(color.id))}
               title={label}
               aria-label={label}
-              className={`relative flex h-11 w-11 items-center justify-center rounded-full ring-2 transition duration-200 active:scale-90 ${
+              className={`relative flex aspect-square w-full items-center justify-center rounded-full ring-2 transition duration-200 active:scale-90 ${
                 active ? 'ring-white' : 'ring-transparent hover:ring-white/30'
               }`}
             >
-              <span className="h-9 w-9 rounded-full border border-black/10" style={{ backgroundColor: color.hex }} />
+              <span className="h-[80%] w-[80%] rounded-full border border-black/10" style={{ backgroundColor: color.hex }} />
               <LockBadge shown={locked} />
             </button>
           )
@@ -77,13 +78,13 @@ export function BorderColorPicker({ value, onChange }: BorderColorPickerProps) {
           onClick={pickCustom}
           title={tr.borderColors.custom}
           aria-label={tr.borderColors.custom}
-          className={`relative flex h-11 w-11 items-center justify-center rounded-full ring-2 transition duration-200 active:scale-90 ${
+          className={`relative flex aspect-square w-full items-center justify-center rounded-full ring-2 transition duration-200 active:scale-90 ${
             custom ? 'ring-white' : 'ring-transparent hover:ring-white/30'
           }`}
         >
-          <span className="relative flex h-9 w-9 items-center justify-center rounded-full" style={{ background: RAINBOW }}>
+          <span className="relative flex h-[80%] w-[80%] items-center justify-center rounded-full" style={{ background: RAINBOW }}>
             <span
-              className="flex h-6 w-6 items-center justify-center rounded-full border border-black/10 text-sm font-semibold leading-none text-ink-900"
+              className="flex h-[66%] w-[66%] items-center justify-center rounded-full border border-black/10 text-sm font-semibold leading-none text-ink-900"
               style={{ backgroundColor: custom ? value : '#ffffff' }}
             >
               {!custom && '+'}
