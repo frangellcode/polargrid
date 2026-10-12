@@ -18,6 +18,7 @@ import { GRID_TEMPLATES, MAX_COLLAGE_PHOTOS, MIN_COLLAGE_PHOTOS, getTemplatesFor
 import { DEFAULT_EXPORT_QUALITY } from '../lib/exportQuality'
 import { DEFAULT_WORKSPACE_BACKGROUND } from '../lib/workspaceBackgrounds'
 import { DEFAULT_BORDER_COLOR } from '../lib/borderColors'
+import { hasAdjustments, type PhotoAdjustments } from '../lib/adjustments'
 
 export const DEFAULT_BORDER_PCT = 0.04
 /** A collage starts with a 2% outer border and the same 2% between photos —
@@ -42,12 +43,16 @@ interface BorderState {
   locked: boolean
   transform: PhotoTransform
   exportQuality: ExportQuality
-  /** 0..1 film-grain amount, 0 = off. */
-  grainIntensity: number
-  /** 0..1 unsharp-mask amount, 0 = off. */
-  sharpness: number
   /** BORDER_COLORS id or a custom "#rrggbb" — the border's own fill color, not the workspace backdrop. */
   borderColor: string
+  /** Edit sliders per photo id — unlike everything above, these belong to
+   *  one photo, not to the whole batch. Missing = untouched. */
+  adjustments: Record<string, PhotoAdjustments>
+  /** Batch only: an Edit change lands on every photo of the batch at once. */
+  syncAdjustments: boolean
+  /** Pro: export each photo centred on a 9:16 canvas of the workspace
+   *  background's colour, for Stories/Reels. Not shown on screen. */
+  exportWithBackground: boolean
 }
 
 interface CollageState {
@@ -64,14 +69,12 @@ interface CollageState {
   ratioOrientation: Orientation
   freeItems: FreeItem[]
   exportQuality: ExportQuality
-  /** 0..1 film-grain amount applied to every photo at once, 0 = off. */
-  grainIntensity: number
-  /** 0..1 unsharp-mask amount applied to every photo at once, 0 = off. */
-  sharpness: number
   /** Where the person dragged the grid lines to; null = even split. */
   gridSizes: GridSizes | null
   /** BORDER_COLORS id or a custom "#rrggbb" — the outer border/gutter fill color, not the workspace backdrop. */
   borderColor: string
+  /** Edit sliders per photo id, so they follow a photo wherever it's moved. */
+  adjustments: Record<string, PhotoAdjustments>
 }
 
 interface EditorStoreState {
@@ -80,9 +83,13 @@ interface EditorStoreState {
   border: BorderState
   collage: CollageState
   workspaceBackground: string
+  /** True while the before/after button is held: every photo is drawn as it
+   *  came, without its Edit or Retro. Never part of an export. */
+  showOriginal: boolean
 
   setMode: (mode: AppMode) => void
   setWorkspaceBackground: (id: string) => void
+  setShowOriginal: (show: boolean) => void
   addPhotos: (photos: LoadedPhoto[]) => void
   reset: () => void
   resetBorder: () => void
@@ -98,9 +105,12 @@ interface EditorStoreState {
   setBorderThickness: (pct: number) => void
   setBorderTransform: (transform: PhotoTransform) => void
   setBorderExportQuality: (quality: ExportQuality) => void
-  setBorderGrain: (intensity: number) => void
-  setBorderSharpness: (amount: number) => void
   setBorderColor: (id: string) => void
+  /** Lands on every batch photo instead while syncAdjustments is on. */
+  setBorderAdjustments: (photoId: string, adjustments: PhotoAdjustments) => void
+  /** Turning sync on copies `fromPhotoId`'s edit to the whole batch. */
+  setBorderSyncAdjustments: (sync: boolean, fromPhotoId: string) => void
+  setBorderExportWithBackground: (on: boolean) => void
 
   setCollageLayoutMode: (mode: CollageLayoutMode) => void
   setCollageTemplateId: (templateId: string) => void
@@ -115,10 +125,9 @@ interface EditorStoreState {
   setOuterBorderPct: (pct: number) => void
   setGutterPct: (pct: number) => void
   setCollageExportQuality: (quality: ExportQuality) => void
-  setCollageGrain: (intensity: number) => void
-  setCollageSharpness: (amount: number) => void
   setCollageGridSizes: (sizes: GridSizes | null) => void
   setCollageBorderColor: (id: string) => void
+  setCollageAdjustments: (photoId: string, adjustments: PhotoAdjustments) => void
   assignPhotoToCell: (cellId: string, photoId: string | null) => void
   /** Empties ONE grid cell, leaving the template's shape alone so the gap it
    *  frees can be filled again by tapping it. */
@@ -239,9 +248,10 @@ function createInitialBorderState(): BorderState {
     locked: true,
     transform: { ...DEFAULT_TRANSFORM },
     exportQuality: DEFAULT_EXPORT_QUALITY,
-    grainIntensity: 0,
-    sharpness: 0,
     borderColor: DEFAULT_BORDER_COLOR,
+    adjustments: {},
+    syncAdjustments: false,
+    exportWithBackground: false,
   }
 }
 
@@ -259,10 +269,9 @@ function createInitialCollageState(): CollageState {
     ratioOrientation: 'vertical',
     freeItems: [],
     exportQuality: DEFAULT_EXPORT_QUALITY,
-    grainIntensity: 0,
-    sharpness: 0,
     gridSizes: null,
     borderColor: DEFAULT_BORDER_COLOR,
+    adjustments: {},
   }
 }
 
@@ -277,9 +286,11 @@ export const useEditorStore = create<EditorStoreState>((set, get) => ({
   // surviving both a reset AND a full reload via localStorage. Kept as a
   // plain default now so the workspace always starts clean.
   workspaceBackground: DEFAULT_WORKSPACE_BACKGROUND,
+  showOriginal: false,
 
   setMode: (mode) => set({ mode }),
   setWorkspaceBackground: (id) => set({ workspaceBackground: id }),
+  setShowOriginal: (show) => set({ showOriginal: show }),
 
   addPhotos: (newPhotos) =>
     set((state) => ({
@@ -325,7 +336,7 @@ export const useEditorStore = create<EditorStoreState>((set, get) => ({
   // as they swap — otherwise every photo you ever previewed stays resident.
   setBorderPhoto: (photoId) =>
     set((state) => {
-      const border = { ...state.border, photoId, batchPhotoIds: [], transform: { ...DEFAULT_TRANSFORM } }
+      const border = { ...state.border, photoId, batchPhotoIds: [], transform: { ...DEFAULT_TRANSFORM }, adjustments: {} }
       return { border, photos: prunePhotos(state.photos, border, state.collage) }
     }),
 
@@ -336,6 +347,7 @@ export const useEditorStore = create<EditorStoreState>((set, get) => ({
         photoId: photoIds[0] ?? null,
         batchPhotoIds: photoIds,
         transform: { ...DEFAULT_TRANSFORM },
+        adjustments: {},
       }
       return { border, photos: prunePhotos(state.photos, border, state.collage) }
     }),
@@ -373,14 +385,35 @@ export const useEditorStore = create<EditorStoreState>((set, get) => ({
   setBorderExportQuality: (quality) =>
     set((state) => ({ border: { ...state.border, exportQuality: quality } })),
 
-  setBorderGrain: (intensity) =>
-    set((state) => ({ border: { ...state.border, grainIntensity: intensity } })),
-
-  setBorderSharpness: (amount) =>
-    set((state) => ({ border: { ...state.border, sharpness: amount } })),
-
   setBorderColor: (id) =>
     set((state) => ({ border: { ...state.border, borderColor: id } })),
+
+  setBorderAdjustments: (photoId, adjustments) =>
+    set((state) => {
+      const { border } = state
+      const targets = border.syncAdjustments && border.batchPhotoIds.length > 1 ? border.batchPhotoIds : [photoId]
+      const next = { ...border.adjustments }
+      targets.forEach((id) => (next[id] = adjustments))
+      return { border: { ...border, adjustments: next } }
+    }),
+
+  setBorderExportWithBackground: (on) =>
+    set((state) => ({ border: { ...state.border, exportWithBackground: on } })),
+
+  setBorderSyncAdjustments: (sync, fromPhotoId) =>
+    set((state) => {
+      const { border } = state
+      if (!sync) return { border: { ...border, syncAdjustments: false } }
+      // From the photo on screen — unless it's untouched, in which case the
+      // edit already made on another photo is the one meant to spread, not
+      // a blank that would wipe it.
+      const from =
+        (hasAdjustments(border.adjustments[fromPhotoId]) ? border.adjustments[fromPhotoId] : null) ??
+        border.batchPhotoIds.map((id) => border.adjustments[id]).find(hasAdjustments)
+      const next: Record<string, PhotoAdjustments> = {}
+      if (from) border.batchPhotoIds.forEach((id) => (next[id] = from))
+      return { border: { ...border, syncAdjustments: true, adjustments: next } }
+    }),
 
   /**
    * Switching Template <-> Free carries the photos across when the side you're
@@ -542,17 +575,16 @@ export const useEditorStore = create<EditorStoreState>((set, get) => ({
   setCollageExportQuality: (quality) =>
     set((state) => ({ collage: { ...state.collage, exportQuality: quality } })),
 
-  setCollageGrain: (intensity) =>
-    set((state) => ({ collage: { ...state.collage, grainIntensity: intensity } })),
-
-  setCollageSharpness: (amount) =>
-    set((state) => ({ collage: { ...state.collage, sharpness: amount } })),
-
   setCollageGridSizes: (sizes) =>
     set((state) => ({ collage: { ...state.collage, gridSizes: sizes } })),
 
   setCollageBorderColor: (id) =>
     set((state) => ({ collage: { ...state.collage, borderColor: id } })),
+
+  setCollageAdjustments: (photoId, adjustments) =>
+    set((state) => ({
+      collage: { ...state.collage, adjustments: { ...state.collage.adjustments, [photoId]: adjustments } },
+    })),
 
   assignPhotoToCell: (cellId, photoId) =>
     set((state) => ({

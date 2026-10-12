@@ -34,7 +34,14 @@ import { ActionRow } from './ActionRow'
 import { WorkspaceBackgroundPicker } from './WorkspaceBackgroundPicker'
 import { useSharpenedPreview } from '../../hooks/useSharpenedPreview'
 import { BorderColorPicker } from './BorderColorPicker'
-import { IconCrop, IconDrop, IconFrame, IconFlip, IconGrain, IconRotate, IconSharpen, IconGrid, IconSwatch } from './icons'
+import { IconCrop, IconDrop, IconFrame, IconFlip, IconRetro, IconRotate, IconGrid, IconSliders, IconSwatch } from './icons'
+import { AdjustmentsPanel } from './AdjustmentsPanel'
+import { RetroPanel } from './RetroPanel'
+import { proExportGuard } from '../../lib/proGuard'
+import { CompareButton } from './CompareButton'
+import { BitmapThumb } from './BatchStrip'
+import { effectiveGrain, effectiveVignette, hasAdjustments, type PhotoAdjustments } from '../../lib/adjustments'
+import { VignetteOverlay } from './VignetteOverlay'
 import { GrainOverlay } from './GrainOverlay'
 
 const PREVIEW_LONG_EDGE = 900
@@ -51,10 +58,18 @@ const EXIT_MS = 200
  *  can run once per item inside FreeItemsLayer's map. */
 function SharpenedKonvaImage({
   bitmap,
-  sharpness,
+  adjustments,
   ...rect
-}: { bitmap: ImageBitmap; sharpness: number; x: number; y: number; width: number; height: number }) {
-  const image = useSharpenedPreview(bitmap, sharpness)
+}: {
+  bitmap: ImageBitmap
+  adjustments: PhotoAdjustments | undefined
+  x: number
+  y: number
+  width: number
+  height: number
+}) {
+  const showOriginal = useEditorStore((s) => s.showOriginal)
+  const image = useSharpenedPreview(bitmap, adjustments, showOriginal)
   return <KonvaImage image={image as unknown as CanvasImageSource} {...rect} />
 }
 
@@ -63,10 +78,6 @@ interface FreeItemsLayerProps {
   outputHeight: number
   selectedId: string | null
   onSelect: (id: string | null) => void
-  /** 0..1 film-grain amount applied to every item at once, 0 = no overlay. */
-  grain: number
-  /** 0..1 unsharp-mask amount applied to every item at once, 0 = off. */
-  sharpness: number
 }
 
 /** How small and how large a free item may be made, as a fraction of the
@@ -126,8 +137,8 @@ interface HandleDrag {
  * the preview rotated about the top-left corner — the same collage came out
  * of the export differently from how it looked on screen.
  */
-function FreeItemsLayer({ outputWidth, outputHeight, selectedId, onSelect, grain, sharpness }: FreeItemsLayerProps) {
-  const { collage, photos, updateFreeItem } = useEditorStore()
+function FreeItemsLayer({ outputWidth, outputHeight, selectedId, onSelect }: FreeItemsLayerProps) {
+  const { collage, photos, updateFreeItem, showOriginal } = useEditorStore()
   const nodeRefs = useRef<Record<string, Konva.Group>>({})
   // Non-null for the whole life of a two-finger gesture on one item. Scale is
   // derived from the CURRENT finger spread against the spread at pick-up (an
@@ -477,13 +488,20 @@ function FreeItemsLayer({ outputWidth, outputHeight, selectedId, onSelect, grain
             <Rect width={w} height={h} fill="#f8fafc" />
             <SharpenedKonvaImage
               bitmap={photo.previewBitmap}
-              sharpness={sharpness}
+              adjustments={collage.adjustments[photo.id]}
               x={draw.x}
               y={draw.y}
               width={draw.width}
               height={draw.height}
             />
-            <GrainOverlay width={w} height={h} intensity={grain} referenceWidth={photo.width} referenceHeight={photo.height} />
+            <VignetteOverlay width={w} height={h} strength={showOriginal ? 0 : effectiveVignette(collage.adjustments[photo.id])} />
+            <GrainOverlay
+              width={w}
+              height={h}
+              intensity={showOriginal ? 0 : effectiveGrain(collage.adjustments[photo.id])}
+              referenceWidth={photo.width}
+              referenceHeight={photo.height}
+            />
           </Group>
         )
       })}
@@ -614,10 +632,8 @@ interface GridCellsLayerProps {
   lines: GridLines
   onLinesChange: (lines: GridLines) => void
   shape: CellShape
-  /** 0..1 film-grain amount applied to every cell at once, 0 = no overlay. */
-  grain: number
-  /** 0..1 unsharp-mask amount applied to every cell at once, 0 = off. */
-  sharpness: number
+  /** Edit sliders per photo id. */
+  adjustments: Record<string, PhotoAdjustments>
   onCellTransformChange: (cellId: string, transform: PhotoTransform) => void
   onEmptyCellClick: (cellId: string) => void
   /** The cell whose photo is selected — the one Replace/Remove act on. */
@@ -711,8 +727,7 @@ function GridCellsLayer({
   lines,
   onLinesChange,
   shape,
-  grain,
-  sharpness,
+  adjustments,
   onCellTransformChange,
   onEmptyCellClick,
   selectedCellId,
@@ -871,9 +886,8 @@ function GridCellsLayer({
               height={rect.h}
               animateLayout={animateCells}
               shape={shape}
-              grain={grain}
-              sharpness={sharpness}
               photo={photo}
+              adjustments={photo ? adjustments[photo.id] : undefined}
               transform={assignment.transform}
               opacity={isGhosted ? 0.12 : 1}
               // Once picked up, this cell's own KonvaImage must stop being
@@ -939,9 +953,8 @@ function GridCellsLayer({
               width={draggedRect.w}
               height={draggedRect.h}
               shape={shape}
-              grain={grain}
-              sharpness={sharpness}
               photo={photo}
+              adjustments={photo ? adjustments[photo.id] : undefined}
               transform={assignment.transform}
               interactive={false}
               onTransformChange={noopTransformChange}
@@ -972,9 +985,8 @@ function GridCellsLayer({
                 width={aw}
                 height={ah}
                 shape={shape}
-                grain={grain}
-                sharpness={sharpness}
                 photo={swapAnim.photoA}
+                adjustments={swapAnim.photoA ? adjustments[swapAnim.photoA.id] : undefined}
                 transform={swapAnim.transformA}
                 interactive={false}
                 onTransformChange={noopTransformChange}
@@ -987,9 +999,8 @@ function GridCellsLayer({
                 width={bw}
                 height={bh}
                 shape={shape}
-                grain={grain}
-                sharpness={sharpness}
                 photo={swapAnim.photoB}
+                adjustments={swapAnim.photoB ? adjustments[swapAnim.photoB.id] : undefined}
                 transform={swapAnim.transformB}
                 interactive={false}
                 onTransformChange={noopTransformChange}
@@ -1074,24 +1085,21 @@ function GridCellsLayer({
 export function CollageEditor() {
   const tr = useTranslation()
   const GRID_TOOLS: BottomBarTool[] = [
-    { id: 'workspace', label: tr.tools.workspace, icon: <IconDrop /> },
     { id: 'formato', label: tr.collageEditor.toolAspect, icon: <IconCrop /> },
     { id: 'plantilla', label: tr.collageEditor.toolTemplate, icon: <IconGrid /> },
+    { id: 'workspace', label: tr.tools.workspace, icon: <IconDrop /> },
     { id: 'bordes', label: tr.collageEditor.toolBorder, icon: <IconFrame /> },
-    // Same tool, same icon, same place in the row as the border editor's —
-    // the border colour used to be tucked inside Workspace here and had its
-    // own tab there, so the one setting lived somewhere different depending on
-    // which editor you were in.
-    { id: 'color', label: tr.borderEditor.toolColor, icon: <IconSwatch /> },
-    { id: 'grain', label: tr.collageEditor.toolGrain, icon: <IconGrain />, pro: 'grain' },
-    { id: 'sharpness', label: tr.collageEditor.toolSharpness, icon: <IconSharpen />, pro: 'sharpness' },
+    { id: 'edit', label: tr.tools.edit, icon: <IconSliders />, pro: 'edit' },
+    { id: 'retro', label: tr.tools.retro, icon: <IconRetro />, pro: 'retro' },
   ]
   const FREE_TOOLS: BottomBarTool[] = [
-    { id: 'workspace', label: tr.tools.workspace, icon: <IconDrop /> },
     { id: 'formato', label: tr.collageEditor.toolAspect, icon: <IconCrop /> },
-    { id: 'color', label: tr.borderEditor.toolColor, icon: <IconSwatch /> },
-    { id: 'grain', label: tr.collageEditor.toolGrain, icon: <IconGrain />, pro: 'grain' },
-    { id: 'sharpness', label: tr.collageEditor.toolSharpness, icon: <IconSharpen />, pro: 'sharpness' },
+    { id: 'workspace', label: tr.tools.workspace, icon: <IconDrop /> },
+    // Free mode has no border, so its one colour is the canvas behind the
+    // photos — named for that instead of "Color", which read as the photos'.
+    { id: 'color', label: tr.collageEditor.toolBackground, icon: <IconSwatch /> },
+    { id: 'edit', label: tr.tools.edit, icon: <IconSliders />, pro: 'edit' },
+    { id: 'retro', label: tr.tools.retro, icon: <IconRetro />, pro: 'retro' },
   ]
   const store = useEditorStore()
   const { photos, collage } = store
@@ -1417,6 +1425,8 @@ export function CollageEditor() {
       // afterwards made a fast run and a slow run two different flows; this is
       // now the same three steps the border editor shows, every time.
       const onProgress = (progress: number) => setExportFlow((f) => (f ? { ...f, progress } : f))
+      // What this export may use is checked here, not just on the controls.
+      const guard = proExportGuard()
       const file =
         collage.layoutMode === 'grid'
           ? await renderCollageGrid(
@@ -1427,14 +1437,21 @@ export function CollageEditor() {
               ratio,
               collage.outerBorderPct,
               collage.gutterPct,
-              quality,
+              guard.quality(quality),
               collage.shape,
-              collage.grainIntensity,
-              borderColorHex,
-              collage.sharpness,
+              guard.borderHex(borderColorHex),
               collage.gridSizes,
+              guard.adjustmentsMap(collage.adjustments),
             )
-          : await renderCollageFree(onProgress, collage.freeItems, photos, ratio, quality, collage.grainIntensity, borderColorHex, collage.sharpness)
+          : await renderCollageFree(
+              onProgress,
+              collage.freeItems,
+              photos,
+              ratio,
+              guard.quality(quality),
+              guard.borderHex(borderColorHex),
+              guard.adjustmentsMap(collage.adjustments),
+            )
       setExportFlow({ phase: 'ready', progress: 1, files: [file] })
     } catch {
       // Nothing upstream ever surfaced a failed export — it just quietly
@@ -1459,6 +1476,48 @@ export function CollageEditor() {
 
   const hasContent =
     collage.layoutMode === 'grid' ? collage.assignments.some((a) => a.photoId) : collage.freeItems.length > 0
+
+  // Edit works on one photo at a time. The panel has its own row of photos to
+  // pick from, because tapping anything outside the canvas clears the canvas
+  // selection (see above) — opening the tool would drop the very photo you
+  // meant to edit. Tapping a photo on the canvas still switches to it.
+  const editablePhotoIds =
+    collage.layoutMode === 'grid'
+      ? collage.assignments.flatMap((a) => (a.photoId ? [a.photoId] : []))
+      : collage.freeItems.map((f) => f.photoId)
+  const canvasSelectedPhotoId =
+    collage.layoutMode === 'grid'
+      ? (collage.assignments.find((a) => a.cellId === (selectedCellId ?? lastCellRef.current))?.photoId ?? null)
+      : (collage.freeItems.find((f) => f.id === (selectedFreeId ?? lastFreeRef.current))?.photoId ?? null)
+  const [editPhotoId, setEditPhotoId] = useState<string | null>(null)
+  useEffect(() => {
+    if (canvasSelectedPhotoId) setEditPhotoId(canvasSelectedPhotoId)
+  }, [canvasSelectedPhotoId])
+  const editTargetId =
+    editPhotoId && editablePhotoIds.includes(editPhotoId) ? editPhotoId : (editablePhotoIds[0] ?? null)
+  // Which photo Edit and Retro are working on — shared by both panels.
+  const editPicker = (
+    <div className="scroll-row flex items-center gap-1.5 overflow-x-auto overscroll-x-contain pb-0.5">
+      {editablePhotoIds.map((id, i) => {
+        const p = photos[id]
+        if (!p) return null
+        const active = id === editTargetId
+        return (
+          <button
+            key={id}
+            type="button"
+            aria-label={tr.edit.pickPhoto(i + 1)}
+            aria-pressed={active}
+            onClick={() => setEditPhotoId(id)}
+            className={`shrink-0 rounded-md p-[2px] transition duration-200 active:scale-90 ${active ? 'bg-white' : 'bg-transparent'}`}
+          >
+            <BitmapThumb photo={p} selected={active} />
+          </button>
+        )
+      })}
+    </div>
+  )
+  const anyEdited = editablePhotoIds.some((id) => hasAdjustments(collage.adjustments[id]))
 
   // What the action rows act on: the live selection, or the last one while the
   // row is still collapsing.
@@ -1526,6 +1585,7 @@ export function CollageEditor() {
               collage came up as a bare white frame. A cover in the background's
               own colour hides the same moment without touching the canvas. */}
           {swapPhase === 'mounting' && <div className="absolute inset-0 z-10 bg-ink-900" />}
+          {hasContent && <CompareButton visible={anyEdited && !previewSuspended} />}
         {hasContent ? (
           <CanvasStage
             ref={stageRef}
@@ -1567,8 +1627,7 @@ export function CollageEditor() {
                   lines={gridLines(template, collage.gridSizes)}
                   onLinesChange={(next) => store.setCollageGridSizes({ key: gridKey(template), ...next })}
                   shape={collage.shape}
-                  grain={collage.grainIntensity}
-                  sharpness={collage.sharpness}
+                  adjustments={collage.adjustments}
                   onCellTransformChange={(cellId, t) => store.setCellTransform(cellId, t)}
                   onEmptyCellClick={(cellId) => {
                     setPendingCellId(cellId)
@@ -1585,8 +1644,6 @@ export function CollageEditor() {
                   outputHeight={outputHeight}
                   selectedId={selectedFreeId}
                   onSelect={setSelectedFreeId}
-                  grain={collage.grainIntensity}
-                  sharpness={collage.sharpness}
                 />
               )}
           </CanvasStage>
@@ -1815,6 +1872,7 @@ export function CollageEditor() {
                   </button>
                 </div>
               </div>
+              <BorderColorPicker value={collage.borderColor} onChange={store.setCollageBorderColor} />
             </>
           )}
 
@@ -1823,28 +1881,30 @@ export function CollageEditor() {
           )}
 
           {activeToolId === 'color' && (
-            <BorderColorPicker value={collage.borderColor} onChange={store.setCollageBorderColor} />
-          )}
-
-          {activeToolId === 'grain' && (
-            <BorderThicknessSlider
-              label={tr.collageEditor.grain}
-              value={collage.grainIntensity}
-              onChange={store.setCollageGrain}
-              min={0}
-              max={1}
+            <BorderColorPicker
+              value={collage.borderColor}
+              onChange={store.setCollageBorderColor}
+              heading={tr.pickers.backgroundColor}
             />
           )}
 
-          {activeToolId === 'sharpness' && (
-            <BorderThicknessSlider
-              label={tr.collageEditor.sharpness}
-              value={collage.sharpness}
-              onChange={store.setCollageSharpness}
-              min={0}
-              max={1}
+          {activeToolId === 'edit' && editTargetId && (
+            <AdjustmentsPanel
+              value={collage.adjustments[editTargetId]}
+              onChange={(a) => store.setCollageAdjustments(editTargetId, a)}
+              header={editPicker}
             />
           )}
+
+          {activeToolId === 'retro' && editTargetId && photos[editTargetId] && (
+            <RetroPanel
+              photo={photos[editTargetId]}
+              value={collage.adjustments[editTargetId]}
+              onChange={(a) => store.setCollageAdjustments(editTargetId, a)}
+              header={editPicker}
+            />
+          )}
+
         </EditorBottomBar>
         </div>
       )}

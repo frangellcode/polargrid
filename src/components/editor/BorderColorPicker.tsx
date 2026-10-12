@@ -10,6 +10,8 @@ interface BorderColorPickerProps {
   /** A BORDER_COLORS id or a custom "#rrggbb". */
   value: string
   onChange: (id: string) => void
+  /** Defaults to "Border color"; free-mode collage calls it the background. */
+  heading?: string
 }
 
 /** Every hue once around, so the custom swatch reads as "any colour". */
@@ -18,7 +20,7 @@ const RAINBOW = 'conic-gradient(#ff3b30, #ff9500, #ffcc00, #34c759, #00c7be, #00
 /** Swatch picker for the border's own fill color — part of the exported photo,
  *  unlike WorkspaceBackgroundPicker's cosmetic-only backdrop. White is free;
  *  the rest of the palette and the custom colour are PolarGrid Pro. */
-export function BorderColorPicker({ value, onChange }: BorderColorPickerProps) {
+export function BorderColorPicker({ value, onChange, heading }: BorderColorPickerProps) {
   const tr = useTranslation()
   const isPro = useProStore((s) => s.isPro)
   const openPaywall = useProStore((s) => s.openPaywall)
@@ -49,7 +51,7 @@ export function BorderColorPicker({ value, onChange }: BorderColorPickerProps) {
 
   return (
     <div>
-      <p className="font-label mb-2 text-center text-xs font-semibold uppercase tracking-wider text-white/40">{tr.pickers.borderColor}</p>
+      <p className="font-label mb-2 text-center text-xs font-semibold uppercase tracking-wider text-white/40">{heading ?? tr.pickers.borderColor}</p>
       {/* One row, always — see WorkspaceBackgroundPicker. */}
       <div className="mx-auto grid max-w-[340px] gap-2" style={{ gridTemplateColumns: `repeat(${BORDER_COLORS.length + 1}, minmax(0, 1fr))` }}>
         {BORDER_COLORS.map((color) => {

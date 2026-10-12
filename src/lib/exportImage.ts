@@ -7,6 +7,7 @@ import { gridCellRect, gridLines } from './gridLayout'
 import type { GridSizes } from './gridLayout'
 import { drawGrainOverlay, seededRandom } from './grain'
 import { drawSharpened } from './sharpen'
+import { drawVignette, effectiveGrain, effectiveVignette, hasColourWork, type PhotoAdjustments } from './adjustments'
 import { isNativeApp } from './native'
 import { readPhoto } from './photoSource'
 import { composeBands, resetNativeExports, shareFilesNatively, writeBand, writeExport } from './nativeSave'
@@ -42,12 +43,14 @@ async function drawPhotoInRect(
   rotationDeg = 0,
   fit: PhotoFit = 'cover',
   shape: CellShape = 'rect',
-  grainIntensity = 0,
+  /** The photo's own Edit and Retro: colour first, then sharpening, then the
+   *  vignette and grain over the top. */
+  adjustments: PhotoAdjustments | null = null,
   /** Same seed on every band of one export, so the grain lines up across them. */
   grainSeed?: number,
-  /** 0..1 unsharp-mask amount, applied to the photo before the grain. */
-  sharpness = 0,
 ) {
+  const sharpness = adjustments?.sharpness ?? 0
+  const grainIntensity = effectiveGrain(adjustments)
   if (rectW <= 0 || rectH <= 0) return
   const bitmap = await createImageBitmap(await readPhoto(photo.file), { imageOrientation: 'from-image' })
   try {
@@ -76,13 +79,15 @@ async function drawPhotoInRect(
     const grainY = Math.max(0, draw.y)
     const grainW = Math.max(0, Math.min(rectW, draw.x + draw.width) - grainX)
     const grainH = Math.max(0, Math.min(rectH, draw.y + draw.height) - grainY)
-    if (sharpness > 0) {
-      drawSharpened(ctx, bitmap, draw, { x: grainX, y: grainY, width: grainW, height: grainH }, sharpness, transform)
+    const edited = hasColourWork(adjustments) ? adjustments : null
+    if (sharpness > 0 || edited) {
+      drawSharpened(ctx, bitmap, draw, { x: grainX, y: grainY, width: grainW, height: grainH }, sharpness, transform, edited)
     } else {
       drawOrientedImage(ctx, bitmap, draw, transform)
     }
     ctx.save()
     ctx.translate(grainX, grainY)
+    drawVignette(ctx, grainW, grainH, effectiveVignette(adjustments))
     drawGrainOverlay(ctx, grainW, grainH, grainIntensity, grainSeed === undefined ? Math.random : seededRandom(grainSeed))
     ctx.restore()
     ctx.restore()
@@ -348,9 +353,11 @@ async function startBorderImage(
   transform: PhotoTransform,
   quality: ExportQuality,
   locked: boolean,
-  grainIntensity: number,
   borderColorHex: string,
-  sharpness: number,
+  adjustments: PhotoAdjustments | null,
+  /** Pro: the bordered photo is centred on a 9:16 canvas of this colour, for
+   *  Stories/Reels. Null exports the bordered photo on its own. */
+  storyBackgroundHex: string | null,
   filename: string,
   onProgress?: Progress,
 ): Promise<{ result: Promise<ExportedImage> }> {
@@ -361,15 +368,45 @@ async function startBorderImage(
   // pixel budget as the photo, so "High"/"Web" got visibly softer just from
   // adding a border. This way the border only ever adds pixels on top.
   const shown = orientedSize(photo.width, photo.height, transform)
-  const { width: effPhotoW, height: effPhotoH } = capLongEdge(shown.width, shown.height, getMaxLongEdge(quality))
-  const { width, height } = sizeFn(effPhotoW, effPhotoH, ratio, borderThicknessPct, transform.zoom)
+  const size = (cap: number | undefined) => {
+    const eff = capLongEdge(shown.width, shown.height, cap)
+    const framed = sizeFn(eff.width, eff.height, ratio, borderThicknessPct, transform.zoom)
+    if (!storyBackgroundHex) return { ...framed, outW: framed.width, outH: framed.height }
+    // Enough background to make 9:16 with a STORY_MARGIN of it showing on
+    // every side — flush to the edges, the white border read as cut off.
+    // The width is whichever of the two constraints is tighter: the photo's
+    // width plus a margin each side, or its height plus a margin top and
+    // bottom (the margin is a share of the WIDTH, so it's even all round).
+    const outW = Math.round(
+      Math.max(framed.width / (1 - 2 * STORY_MARGIN), framed.height / (1 / STORY_RATIO - 2 * STORY_MARGIN)),
+    )
+    return { ...framed, outW, outH: Math.round(outW / STORY_RATIO) }
+  }
+  let dims = size(getMaxLongEdge(quality))
+  // The web build draws the whole export on one canvas, and a 9:16 canvas
+  // around a full-size landscape photo is ~2.7x its pixels — past what WebKit
+  // will render. Shrink the photo until the story fits the same safe ceiling.
+  const webCeiling = isNativeApp ? undefined : getMaxLongEdge('native')
+  if (storyBackgroundHex && webCeiling && Math.max(dims.outW, dims.outH) > webCeiling) {
+    const scale = webCeiling / Math.max(dims.outW, dims.outH)
+    dims = size(Math.floor(Math.max(dims.width, dims.height) * scale))
+  }
+  const { width, height, outW, outH } = dims
+  const offsetX = Math.round((outW - width) / 2)
+  const offsetY = Math.round((outH - height) / 2)
   const borderPx = borderThicknessPct * Math.min(width, height)
   const grainSeed = Math.floor(Math.random() * 2 ** 32)
   return startRender(
-    width,
-    height,
+    outW,
+    outH,
     filename,
     async (ctx, _band, report) => {
+      if (storyBackgroundHex) {
+        ctx.fillStyle = storyBackgroundHex
+        ctx.fillRect(0, 0, outW, outH)
+      }
+      ctx.save()
+      ctx.translate(offsetX, offsetY)
       ctx.fillStyle = borderColorHex
       ctx.fillRect(0, 0, width, height)
       await drawPhotoInRect(
@@ -383,10 +420,10 @@ async function startBorderImage(
         0,
         locked ? 'cover' : 'contain',
         'rect',
-        grainIntensity,
+        adjustments,
         grainSeed,
-        sharpness,
       )
+      ctx.restore()
       report(1)
     },
     onProgress,
@@ -422,10 +459,11 @@ export async function renderBorderPhotoFiles(
   transform: PhotoTransform,
   quality: ExportQuality,
   locked: boolean,
-  grainIntensity: number,
   borderColorHex: string,
-  /** 0..1 unsharp-mask amount. */
-  sharpness: number,
+  /** Each photo's own Edit and Retro — the one setting a batch doesn't share. */
+  adjustmentsFor: (photo: LoadedPhoto) => PhotoAdjustments | null,
+  /** See startBorderImage: a 9:16 background colour, or null. */
+  storyBackgroundHex: string | null,
   /** `done` photos are finished; `fraction` is the whole batch, 0..1. */
   onProgress?: (done: number, total: number, fraction: number) => void,
 ): Promise<ExportedImage[]> {
@@ -446,9 +484,9 @@ export async function renderBorderPhotoFiles(
       transform,
       quality,
       locked,
-      grainIntensity,
       borderColorHex,
-      sharpness,
+      adjustmentsFor(photos[i]),
+      storyBackgroundHex,
       `polargrid-border-${stamp}-${i + 1}.jpg`,
       (fraction) => {
         fractions[i] = fraction
@@ -474,6 +512,12 @@ export async function renderBorderPhotoFiles(
  * of final pixel size (cell/gutter/border sizes all scale linearly with it).
  */
 const REF_LONG_EDGE = 10000
+
+/** Width / height of a vertical Story, Reel or TikTok. */
+const STORY_RATIO = 9 / 16
+/** Background left around the framed photo on a 9:16 export, as a share of
+ *  the canvas width, on each side. */
+const STORY_MARGIN = 0.045
 
 /**
  * How far a single photo may be enlarged inside its own cell before it starts
@@ -516,10 +560,10 @@ export async function renderCollageGrid(
   gutterPct: number,
   quality: ExportQuality = 'native',
   shape: CellShape = 'rect',
-  grainIntensity = 0,
   borderColorHex = '#ffffff',
-  sharpness = 0,
   gridSizes: GridSizes | null = null,
+  /** Edit sliders per photo id. */
+  adjustments: Record<string, PhotoAdjustments> = {},
 ) {
   const lines = gridLines(template, gridSizes)
   const refSize = computeOutputPixelSize(ratio, REF_LONG_EDGE)
@@ -577,7 +621,7 @@ export async function renderCollageGrid(
       // decode is closed before the next one is opened — see drawPhotoInRect.
       for (let k = 0; k < inBand.length; k++) {
         const c = inBand[k]
-        await drawPhotoInRect(ctx, c.photo, c.x, c.y, c.w, c.h, c.transform, 0, 'cover', shape, grainIntensity, grainSeed + c.i, sharpness)
+        await drawPhotoInRect(ctx, c.photo, c.x, c.y, c.w, c.h, c.transform, 0, 'cover', shape, adjustments[c.photo.id] ?? null, grainSeed + c.i)
         report((k + 1) / inBand.length)
       }
     },
@@ -592,9 +636,9 @@ export async function renderCollageFree(
   photos: Record<string, LoadedPhoto>,
   ratio: number,
   quality: ExportQuality = 'native',
-  grainIntensity = 0,
   borderColorHex = '#ffffff',
-  sharpness = 0,
+  /** Edit sliders per photo id. */
+  adjustments: Record<string, PhotoAdjustments> = {},
 ) {
   const refSize = computeOutputPixelSize(ratio, REF_LONG_EDGE)
 
@@ -633,7 +677,7 @@ export async function renderCollageFree(
       const inBand = items.filter((c) => reachesBand(band, c.y, c.w, c.h, c.item.rotation))
       for (let k = 0; k < inBand.length; k++) {
         const { i, item, photo, x, y, w, h } = inBand[k]
-        await drawPhotoInRect(ctx, photo, x, y, w, h, item.transform, item.rotation, 'cover', 'rect', grainIntensity, grainSeed + i, sharpness)
+        await drawPhotoInRect(ctx, photo, x, y, w, h, item.transform, item.rotation, 'cover', 'rect', adjustments[photo.id] ?? null, grainSeed + i)
         report((k + 1) / inBand.length)
       }
     },

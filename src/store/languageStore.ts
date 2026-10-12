@@ -3,14 +3,26 @@ import { translations, type Language } from '../lib/translations'
 
 const LANGUAGE_STORAGE_KEY = 'polargrid:language'
 
-/** Reads the user's last-picked language from the device (localStorage) —
- *  wrapped in try/catch since storage access can throw (private browsing, disabled storage). */
+/** The device's own language, for a first launch: Spanish from any region
+ *  (es-MX, es-DO, es-ES, ...) gets Spanish, everything else English. In the
+ *  App Store build the web view reports the language iOS picked for the app,
+ *  which can be Spanish because Info.plist lists `es` in CFBundleLocalizations. */
+function deviceLanguage(): Language {
+  const preferred = typeof navigator === 'undefined' ? [] : (navigator.languages ?? [navigator.language])
+  return preferred[0]?.toLowerCase().startsWith('es') ? 'es' : 'en'
+}
+
+/** The user's last-picked language (localStorage), or the device's when they
+ *  never picked one. Wrapped in try/catch since storage access can throw
+ *  (private browsing, disabled storage). */
 function readStoredLanguage(): Language {
   try {
-    return localStorage.getItem(LANGUAGE_STORAGE_KEY) === 'es' ? 'es' : 'en'
+    const stored = localStorage.getItem(LANGUAGE_STORAGE_KEY)
+    if (stored === 'es' || stored === 'en') return stored
   } catch {
-    return 'en'
+    // storage unavailable — fall through to the device's language
   }
+  return deviceLanguage()
 }
 
 interface LanguageStoreState {

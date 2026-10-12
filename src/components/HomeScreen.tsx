@@ -6,7 +6,7 @@ import { isNativeApp } from '../lib/native'
 import { reportProblem } from '../lib/reportProblem'
 import { FadeText } from './FadeText'
 import { Logo } from './Logo'
-import { IconInstagram, IconRefresh } from './editor/icons'
+import { IconHelp, IconInstagram, IconRefresh } from './editor/icons'
 
 const INSTAGRAM_URL = 'https://instagram.com/frangellgram'
 /** Web only. App Store rules forbid pointing to an outside payment, and the
@@ -47,6 +47,8 @@ interface HomeScreenProps {
   /** Starts the update replay in App.tsx (logo flies to center, progress bar
    *  fills, logo flies back — see App.tsx's `beginUpdate`). */
   onUpdateStart?: () => void
+  /** Reopens the first-launch welcome tour. */
+  onShowTour?: () => void
 }
 
 export function HomeScreen({
@@ -56,6 +58,7 @@ export function HomeScreen({
   logoRef,
   updating = false,
   onUpdateStart,
+  onShowTour,
 }: HomeScreenProps) {
   const setMode = useEditorStore((s) => s.setMode)
   const updateAvailable = useUpdateStore((s) => s.updateAvailable)
@@ -99,6 +102,17 @@ export function HomeScreen({
       >
         <FadeText value={tr.home.langToggle} trigger={language} />
       </button>
+
+      {onShowTour && (
+        <button
+          type="button"
+          onClick={onShowTour}
+          aria-label={tr.tour.help}
+          className={`absolute left-4 top-[max(2.25rem,calc(env(safe-area-inset-top)+1.25rem))] flex h-[26px] w-[26px] items-center justify-center rounded-full border border-white/25 text-white/60 transition duration-200 hover:border-white/40 hover:text-white active:scale-90 ${revealCls('delay-0')}`}
+        >
+          <IconHelp className="h-3.5 w-3.5" />
+        </button>
+      )}
 
       {/* flex-1 centers the main content within whatever space is left above
           the donate/follow footer below, instead of the footer joining this

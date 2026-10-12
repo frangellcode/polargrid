@@ -7,6 +7,8 @@ import { HomeScreen } from './components/HomeScreen'
 import { BorderEditor } from './components/editor/BorderEditor'
 import { CollageEditor } from './components/editor/CollageEditor'
 import { ProSheet } from './components/ProSheet'
+import { WelcomeTour } from './components/WelcomeTour'
+import { hasSeenTour } from './lib/tour'
 import { isNativeApp } from './lib/native'
 import { flushSync } from 'react-dom'
 import { useUpdateStore } from './store/updateStore'
@@ -101,6 +103,7 @@ const UPDATE_RELOAD_FALLBACK_MS = 2500
 type UpdatePhase = 'idle' | 'toCenter' | 'progress' | 'restarting'
 
 interface HomeRenderProps {
+  onShowTour: () => void
   contentVisible: boolean
   logoRef: (node: HTMLDivElement | null) => void
   logoStyle: CSSProperties
@@ -132,6 +135,11 @@ function App() {
 
   // Update replay state (see UPDATE_* constants above).
   const [updatePhase, setUpdatePhase] = useState<UpdatePhase>('idle')
+
+  // First launch only — and only once the boot flight has landed, so the tour
+  // never fights the splash for the screen.
+  const [tourOpen, setTourOpen] = useState(false)
+  const [tourChecked, setTourChecked] = useState(false)
   const [updateProgress, setUpdateProgress] = useState(0)
 
   /**
@@ -460,6 +468,12 @@ function App() {
   // and layering the generic slide/scale on top would both double up and
   // shift the logo mid-measurement.
   const booting = displayedMode === 'home' && bootStage !== 'done'
+
+  useEffect(() => {
+    if (tourChecked || bootStage !== 'done') return
+    setTourChecked(true)
+    if (!hasSeenTour()) setTourOpen(true)
+  }, [bootStage, tourChecked])
   const viewClassName = isExiting ? 'view-exit' : entered || booting ? '' : 'view-enter'
 
   return (
@@ -496,6 +510,7 @@ function App() {
           },
           updating,
           onUpdateStart: beginUpdate,
+          onShowTour: () => setTourOpen(true),
         })}
       </div>
 
@@ -523,6 +538,8 @@ function App() {
           </span>
         </div>
       )}
+
+      {tourOpen && <WelcomeTour onClose={() => setTourOpen(false)} />}
 
       {isNativeApp && <ProSheet />}
     </div>

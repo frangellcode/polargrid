@@ -172,3 +172,56 @@ textarea {
 .scroll-row::-webkit-scrollbar {
   display: none;
 }
+
+/* Welcome tour illustrations. They only live while the tour is open, which
+   unmounts entirely when it closes, so nothing here is left running behind
+   the app afterwards. */
+@keyframes tour-breathe {
+  0%,
+  100% {
+    padding: 7%;
+  }
+  50% {
+    padding: 12%;
+  }
+}
+
+.tour-breathe {
+  animation: tour-breathe 3.2s ease-in-out infinite;
+}
+
+@keyframes tour-split {
+  0%,
+  100% {
+    clip-path: inset(0 0 0 72%);
+  }
+  50% {
+    clip-path: inset(0 0 0 28%);
+  }
+}
+
+.tour-split {
+  animation: tour-split 3.6s ease-in-out infinite;
+}
+
+@keyframes tour-divider {
+  0%,
+  100% {
+    left: 72%;
+  }
+  50% {
+    left: 28%;
+  }
+}
+
+.tour-divider {
+  animation: tour-divider 3.6s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tour-breathe,
+  .tour-split,
+  .tour-divider {
+    animation: none;
+  }
+}

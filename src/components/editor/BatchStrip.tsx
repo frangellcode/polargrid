@@ -18,7 +18,7 @@ interface BitmapThumbProps {
  * pixels down. The preview bitmap is already in memory and a 34px square costs
  * nothing to draw from it.
  */
-function BitmapThumb({ photo, selected }: BitmapThumbProps) {
+export function BitmapThumb({ photo, selected }: BitmapThumbProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
 
   useEffect(() => {

@@ -28,7 +28,14 @@ import { RotateControls } from './RotateControls'
 import { SegmentedToggle } from './SegmentedToggle'
 import { BorderColorPicker } from './BorderColorPicker'
 import { getBorderColor } from '../../lib/borderColors'
-import { IconCrop, IconDrop, IconFrame, IconGrain, IconRotate, IconSharpen, IconSwatch } from './icons'
+import { AdjustmentsPanel } from './AdjustmentsPanel'
+import { IconCrop, IconDrop, IconFrame, IconRetro, IconRotate, IconSliders } from './icons'
+import { RetroPanel } from './RetroPanel'
+import { proExportGuard } from '../../lib/proGuard'
+import { ExportBackgroundToggle } from './ExportBackgroundToggle'
+import { getWorkspaceBackground } from '../../lib/workspaceBackgrounds'
+import { CompareButton } from './CompareButton'
+import { hasAdjustments } from '../../lib/adjustments'
 
 const PREVIEW_LONG_EDGE = 900
 // Reuses the app's own view-exit/view-enter pair (index.css) — the same
@@ -58,13 +65,12 @@ export function BorderEditor() {
   // bigger selection can meet the paywall instead of a silent cap.
   const pickerBatchLimit = PRO_BORDER_BATCH_PHOTOS
   const TOOLS: BottomBarTool[] = [
-    { id: 'workspace', label: tr.tools.workspace, icon: <IconDrop /> },
     { id: 'aspecto', label: tr.borderEditor.toolAspect, icon: <IconCrop /> },
     { id: 'rotate', label: tr.borderEditor.toolRotate, icon: <IconRotate /> },
+    { id: 'workspace', label: tr.tools.workspace, icon: <IconDrop /> },
     { id: 'bordes', label: tr.borderEditor.toolBorder, icon: <IconFrame /> },
-    { id: 'color', label: tr.borderEditor.toolColor, icon: <IconSwatch /> },
-    { id: 'grain', label: tr.borderEditor.toolGrain, icon: <IconGrain />, pro: 'grain' },
-    { id: 'sharpness', label: tr.borderEditor.toolSharpness, icon: <IconSharpen />, pro: 'sharpness' },
+    { id: 'edit', label: tr.tools.edit, icon: <IconSliders />, pro: 'edit' },
+    { id: 'retro', label: tr.tools.retro, icon: <IconRetro />, pro: 'retro' },
   ]
   const {
     photos,
@@ -79,9 +85,10 @@ export function BorderEditor() {
     setBorderThickness,
     setBorderTransform,
     setBorderExportQuality,
-    setBorderGrain,
-    setBorderSharpness,
     setBorderColor,
+    setBorderAdjustments,
+    setBorderSyncAdjustments,
+    setBorderExportWithBackground,
     resetBorder,
     workspaceBackground,
     setWorkspaceBackground,
@@ -318,6 +325,22 @@ export function BorderEditor() {
   // final picked color once, no animation needed for a static file.
   const animatedBorderColorHex = useAnimatedColor(borderColorHex)
 
+  const anyEdited = !!photo && hasAdjustments(border.adjustments[photo.id])
+  // Batch only: whether Edit and Retro land on this photo or on all of them.
+  const syncHeader = photo && isBatch && (
+    <div className="flex items-center justify-between gap-3">
+      <span className="font-label text-xs font-semibold uppercase tracking-wider text-white/40">{tr.edit.sync}</span>
+      <SegmentedToggle
+        options={[
+          { value: false, label: tr.edit.syncOff },
+          { value: true, label: tr.edit.syncOn },
+        ]}
+        value={border.syncAdjustments}
+        onChange={(sync) => setBorderSyncAdjustments(sync, photo.id)}
+      />
+    </div>
+  )
+
   const handleUpload = async (files: FileList | PhotoSource[]) => {
     const images = screen(files)
     if (!images) return
@@ -365,7 +388,9 @@ export function BorderEditor() {
   // neither looked like the batch. Everything renders behind the modal and
   // ends on the same deliberate Save tap.
   const renderExport = async (quality: ExportQuality) => {
-    const exportPhotos = exportPhotoList()
+    // What this export may use is checked here, not just on the controls.
+    const guard = proExportGuard()
+    const exportPhotos = guard.batch(exportPhotoList(), FREE_BORDER_BATCH_PHOTOS)
     setExportFlow({ phase: 'rendering', done: 0, total: exportPhotos.length, progress: 0, files: [] })
     const files = await renderBorderPhotoFiles(
       exportPhotos,
@@ -380,11 +405,11 @@ export function BorderEditor() {
       },
       border.borderThicknessPct,
       border.transform,
-      quality,
+      guard.quality(quality),
       border.locked,
-      border.grainIntensity,
-      borderColorHex,
-      border.sharpness,
+      guard.borderHex(borderColorHex),
+      (p) => guard.adjustments(border.adjustments[p.id] ?? null),
+      guard.storyHex(border.exportWithBackground ? getWorkspaceBackground(workspaceBackground).hex : null),
       (done, total, progress) => setExportFlow((s) => (s ? { ...s, done, total, progress } : s)),
     )
     setExportFlow({ phase: 'ready', done: files.length, total: files.length, progress: 1, files })
@@ -525,6 +550,7 @@ export function BorderEditor() {
               collage came up as a bare white frame. A cover in the background's
               own colour hides the same moment without touching the canvas. */}
           {swapPhase === 'mounting' && <div className="absolute inset-0 z-10 bg-ink-900" />}
+          {photo && <CompareButton visible={anyEdited && !previewSuspended} />}
           {photo ? (
             <CanvasStage
               ref={stageRef}
@@ -544,8 +570,7 @@ export function BorderEditor() {
                 transform={border.transform}
                 onTransformChange={setBorderTransform}
                 fit={fitMix}
-                grain={border.grainIntensity}
-                sharpness={border.sharpness}
+                adjustments={border.adjustments[photo.id]}
               />
             </CanvasStage>
           ) : (
@@ -612,43 +637,49 @@ export function BorderEditor() {
             </div>
           )}
 
+          {/* Thickness and colour together: a "Color" tool of its own read as
+              the photo's colour, not the border's. */}
           {activeTool === 'bordes' && (
-            <BorderThicknessSlider
-              label={tr.borderEditor.borderThickness}
-              value={border.borderThicknessPct}
-              onChange={setBorderThickness}
+            <div className="flex flex-col gap-4">
+              <BorderThicknessSlider
+                label={tr.borderEditor.borderThickness}
+                value={border.borderThicknessPct}
+                onChange={setBorderThickness}
+              />
+              <BorderColorPicker value={border.borderColor} onChange={setBorderColor} />
+            </div>
+          )}
+
+          {activeTool === 'edit' && (
+            <AdjustmentsPanel
+              value={border.adjustments[photo.id]}
+              onChange={(a) => setBorderAdjustments(photo.id, a)}
+              header={syncHeader}
+            />
+          )}
+
+          {activeTool === 'retro' && (
+            <RetroPanel
+              photo={photo}
+              value={border.adjustments[photo.id]}
+              onChange={(a) => setBorderAdjustments(photo.id, a)}
+              header={syncHeader}
             />
           )}
 
           {activeTool === 'rotate' && <RotateControls transform={border.transform} onChange={setBorderTransform} />}
 
           {activeTool === 'workspace' && (
-            <WorkspaceBackgroundPicker value={workspaceBackground} onChange={setWorkspaceBackground} />
+            <div className="flex flex-col gap-4">
+              <WorkspaceBackgroundPicker value={workspaceBackground} onChange={setWorkspaceBackground} />
+              <ExportBackgroundToggle
+                on={border.exportWithBackground}
+                onChange={setBorderExportWithBackground}
+                backgroundHex={getWorkspaceBackground(workspaceBackground).hex}
+              />
+            </div>
           )}
 
-          {activeTool === 'color' && (
-            <BorderColorPicker value={border.borderColor} onChange={setBorderColor} />
-          )}
-
-          {activeTool === 'grain' && (
-            <BorderThicknessSlider
-              label={tr.borderEditor.grain}
-              value={border.grainIntensity}
-              onChange={setBorderGrain}
-              min={0}
-              max={1}
-            />
-          )}
-
-          {activeTool === 'sharpness' && (
-            <BorderThicknessSlider
-              label={tr.borderEditor.sharpness}
-              value={border.sharpness}
-              onChange={setBorderSharpness}
-              min={0}
-              max={1}
-            />
-          )}
         </EditorBottomBar>
         </div>
       )}

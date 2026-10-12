@@ -3,9 +3,11 @@ import type { PointerEvent as ReactPointerEvent } from 'react'
 import type { LoadedPhoto } from '../types'
 import type { ProFeature } from '../store/proStore'
 import { BORDER_COLORS } from '../lib/borderColors'
+import { WORKSPACE_BACKGROUNDS } from '../lib/workspaceBackgrounds'
 import { drawGrainOverlay } from '../lib/grain'
 import { readPhoto } from '../lib/photoSource'
 import { sharpenAmount, sharpenRadiusFor, unsharpMask } from '../lib/sharpen'
+import { applyAdjustments, DEFAULT_ADJUSTMENTS, drawVignette, getRetroPreset } from '../lib/adjustments'
 import { useTranslation } from '../store/languageStore'
 
 /** The preview box's shape, width / height. */
@@ -18,6 +20,8 @@ const WEB_LONG_EDGE = 1080
  *  a custom pick could land on. */
 const COLOR_CYCLE = [...BORDER_COLORS.map((c) => c.hex), '#d9a441', '#7a8b6f', '#b85c5c']
 const COLOR_STEP_MS = 700
+/** Backgrounds the 9:16 example cycles through — the workspace palette. */
+const STORY_CYCLE = WORKSPACE_BACKGROUNDS.flatMap((b) => (b.hex ? [b.hex] : []))
 
 type Crop = { sx: number; sy: number; sw: number; sh: number }
 
@@ -126,7 +130,7 @@ function drawBatch(canvas: HTMLCanvasElement, width: number, height: number) {
 }
 
 async function drawSplit(
-  feature: Exclude<ProFeature, 'colors' | 'batch'>,
+  feature: Exclude<ProFeature, 'colors' | 'batch' | 'story'>,
   photo: LoadedPhoto,
   beforeCanvas: HTMLCanvasElement,
   afterCanvas: HTMLCanvasElement,
@@ -168,12 +172,20 @@ async function drawSplit(
   const after = prepare(afterCanvas, width, height)
   before.drawImage(source, crop.sx, crop.sy, crop.sw, crop.sh, 0, 0, width, height)
   after.drawImage(source, crop.sx, crop.sy, crop.sw, crop.sh, 0, 0, width, height)
-  if (feature === 'grain') {
-    drawGrainOverlay(after, width, height, 0.4)
-  } else {
-    const image = after.getImageData(0, 0, width, height)
-    unsharpMask(image, sharpenRadiusFor(Math.max(width, height)), sharpenAmount(0.9))
+  const image = after.getImageData(0, 0, width, height)
+  if (feature === 'retro') {
+    // A warm film style, full strength, with its vignette and grain.
+    applyAdjustments(image, { ...DEFAULT_ADJUSTMENTS, retro: 'retrato' })
     after.putImageData(image, 0, 0)
+    drawVignette(after, width, height, getRetroPreset('retrato')?.vignette ?? 0)
+    drawGrainOverlay(after, width, height, getRetroPreset('retrato')?.grain ?? 0)
+  } else {
+    // Edit: a lifted, punchier, warmer take with a touch of sharpening and
+    // grain — enough to read at a glance in a small box.
+    applyAdjustments(image, { ...DEFAULT_ADJUSTMENTS, exposure: 0.12, contrast: 0.25, shadows: 0.35, highlights: -0.3, vibrance: 0.45, temperature: 0.25 })
+    unsharpMask(image, sharpenRadiusFor(Math.max(width, height)), sharpenAmount(0.6))
+    after.putImageData(image, 0, 0)
+    drawGrainOverlay(after, width, height, 0.2)
   }
   return true
 }
@@ -197,6 +209,7 @@ export function ProPreview({ feature, photo }: ProPreviewProps) {
   const afterRef = useRef<HTMLCanvasElement>(null)
   const photoRef = useRef<HTMLCanvasElement>(null)
   const batchRef = useRef<HTMLCanvasElement>(null)
+  const storyRef = useRef<HTMLCanvasElement>(null)
   const [split, setSplit] = useState(55)
   // Which example is actually drawn right now — trails `feature` until the new
   // one is ready, so a switch is a crossfade rather than a flash of empty box.
@@ -221,6 +234,22 @@ export function ProPreview({ feature, photo }: ProPreviewProps) {
       return
     }
 
+    if (feature === 'story') {
+      // The photo in a white border, as it would sit on the 9:16 background.
+      const story = storyRef.current
+      if (story) {
+        const pw = width
+        const ph = Math.round((photo.height / photo.width) * pw)
+        const pad = Math.round(pw * 0.05)
+        const ctx = prepare(story, pw + pad * 2, ph + pad * 2)
+        ctx.fillStyle = '#ffffff'
+        ctx.fillRect(0, 0, story.width, story.height)
+        ctx.drawImage(photo.previewBitmap, pad, pad, pw, ph)
+      }
+      setShown('story')
+      return
+    }
+
     if (feature === 'batch') {
       if (batchRef.current) drawBatch(batchRef.current, width, height)
       setShown('batch')
@@ -228,7 +257,7 @@ export function ProPreview({ feature, photo }: ProPreviewProps) {
     }
 
     // Fades the old split out while the new one draws, then back in.
-    setShown((prev) => (prev === 'colors' || prev === 'batch' ? prev : null))
+    setShown((prev) => (prev === 'colors' || prev === 'batch' || prev === 'story' ? prev : null))
     drawSplit(feature, photo, before, after, width, height, () => cancelled)
       .then((drawn) => {
         if (drawn && !cancelled) {
@@ -244,7 +273,7 @@ export function ProPreview({ feature, photo }: ProPreviewProps) {
 
   // Released on the way out — WebKit caps the canvas memory a page may hold.
   useEffect(() => {
-    const canvases = [beforeRef.current, afterRef.current, photoRef.current, batchRef.current]
+    const canvases = [beforeRef.current, afterRef.current, photoRef.current, batchRef.current, storyRef.current]
     return () => {
       for (const c of canvases) {
         if (!c) continue
@@ -255,7 +284,7 @@ export function ProPreview({ feature, photo }: ProPreviewProps) {
   }, [])
 
   useEffect(() => {
-    if (feature !== 'colors') return
+    if (feature !== 'colors' && feature !== 'story') return
     const t = setInterval(() => setColorIndex((i) => (i + 1) % COLOR_CYCLE.length), COLOR_STEP_MS)
     return () => clearInterval(t)
   }, [feature])
@@ -267,7 +296,7 @@ export function ProPreview({ feature, photo }: ProPreviewProps) {
     setSplit(Math.max(4, Math.min(96, ((e.clientX - rect.left) / rect.width) * 100)))
   }
 
-  const splitShown = shown !== null && shown !== 'colors' && shown !== 'batch'
+  const splitShown = shown !== null && shown !== 'colors' && shown !== 'batch' && shown !== 'story'
   const labels =
     shown === 'quality' ? [tr.pro.exampleWeb, tr.pro.exampleMaximum] : [tr.pro.exampleBefore, tr.pro.exampleAfter]
   const layer = 'absolute inset-0 transition-opacity duration-300 ease-out'
@@ -311,6 +340,19 @@ export function ProPreview({ feature, photo }: ProPreviewProps) {
         style={{ backgroundColor: COLOR_CYCLE[colorIndex], transition: 'opacity 300ms ease-out, background-color 350ms ease-in-out' }}
       >
         <canvas ref={photoRef} className="h-full w-full object-cover" />
+      </div>
+
+      {/* 9:16 example: the bordered photo on a Story-shaped background. */}
+      <div className={`${layer} flex items-center justify-center bg-white/5 ${shown === 'story' ? 'opacity-100' : 'opacity-0'}`}>
+        <div
+          className="flex aspect-[9/16] h-[92%] items-center justify-center rounded-md shadow-xl"
+          style={{ backgroundColor: STORY_CYCLE[colorIndex % STORY_CYCLE.length], transition: 'background-color 350ms ease-in-out' }}
+        >
+          <canvas ref={storyRef} className="w-[84%] shadow-lg" />
+        </div>
+        <span className="font-label absolute bottom-2 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full bg-black/55 px-2 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-white">
+          9:16
+        </span>
       </div>
 
       {/* Batch example: a sheet of fifteen bordered copies. */}

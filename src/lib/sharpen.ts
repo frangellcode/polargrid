@@ -1,4 +1,5 @@
 import { drawOrientedImage } from './cropMath'
+import { applyAdjustments, type PhotoAdjustments } from './adjustments'
 import type { PhotoTransform } from '../types'
 
 /**
@@ -96,8 +97,14 @@ export function unsharpMask(image: ImageData, radius: number, amount: number) {
   }
 }
 
-/** Preview: a sharpened copy of an already-downscaled preview bitmap. */
-export function sharpenedPreview(source: CanvasImageSource & { width: number; height: number }, sharpness: number): HTMLCanvasElement | null {
+/** Preview: an edited and sharpened copy of an already-downscaled preview
+ *  bitmap. The Edit sliders go first, so sharpening works on the photo as it
+ *  will finally look — same order as the export. */
+export function sharpenedPreview(
+  source: CanvasImageSource & { width: number; height: number },
+  sharpness: number,
+  adjustments?: PhotoAdjustments | null,
+): HTMLCanvasElement | null {
   const { width, height } = source
   const canvas = document.createElement('canvas')
   canvas.width = width
@@ -106,6 +113,7 @@ export function sharpenedPreview(source: CanvasImageSource & { width: number; he
   if (!ctx) return null
   ctx.drawImage(source, 0, 0)
   const image = ctx.getImageData(0, 0, width, height)
+  if (adjustments) applyAdjustments(image, adjustments)
   unsharpMask(image, sharpenRadiusFor(Math.max(width, height)), sharpenAmount(sharpness))
   ctx.putImageData(image, 0, 0)
   return canvas
@@ -115,7 +123,7 @@ const TILE = 1024
 
 /**
  * Export: draws `bitmap` at `draw` (in ctx's current coordinates, under
- * whatever clip is active) sharpened. Works tile by tile in device pixels over
+ * whatever clip is active) edited and sharpened. Works tile by tile in device pixels over
  * only the part of the canvas the photo covers, each tile drawn with a margin
  * of neighbouring pixels so the mask has real context at its edges — which is
  * also what keeps the native build's horizontal bands from showing a seam.
@@ -130,6 +138,8 @@ export function drawSharpened(
   sharpness: number,
   /** For the photo's turn and flips. */
   transform: PhotoTransform,
+  /** The Edit sliders, applied before sharpening. Per pixel, so tiles can't seam. */
+  adjustments?: PhotoAdjustments | null,
 ) {
   const m = ctx.getTransform()
   // Device-space box around the visible part, clamped to this canvas (a band).
@@ -177,6 +187,7 @@ export function drawSharpened(
         sctx.setTransform(m.a, m.b, m.c, m.d, m.e - (tx - margin), m.f - (ty - margin))
         drawOrientedImage(sctx, bitmap, draw, transform)
         const image = sctx.getImageData(0, 0, sw, sh)
+        if (adjustments) applyAdjustments(image, adjustments)
         unsharpMask(image, radius, amount)
         sctx.putImageData(image, 0, 0)
         ctx.save()

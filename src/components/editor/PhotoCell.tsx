@@ -6,8 +6,11 @@ import { clampTransform, drawOrientedImage, getImageDrawRect, MAX_ZOOM, oriented
 import { shapeRadiusRatio, traceRoundedRectPath } from '../../lib/shapeClip'
 import { easeInOutCubic, useAnimatedNumber } from '../../hooks/useAnimatedNumber'
 import { GrainOverlay } from './GrainOverlay'
+import { VignetteOverlay } from './VignetteOverlay'
+import { useEditorStore } from '../../store/editorStore'
 import { useSharpenedPreview } from '../../hooks/useSharpenedPreview'
 import { isNativeApp } from '../../lib/native'
+import { effectiveGrain, effectiveVignette, type PhotoAdjustments } from '../../lib/adjustments'
 
 /** The one cell currently being pinched (its pinch ref), across every
  *  PhotoCell on screen — see beginPinch. */
@@ -50,10 +53,8 @@ interface PhotoCellProps {
   animateLayout?: boolean
   /** How the cell is clipped: plain rect (default) or rounded corners. */
   shape?: CellShape
-  /** 0..1 film-grain amount over this photo, 0/undefined = no overlay drawn. */
-  grain?: number
-  /** 0..1 unsharp-mask amount on this photo's preview, 0/undefined = off. */
-  sharpness?: number
+  /** This photo's Edit and Retro (incl. grain and sharpness), undefined = untouched. */
+  adjustments?: PhotoAdjustments
   /** Fades the whole cell — used to dim the source cell nearly out of sight
    *  while it's being long-press-dragged (or mid-swap-flight), without
    *  disturbing the grid's layout by actually removing it. */
@@ -99,8 +100,7 @@ export function PhotoCell({
   fit = 'cover',
   animateLayout = false,
   shape = 'rect',
-  grain = 0,
-  sharpness = 0,
+  adjustments,
   opacity = 1,
   interactive = true,
   onLongPressStart,
@@ -113,7 +113,10 @@ export function PhotoCell({
   // new full-size canvas on every tap, plus re-sharpening it, which on a
   // phone holding a whole collage froze the screen for about a second before
   // the turn could even start.
-  const previewImage = useSharpenedPreview(photo?.previewBitmap ?? null, sharpness)
+  const showOriginal = useEditorStore((s) => s.showOriginal)
+  const previewImage = useSharpenedPreview(photo?.previewBitmap ?? null, adjustments, showOriginal)
+  const grain = showOriginal ? 0 : effectiveGrain(adjustments)
+  const vignette = showOriginal ? 0 : effectiveVignette(adjustments)
   // Non-null for the whole life of a two-finger gesture. Zoom is derived from
   // the CURRENT finger spread against the spread at pick-up (an absolute
   // ratio), not accumulated frame by frame: the incremental version had to
@@ -798,6 +801,13 @@ export function PhotoCell({
           />
         </>
       )}
+      <VignetteOverlay
+        x={Math.max(0, draw.x)}
+        y={Math.max(0, draw.y)}
+        width={Math.max(0, Math.min(width, widthTarget, draw.x + draw.width) - Math.max(0, draw.x))}
+        height={Math.max(0, Math.min(height, heightTarget, draw.y + draw.height) - Math.max(0, draw.y))}
+        strength={vignette}
+      />
       <GrainOverlay
         // Sized to the actual drawn photo rect intersected with the cell's
         // safe bounds — NOT the raw cell size. In 'cover' fit `draw` always

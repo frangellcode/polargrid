@@ -2,7 +2,8 @@ import Capacitor
 import StoreKit
 
 /// PolarGrid Pro: one non-consumable in-app purchase that unlocks the extra
-/// border colours, maximum-quality export, grain and sharpness in the App
+/// border colours, maximum-quality export, Edit, Retro, big batches and the
+/// 9:16 background export in the App
 /// Store build. The web build has no store and keeps everything unlocked.
 ///
 /// StoreKit 2 only, no third-party SDK or server: whether someone has Pro is
