@@ -186,3 +186,17 @@ export function IconCompare({ className = 'h-4 w-4' }: IconProps) {
     </svg>
   )
 }
+
+/** The healing brush: a bandage. */
+export function IconHeal({ className = 'h-5 w-5' }: IconProps) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" className={className}>
+      <rect x="2.5" y="8" width="19" height="8" rx="4" transform="rotate(-45 12 12)" />
+      <path d="M9.5 9.5l5 5" />
+      <circle cx="11" cy="12" r="0.5" fill="currentColor" stroke="none" />
+      <circle cx="12" cy="11" r="0.5" fill="currentColor" stroke="none" />
+      <circle cx="12" cy="13" r="0.5" fill="currentColor" stroke="none" />
+      <circle cx="13" cy="12" r="0.5" fill="currentColor" stroke="none" />
+    </svg>
+  )
+}

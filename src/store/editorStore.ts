@@ -91,6 +91,9 @@ interface EditorStoreState {
   setWorkspaceBackground: (id: string) => void
   setShowOriginal: (show: boolean) => void
   addPhotos: (photos: LoadedPhoto[]) => void
+  /** Swaps in a new version of a loaded photo under the same id (the healing
+   *  brush's result), so every editor holding it picks up the change. */
+  replacePhoto: (photo: LoadedPhoto) => void
   reset: () => void
   resetBorder: () => void
   resetCollage: () => void
@@ -179,6 +182,7 @@ function prunePhotos(
     // must not take a state update down with it.
     try {
       photo.previewBitmap.close()
+      photo.retouch?.basePreview.close()
     } catch {
       // already released
     }
@@ -291,6 +295,9 @@ export const useEditorStore = create<EditorStoreState>((set, get) => ({
   setMode: (mode) => set({ mode }),
   setWorkspaceBackground: (id) => set({ workspaceBackground: id }),
   setShowOriginal: (show) => set({ showOriginal: show }),
+
+  replacePhoto: (photo) =>
+    set((state) => (state.photos[photo.id] ? { photos: { ...state.photos, [photo.id]: photo } } : {})),
 
   addPhotos: (newPhotos) =>
     set((state) => ({

@@ -167,6 +167,24 @@ async function drawSplit(
     return true
   }
 
+  if (feature === 'retouch') {
+    // Not the person's photo: the brush needs something to take out. A boat
+    // on a sandbar, before and after the brush, made by the same fill.
+    const [shotBefore, shotAfter] = await Promise.all(
+      ['tour/retouch-before.jpg', 'tour/retouch-after.jpg'].map(async (url) => createImageBitmap(await (await fetch(url)).blob())),
+    )
+    try {
+      if (isCancelled()) return false
+      const c = coverCrop(shotBefore.width, shotBefore.height)
+      prepare(beforeCanvas, width, height).drawImage(shotBefore, c.sx, c.sy, c.sw, c.sh, 0, 0, width, height)
+      prepare(afterCanvas, width, height).drawImage(shotAfter, c.sx, c.sy, c.sw, c.sh, 0, 0, width, height)
+    } finally {
+      shotBefore.close()
+      shotAfter.close()
+    }
+    return true
+  }
+
   const crop = coverCrop(source.width, source.height)
   const before = prepare(beforeCanvas, width, height)
   const after = prepare(afterCanvas, width, height)

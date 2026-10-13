@@ -3,7 +3,7 @@ import type { ReactNode } from 'react'
 import { useTranslation } from '../../store/languageStore'
 import { DEFAULT_ADJUSTMENTS, TONE_KEYS, type AdjustmentKey, type PhotoAdjustments } from '../../lib/adjustments'
 import { useProStore } from '../../store/proStore'
-import { IconGrain, IconLock, IconSharpen } from './icons'
+import { IconGrain, IconHeal, IconLock, IconSharpen } from './icons'
 
 /** Order of the dials, light first, then colour, then detail. */
 const KEYS: AdjustmentKey[] = [...TONE_KEYS, 'sharpness', 'grain']
@@ -157,6 +157,8 @@ interface AdjustmentsPanelProps {
   activeTool?: string | null
   onToolChange?: (id: string | null) => void
   toolPanel?: ReactNode
+  /** Opens the healing brush (a Pro dial after Grain) when given. */
+  onRetouch?: () => void
 }
 
 export interface PanelTool {
@@ -174,7 +176,7 @@ export interface PanelTool {
  * stays short and the photo keeps the screen. Tapping the number puts that
  * one back to 0; Reset clears the photo's whole edit (its Retro style stays).
  */
-export function AdjustmentsPanel({ value, onChange, header, tools, activeTool = null, onToolChange, toolPanel }: AdjustmentsPanelProps) {
+export function AdjustmentsPanel({ value, onChange, header, tools, activeTool = null, onToolChange, toolPanel, onRetouch }: AdjustmentsPanelProps) {
   const tr = useTranslation()
   const isPro = useProStore((s) => s.isPro)
   const openPaywall = useProStore((s) => s.openPaywall)
@@ -207,6 +209,17 @@ export function AdjustmentsPanel({ value, onChange, header, tools, activeTool = 
           }}
         />
       ))}
+      {onRetouch && (
+        <Dial
+          icon={<IconHeal className="h-[18px] w-[18px]" />}
+          value={0}
+          active={false}
+          proBadge
+          locked={!isPro}
+          label={tr.tools.retouch}
+          onClick={() => (isPro ? onRetouch() : openPaywall('retouch'))}
+        />
+      )}
       {tools && tools.length > 0 && <span aria-hidden className="mx-1 my-2 w-px shrink-0 self-stretch bg-white/15" />}
       {tools?.map((t) => (
         <Dial

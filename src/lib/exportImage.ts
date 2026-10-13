@@ -9,6 +9,7 @@ import { drawGrainOverlay, seededRandom } from './grain'
 import { drawSharpened } from './sharpen'
 import { drawVignette, effectiveGrain, effectiveVignette, hasColourWork, type PhotoAdjustments } from './adjustments'
 import { isNativeApp } from './native'
+import { closeOverlays, decodeRetouch } from './retouch'
 import { readPhoto } from './photoSource'
 import { composeBands, resetNativeExports, shareFilesNatively, writeBand, writeExport } from './nativeSave'
 import type { ExportedImage } from './nativeSave'
@@ -53,6 +54,7 @@ async function drawPhotoInRect(
   const grainIntensity = effectiveGrain(adjustments)
   if (rectW <= 0 || rectH <= 0) return
   const bitmap = await createImageBitmap(await readPhoto(photo.file), { imageOrientation: 'from-image' })
+  const overlays = await decodeRetouch(photo)
   try {
     ctx.save()
     ctx.translate(rectX + rectW / 2, rectY + rectH / 2)
@@ -81,9 +83,9 @@ async function drawPhotoInRect(
     const grainH = Math.max(0, Math.min(rectH, draw.y + draw.height) - grainY)
     const edited = hasColourWork(adjustments) ? adjustments : null
     if (sharpness > 0 || edited) {
-      drawSharpened(ctx, bitmap, draw, { x: grainX, y: grainY, width: grainW, height: grainH }, sharpness, transform, edited)
+      drawSharpened(ctx, bitmap, draw, { x: grainX, y: grainY, width: grainW, height: grainH }, sharpness, transform, edited, overlays)
     } else {
-      drawOrientedImage(ctx, bitmap, draw, transform)
+      drawOrientedImage(ctx, bitmap, draw, transform, overlays)
     }
     ctx.save()
     ctx.translate(grainX, grainY)
@@ -93,6 +95,7 @@ async function drawPhotoInRect(
     ctx.restore()
   } finally {
     bitmap.close()
+    closeOverlays(overlays)
   }
 }
 

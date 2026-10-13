@@ -36,6 +36,7 @@ import { ExportBackgroundToggle } from './ExportBackgroundToggle'
 import { getWorkspaceBackground } from '../../lib/workspaceBackgrounds'
 import { CompareButton } from './CompareButton'
 import { hasAdjustments } from '../../lib/adjustments'
+import { RetouchView } from './RetouchView'
 
 const PREVIEW_LONG_EDGE = 900
 // Reuses the app's own view-exit/view-enter pair (index.css) — the same
@@ -126,6 +127,8 @@ export function BorderEditor({ plain = false }: { plain?: boolean }) {
   // moment a photo lands — the bottom bar itself is gated on `photo` below,
   // so this has no effect until then.
   const [activeTool, setActiveTool] = useState<string | null>(plain ? null : 'aspecto')
+  /** The healing brush, open over the editor for the photo being edited. */
+  const [retouching, setRetouching] = useState(false)
   // Edit always fills the frame: there's no border to show a whole photo inside.
   const locked = plain || border.locked
   // Why the last selection was (partly) refused: too many, an unsupported
@@ -546,6 +549,7 @@ export function BorderEditor({ plain = false }: { plain?: boolean }) {
               value={border.adjustments[photo.id]}
               onChange={(a) => setBorderAdjustments(photo.id, a)}
               header={syncHeader}
+              onRetouch={() => setRetouching(true)}
             />
           )}
 
@@ -724,6 +728,7 @@ export function BorderEditor({ plain = false }: { plain?: boolean }) {
               activeTool={activeTool}
               onToolChange={setActiveTool}
               toolPanel={panelFor(activeTool)}
+              onRetouch={() => setRetouching(true)}
             />
           </div>
         ) : (
@@ -733,6 +738,8 @@ export function BorderEditor({ plain = false }: { plain?: boolean }) {
         )}
         </div>
       )}
+
+      {retouching && photo && <RetouchView photo={photo} onClose={() => setRetouching(false)} />}
 
       <ImportProgressModal open={!!importing} done={importing?.done ?? 0} total={importing?.total ?? 0} />
 

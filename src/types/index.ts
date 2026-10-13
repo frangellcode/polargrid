@@ -50,6 +50,26 @@ export interface LoadedPhoto {
   width: number
   height: number
   name: string
+  /** What the healing brush has rebuilt, if anything (see retouch.ts). */
+  retouch?: Retouch
+}
+
+/** One healed area: the rebuilt pixels at the photo's full resolution, with
+ *  a soft alpha edge, to lay over the original at (x, y). */
+export interface RetouchPatch {
+  x: number
+  y: number
+  width: number
+  height: number
+  image: Blob
+}
+
+/** The healing brush's work on a photo. The original file is never touched:
+ *  the patches are laid over it wherever it's drawn, and `basePreview` is the
+ *  preview as it was before any of them, so they can be undone. */
+export interface Retouch {
+  patches: RetouchPatch[]
+  basePreview: ImageBitmap
 }
 
 /** Pan/zoom transform of a photo inside its target cell/frame (cover-fit space) */

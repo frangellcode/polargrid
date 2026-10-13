@@ -1,4 +1,5 @@
 import { drawOrientedImage } from './cropMath'
+import type { ImageOverlays } from './cropMath'
 import { applyAdjustments, type PhotoAdjustments } from './adjustments'
 import type { PhotoTransform } from '../types'
 
@@ -140,6 +141,7 @@ export function drawSharpened(
   transform: PhotoTransform,
   /** The Edit sliders, applied before sharpening. Per pixel, so tiles can't seam. */
   adjustments?: PhotoAdjustments | null,
+  overlays?: ImageOverlays,
 ) {
   const m = ctx.getTransform()
   // Device-space box around the visible part, clamped to this canvas (a band).
@@ -165,7 +167,7 @@ export function drawSharpened(
   const scratch = document.createElement('canvas')
   const sctx = scratch.getContext('2d', { willReadFrequently: true })
   if (!sctx) {
-    drawOrientedImage(ctx, bitmap, draw, transform)
+    drawOrientedImage(ctx, bitmap, draw, transform, overlays)
     return
   }
   try {
@@ -185,7 +187,7 @@ export function drawSharpened(
         sctx.imageSmoothingEnabled = true
         sctx.imageSmoothingQuality = 'high'
         sctx.setTransform(m.a, m.b, m.c, m.d, m.e - (tx - margin), m.f - (ty - margin))
-        drawOrientedImage(sctx, bitmap, draw, transform)
+        drawOrientedImage(sctx, bitmap, draw, transform, overlays)
         const image = sctx.getImageData(0, 0, sw, sh)
         if (adjustments) applyAdjustments(image, adjustments)
         unsharpMask(image, radius, amount)

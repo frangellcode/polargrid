@@ -127,20 +127,35 @@ export function drawOrientedImage(
   source: CanvasImageSource,
   draw: { x: number; y: number; width: number; height: number },
   transform: PhotoTransform,
+  /** The healing brush's patches, laid over the photo in the same frame. */
+  overlays?: ImageOverlays,
 ) {
   const o = photoOrientation(transform)
-  if (o.identity) {
-    ctx.drawImage(source, draw.x, draw.y, draw.width, draw.height)
-    return
-  }
   const w = o.swapped ? draw.height : draw.width
   const h = o.swapped ? draw.width : draw.height
   ctx.save()
   ctx.translate(draw.x + draw.width / 2, draw.y + draw.height / 2)
-  ctx.rotate((o.degrees * Math.PI) / 180)
-  ctx.scale(o.scaleX, o.scaleY)
+  if (!o.identity) {
+    ctx.rotate((o.degrees * Math.PI) / 180)
+    ctx.scale(o.scaleX, o.scaleY)
+  }
   ctx.drawImage(source, -w / 2, -h / 2, w, h)
+  if (overlays) {
+    const sx = w / overlays.width
+    const sy = h / overlays.height
+    for (const item of overlays.items) {
+      ctx.drawImage(item.image, -w / 2 + item.x * sx, -h / 2 + item.y * sy, item.width * sx, item.height * sy)
+    }
+  }
   ctx.restore()
+}
+
+/** Images to lay over a photo, positioned in its own pixels (`width` ×
+ *  `height`, the photo's size) whatever size it's drawn at. */
+export interface ImageOverlays {
+  width: number
+  height: number
+  items: { image: CanvasImageSource; x: number; y: number; width: number; height: number }[]
 }
 
 /**
