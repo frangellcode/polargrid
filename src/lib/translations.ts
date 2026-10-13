@@ -4,7 +4,7 @@ export const translations = {
   en: {
     home: {
       tagline:
-        'White borders and collages for your artistic photos, in high quality and with no internet connection required.',
+        'White borders, editing and collages for your artistic photos, in high quality and with no internet connection required.',
       borderTitle: 'White border',
       borderDesc: 'Frame a photo with a white border',
       collageTitle: 'Collage',
@@ -88,7 +88,7 @@ export const translations = {
       slides: [
         {
           title: 'Welcome to PolarGrid',
-          body: 'White borders and collages for your photos, at full quality and without an internet connection. Swipe to see what you can do.',
+          body: 'White borders, editing and collages for your photos, at full quality and without an internet connection. Swipe to see what you can do.',
         },
         {
           title: 'White border',
@@ -99,8 +99,8 @@ export const translations = {
           body: 'Combine 2 to 9 photos in a template, or place them freely. Drag a photo to reframe it, hold it to move it to another cell, and tap it to replace or remove it.',
         },
         {
-          title: 'Edit each photo',
-          body: 'Exposure, contrast, highlights, shadows, temperature, vibrance and more — one dial each, right in the editor. Hold compare to see the original.',
+          title: 'Edit, with or without a border',
+          body: 'Open Edit to adjust a photo and export it as it is, or edit right inside White border and Collage. Exposure, contrast, shadows, temperature and more — one dial each. Hold compare to see the original.',
         },
         {
           title: 'Crisp, with real grain',
@@ -294,7 +294,7 @@ export const translations = {
   es: {
     home: {
       tagline:
-        'Bordes blancos y collages para tus fotos artísticas, en alta calidad y sin conexión a internet.',
+        'Bordes blancos, edición y collages para tus fotos artísticas, en alta calidad y sin conexión a internet.',
       borderTitle: 'Bordes blancos',
       borderDesc: 'Enmarca una foto con borde blanco',
       collageTitle: 'Collage',
@@ -372,7 +372,7 @@ export const translations = {
       slides: [
         {
           title: 'Bienvenido a PolarGrid',
-          body: 'Bordes blancos y collages para tus fotos, en máxima calidad y sin conexión a internet. Desliza para ver todo lo que puedes hacer.',
+          body: 'Bordes blancos, edición y collages para tus fotos, en máxima calidad y sin conexión a internet. Desliza para ver todo lo que puedes hacer.',
         },
         {
           title: 'Bordes blancos',
@@ -383,8 +383,8 @@ export const translations = {
           body: 'Combina de 2 a 9 fotos en una plantilla, o colócalas libremente. Arrastra una foto para encuadrarla, mantenla para moverla a otra celda y tócala para reemplazarla o quitarla.',
         },
         {
-          title: 'Edita cada foto',
-          body: 'Exposición, contraste, altas luces, sombras, temperatura, intensidad y más — una bolita para cada uno, dentro del editor. Mantén presionado comparar para ver la original.',
+          title: 'Edita, con o sin borde',
+          body: 'Abre Edición para ajustar una foto y exportarla tal cual, o edita dentro de Bordes blancos y Collage. Exposición, contraste, sombras, temperatura y más — una bolita para cada uno. Mantén presionado comparar para ver la original.',
         },
         {
           title: 'Nítida y con grano de verdad',

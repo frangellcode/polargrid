@@ -76,7 +76,8 @@ export function BorderEditor({ plain = false }: { plain?: boolean }) {
     { id: 'rotate', label: tr.borderEditor.toolRotate, icon: <IconRotate /> },
     { id: 'workspace', label: tr.tools.workspace, icon: <IconDrop />, proInside: !plain },
     ...(plain ? [] : [{ id: 'bordes', label: tr.borderEditor.toolBorder, icon: <IconFrame />, proInside: true }]),
-    { id: 'edit', label: tr.tools.edit, icon: <IconSliders />, proInside: true },
+    // Edit's own screen keeps the dials out as its main panel, so no button.
+    ...(plain ? [] : [{ id: 'edit', label: tr.tools.edit, icon: <IconSliders />, proInside: true }]),
     { id: 'retro', label: tr.tools.retro, icon: <IconRetro />, pro: 'retro' },
   ]
   const {
@@ -117,7 +118,11 @@ export function BorderEditor({ plain = false }: { plain?: boolean }) {
   // Starts on 'aspecto' so the panel opens with Aspect already selected the
   // moment a photo lands — the bottom bar itself is gated on `photo` below,
   // so this has no effect until then.
-  const [activeTool, setActiveTool] = useState<string | null>('aspecto')
+  const [activeTool, setActiveTool] = useState<string | null>(plain ? null : 'aspecto')
+  // In Edit, the dials are what shows whenever no other tool is open.
+  const shownTool = plain ? (activeTool ?? 'edit') : activeTool
+  // Edit always fills the frame: there's no border to show a whole photo inside.
+  const locked = plain || border.locked
   // Why the last selection was (partly) refused: too many, an unsupported
   // format, or a file over the size ceiling. One slot, since a person fixes one
   // reason at a time and stacking three banners over the canvas helps nobody.
@@ -324,7 +329,7 @@ export function BorderEditor({ plain = false }: { plain?: boolean }) {
   // Animates the cover<->contain blend itself (not just a CSS transition on the
   // toggle) so the photo's crop eases smoothly instead of snapping when Locked/
   // Unlocked is switched.
-  const fitMix = useAnimatedNumber(border.locked ? 0 : 1)
+  const fitMix = useAnimatedNumber(locked ? 0 : 1)
 
   const thicknessPct = plain ? 0 : border.borderThicknessPct
   const borderPx = thicknessPct * shortSide
@@ -419,7 +424,7 @@ export function BorderEditor({ plain = false }: { plain?: boolean }) {
       thicknessPct,
       border.transform,
       guard.quality(quality),
-      border.locked,
+      locked,
       guard.borderHex(borderColorHex),
       (p) => guard.adjustments(border.adjustments[p.id] ?? null),
       guard.storyHex(!plain && border.exportWithBackground ? getWorkspaceBackground(workspaceBackground).hex : null),
@@ -622,8 +627,8 @@ export function BorderEditor({ plain = false }: { plain?: boolean }) {
           // canvas (flex-1 min-h-0) is what should absorb the pressure.
           className={`shrink-0 ${swapPhase === 'exiting' ? 'view-exit' : swapPhase === 'mounting' ? 'opacity-0' : swapPhase === 'entering' ? 'view-enter' : ''}`}
         >
-        <EditorBottomBar tools={TOOLS} activeId={activeTool} onSelect={setActiveTool}>
-          {activeTool === 'aspecto' && (
+        <EditorBottomBar tools={TOOLS} activeId={shownTool} onSelect={setActiveTool}>
+          {shownTool === 'aspecto' && (
             <div>
               <p className="font-label mb-2 text-center text-xs font-semibold uppercase tracking-wider text-white/40">{tr.borderEditor.cropHeading}</p>
               <AspectRatioPicker
@@ -632,18 +637,20 @@ export function BorderEditor({ plain = false }: { plain?: boolean }) {
                 orientation={border.ratioOrientation}
                 onOrientationChange={setBorderRatioOrientation}
                 extra={
-                  <SegmentedToggle
-                    options={[
-                      { value: true, label: tr.borderEditor.locked },
-                      { value: false, label: tr.borderEditor.unlocked },
-                    ]}
-                    value={border.locked}
-                    onChange={setBorderLocked}
-                  />
+                  plain ? undefined : (
+                    <SegmentedToggle
+                      options={[
+                        { value: true, label: tr.borderEditor.locked },
+                        { value: false, label: tr.borderEditor.unlocked },
+                      ]}
+                      value={border.locked}
+                      onChange={setBorderLocked}
+                    />
+                  )
                 }
               />
               <div className="flex flex-col items-center">
-                {!border.locked && (
+                {!locked && (
                   <p className="fade-in font-label mt-2 max-w-[220px] text-center text-[11px] text-white/40">
                     {tr.borderEditor.unlockedHint}
                   </p>
@@ -654,7 +661,7 @@ export function BorderEditor({ plain = false }: { plain?: boolean }) {
 
           {/* Thickness and colour together: a "Color" tool of its own read as
               the photo's colour, not the border's. */}
-          {activeTool === 'bordes' && (
+          {shownTool === 'bordes' && (
             <div className="flex flex-col gap-4">
               <BorderThicknessSlider
                 label={tr.borderEditor.borderThickness}
@@ -665,7 +672,7 @@ export function BorderEditor({ plain = false }: { plain?: boolean }) {
             </div>
           )}
 
-          {activeTool === 'edit' && (
+          {shownTool === 'edit' && (
             <AdjustmentsPanel
               value={border.adjustments[photo.id]}
               onChange={(a) => setBorderAdjustments(photo.id, a)}
@@ -673,7 +680,7 @@ export function BorderEditor({ plain = false }: { plain?: boolean }) {
             />
           )}
 
-          {activeTool === 'retro' && (
+          {shownTool === 'retro' && (
             <RetroPanel
               photo={photo}
               value={border.adjustments[photo.id]}
@@ -682,9 +689,9 @@ export function BorderEditor({ plain = false }: { plain?: boolean }) {
             />
           )}
 
-          {activeTool === 'rotate' && <RotateControls transform={border.transform} onChange={setBorderTransform} />}
+          {shownTool === 'rotate' && <RotateControls transform={border.transform} onChange={setBorderTransform} />}
 
-          {activeTool === 'workspace' && (
+          {shownTool === 'workspace' && (
             <div className="flex flex-col gap-4">
               <WorkspaceBackgroundPicker value={workspaceBackground} onChange={setWorkspaceBackground} />
               {!plain && (
