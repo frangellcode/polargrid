@@ -26,8 +26,8 @@ function Print({ name, className = '', style, pad = '5%' }: { name: string; clas
 /** Logo over a fan of prints that drift gently. */
 function WelcomeArt() {
   const prints = [
-    { name: 'island', rotate: -14, x: '-58%', delay: '0s' },
-    { name: 'cliff', rotate: 13, x: '58%', delay: '-1.6s' },
+    { name: 'boat', rotate: -14, x: '-58%', delay: '0s' },
+    { name: 'sandbar', rotate: 13, x: '58%', delay: '-1.6s' },
     { name: 'resort', rotate: -2, x: '0%', delay: '-0.8s' },
   ]
   return (
@@ -68,24 +68,18 @@ function BorderArt() {
   )
 }
 
-/** A template collage of real event photos, cells easing into place. */
+/** A tall template collage of real event photos, cells easing into place. */
 function CollageArt() {
-  const cell = 'tour-pop overflow-hidden'
+  // One big cell top-left, two beside it, then two rows of three.
+  const cells = ['col-span-2 row-span-2', '', '', '', '', '', '', '', '']
   return (
     <div className="flex h-full w-full items-center justify-center">
-      <div className="grid aspect-[4/5] w-[66%] grid-cols-2 grid-rows-3 gap-[2.5%] bg-white p-[2.5%] shadow-2xl shadow-black/50">
-        <div className={`${cell} row-span-2`} style={{ animationDelay: '0s' }}>
-          <Img name="decor-hall" />
-        </div>
-        <div className={cell} style={{ animationDelay: '0.12s' }}>
-          <Img name="decor-lamps" />
-        </div>
-        <div className={cell} style={{ animationDelay: '0.24s' }}>
-          <Img name="bay" />
-        </div>
-        <div className={`${cell} col-span-2`} style={{ animationDelay: '0.36s' }}>
-          <Img name="sandbar" />
-        </div>
+      <div className="grid aspect-[9/16] h-[92%] grid-cols-3 grid-rows-4 gap-[1%] bg-white p-[1%] shadow-2xl shadow-black/50">
+        {cells.map((span, i) => (
+          <div key={i} className={`tour-pop overflow-hidden ${span}`} style={{ animationDelay: `${i * 0.08}s` }}>
+            <Img name={`collage-${i + 1}`} />
+          </div>
+        ))}
       </div>
     </div>
   )
@@ -160,7 +154,7 @@ function DetailArt() {
 /** The same photo in three Retro styles, fanned out like prints on a table. */
 function RetroArt() {
   const looks = [
-    { name: 'retro-atardecer', rotate: -12, x: '-62%' },
+    { name: 'retro-vivido', rotate: -12, x: '-62%' },
     { name: 'retro-cruzado', rotate: 12, x: '62%' },
     { name: 'retro-plata', rotate: 0, x: '0%' },
   ]
@@ -197,7 +191,7 @@ function StoryArt() {
               className={`flex aspect-[9/16] w-full items-center justify-center rounded-lg ${withBg ? 'shadow-2xl shadow-black/50 ring-1 ring-white/10' : ''}`}
               style={withBg ? { backgroundColor: SKY } : undefined}
             >
-              <Print name="island" pad="4%" className="aspect-[4/5] w-[91%]" />
+              <Print name="sandbar" pad="4%" className="aspect-[4/5] w-[91%]" />
             </div>
             <span
               className={`font-label rounded-full px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide ${
@@ -227,7 +221,7 @@ function ExportArt() {
   const tr = useTranslation()
   return (
     <div className="flex h-full w-full flex-col items-center justify-center gap-5">
-      <Print name="bay" className="aspect-[4/5] w-[58%]" />
+      <Print name="boat" className="aspect-[4/5] w-[58%]" />
       <div className="flex gap-1.5">
         {[tr.quality.native.label, tr.quality.high.label, tr.quality.web.label].map((q, i) => (
           <span

@@ -179,10 +179,10 @@ textarea {
 @keyframes tour-breathe {
   0%,
   100% {
-    padding: 7%;
+    padding: 2.5%;
   }
   50% {
-    padding: 12%;
+    padding: 6.5%;
   }
 }
 

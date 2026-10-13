@@ -77,7 +77,12 @@ async function run(scene: (typeof SCENES)[number]) {
   if (scene === 'layouts') {
     (await waitFor(() => homeButton('Collage'))).click()
     await sleep(900)
-    await upload(['decorA0', 'bay', 'decorA1', 'resort', 'decorA3', 'sandbar'], true)
+    // The event collage from the welcome tour: the big ceiling shot, the
+    // cake, the tent, the table and the buffet, laid out tall.
+    await upload(['wedding1', 'wedding2', 'wedding3', 'wedding6', 'wedding9', 'wedding4', 'wedding5', 'wedding7', 'wedding8'], true)
+    editor().setCollageTemplateId('grid-9-big')
+    editor().setCollageAspectRatio('9-16')
+    editor().setCollageOrientation('vertical')
     await tool('Template')
     return
   }
@@ -86,14 +91,14 @@ async function run(scene: (typeof SCENES)[number]) {
   await sleep(900)
 
   if (scene === 'batch') {
-    await upload(['resort', 'island', 'cliff', 'bay'], true)
+    await upload(['resort', 'boat', 'sandbar', 'island'], true)
     await tool('4:5')
     return
   }
 
-  await upload([{ border: 'resort', edit: 'island', retro: 'cliff', story: 'island' }[scene] ?? 'resort'], false)
-  // The tall resort photo reads best framed 4:5 rather than as-shot.
-  if (scene === 'border') await tool('4:5')
+  await upload([{ border: 'resort', edit: 'boat', retro: 'bay', story: 'sandbar' }[scene] ?? 'resort'], false)
+  // The tall photos read best framed 4:5 rather than as-shot.
+  if (scene === 'border' || scene === 'story' || scene === 'retro') await tool('4:5')
 
   if (scene === 'edit') {
     const id = editor().border.photoId!
@@ -121,7 +126,8 @@ async function run(scene: (typeof SCENES)[number]) {
 
   if (scene === 'retro') {
     await tool('Retro')
-    await tool('Sunset')
+    await tool('Silver 400')
+    button('Silver 400')?.scrollIntoView({ inline: 'center' })
     setRange('Intensity', 0.9)
     return
   }
