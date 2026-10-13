@@ -68,9 +68,9 @@ export function BorderEditor() {
   const TOOLS: BottomBarTool[] = [
     { id: 'aspecto', label: tr.borderEditor.toolAspect, icon: <IconCrop /> },
     { id: 'rotate', label: tr.borderEditor.toolRotate, icon: <IconRotate /> },
-    { id: 'workspace', label: tr.tools.workspace, icon: <IconDrop /> },
-    { id: 'bordes', label: tr.borderEditor.toolBorder, icon: <IconFrame /> },
-    { id: 'edit', label: tr.tools.edit, icon: <IconSliders /> },
+    { id: 'workspace', label: tr.tools.workspace, icon: <IconDrop />, proInside: true },
+    { id: 'bordes', label: tr.borderEditor.toolBorder, icon: <IconFrame />, proInside: true },
+    { id: 'edit', label: tr.tools.edit, icon: <IconSliders />, proInside: true },
     { id: 'retro', label: tr.tools.retro, icon: <IconRetro />, pro: 'retro' },
   ]
   const {

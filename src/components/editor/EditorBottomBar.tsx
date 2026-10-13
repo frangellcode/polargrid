@@ -11,6 +11,9 @@ export interface BottomBarTool {
   /** A PolarGrid Pro tool: without Pro its button wears a lock and opens the
    *  paywall on this feature's example instead of the panel. */
   pro?: ProFeature
+  /** Free to open, with some Pro options inside (Border's colours, Edit's
+   *  grain): without Pro its button wears a small dot instead of a lock. */
+  proInside?: boolean
 }
 
 interface EditorBottomBarProps {
@@ -110,6 +113,15 @@ export function EditorBottomBar({ tools, activeId, onSelect, children }: EditorB
                 }`}
               >
                 {tool.icon}
+                {tool.proInside && (
+                  // Same fade as the lock: gone once Pro is unlocked.
+                  <span
+                    aria-hidden
+                    className={`absolute right-0 top-0 h-2.5 w-2.5 rounded-full bg-amber-300 shadow ring-2 ring-ink-900 transition duration-300 ease-out ${
+                      isPro ? 'scale-50 opacity-0' : 'scale-100 opacity-100'
+                    }`}
+                  />
+                )}
                 {tool.pro !== undefined && (
                   // Always mounted and faded, so it melts away when Pro unlocks.
                   <span
