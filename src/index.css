@@ -218,10 +218,86 @@ textarea {
   animation: tour-divider 3.6s ease-in-out infinite;
 }
 
+/* Prints drifting up and down a few pixels, out of step with each other. */
+@keyframes tour-float {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-8px);
+  }
+}
+
+.tour-float {
+  animation: tour-float 4.2s ease-in-out infinite;
+}
+
+/* Collage cells settling into place, then holding. */
+@keyframes tour-pop {
+  0% {
+    opacity: 0;
+    transform: scale(0.85);
+  }
+  12%,
+  88% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+}
+
+.tour-pop {
+  animation: tour-pop 4.8s cubic-bezier(0.22, 1, 0.36, 1) infinite both;
+}
+
+/* Edit dials filling in, like the real ones as a slider moves. */
+@keyframes tour-dial {
+  0% {
+    stroke-dashoffset: 94.2;
+  }
+  45%,
+  100% {
+    stroke-dashoffset: 0;
+  }
+}
+
+.tour-dial {
+  animation: tour-dial 3.6s ease-out infinite;
+}
+
+/* The 9:16 background cycling through the workspace colours. */
+@keyframes tour-story {
+  0%,
+  100% {
+    background-color: #a7b2bd;
+  }
+  25% {
+    background-color: #d8cbb8;
+  }
+  50% {
+    background-color: #c9a08c;
+  }
+  75% {
+    background-color: #1c1c1e;
+  }
+}
+
+.tour-story {
+  animation: tour-story 8s ease-in-out infinite;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .tour-breathe,
   .tour-split,
-  .tour-divider {
+  .tour-divider,
+  .tour-float,
+  .tour-pop,
+  .tour-dial,
+  .tour-story {
     animation: none;
   }
 }

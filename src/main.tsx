@@ -25,6 +25,9 @@ console.log(`[PolarGrid] build marker: deploy-test-5, built ${new Date().toISOSt
 if (!isNativeApp) initServiceWorkerUpdates()
 useProStore.getState().init()
 
+// Store screenshots only (VITE_SHOTS=1); dropped from every other build.
+if (import.meta.env.VITE_SHOTS === '1') void import('./lib/shots').then((m) => m.startShots())
+
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <App />

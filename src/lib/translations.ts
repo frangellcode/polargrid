@@ -95,7 +95,11 @@ export const translations = {
         },
         {
           title: 'Edit each photo',
-          body: 'Exposure, contrast, highlights, shadows, temperature, grain, sharpness and more — right in the editor. Hold the compare button to see the original.',
+          body: 'Exposure, contrast, highlights, shadows, temperature, vibrance and more — one dial each, right in the editor. Hold compare to see the original.',
+        },
+        {
+          title: 'Crisp, with real grain',
+          body: 'Sharpness that brings out every detail and film grain that looks like the real thing — at full resolution, on any photo.',
         },
         {
           title: 'Retro styles',
@@ -103,7 +107,7 @@ export const translations = {
         },
         {
           title: 'Export at full quality',
-          body: 'Save at your camera’s native resolution, or lighter for sharing. With Pro: maximum quality, Edit, Retro, any border colour and batches of up to 15.',
+          body: 'Save at your camera’s native resolution, or lighter for sharing. With Pro: maximum quality, Edit, Retro, any border colour, a 9:16 background for Stories and batches of up to 15.',
         },
       ],
     },
@@ -367,7 +371,11 @@ export const translations = {
         },
         {
           title: 'Edita cada foto',
-          body: 'Exposición, contraste, altas luces, sombras, temperatura, grano, nitidez y más — dentro del editor. Mantén presionado el botón de comparar para ver la original.',
+          body: 'Exposición, contraste, altas luces, sombras, temperatura, intensidad y más — una bolita para cada uno, dentro del editor. Mantén presionado comparar para ver la original.',
+        },
+        {
+          title: 'Nítida y con grano de verdad',
+          body: 'Nitidez que saca cada detalle y grano de película que se ve real — en resolución completa, en cualquier foto.',
         },
         {
           title: 'Estilos Retro',
@@ -375,7 +383,7 @@ export const translations = {
         },
         {
           title: 'Exporta en máxima calidad',
-          body: 'Guarda a la resolución nativa de tu cámara, o más liviano para compartir. Con Pro: calidad máxima, Editar, Retro, cualquier color de borde y lotes de hasta 15.',
+          body: 'Guarda a la resolución nativa de tu cámara, o más liviano para compartir. Con Pro: calidad máxima, Editar, Retro, cualquier color de borde, fondo 9:16 para Historias y lotes de hasta 15.',
         },
       ],
     },
