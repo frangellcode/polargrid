@@ -183,23 +183,30 @@ function RetroArt() {
 /** Sky blue — the "Cielo" workspace background the Stories cards show. */
 const SKY = '#9ccbea'
 
-/** The Fondo panel in miniature: the photo on the sky-blue workspace, the
- *  colour picked, and "Export with this background" switching on. */
-function StoryToggleArt() {
+/** Stories in one card: the same bordered photo without the background and
+ *  with it (centred on the 9:16 sky-blue canvas it exports onto), over
+ *  "Export with this background" switching on. */
+function StoryArt() {
   const tr = useTranslation()
-  const swatches = ['#1c1c1e', '#c9c6c0', '#d8cbb8', '#a7b2bd', SKY, '#c9a08c', '#ffffff']
   return (
-    <div className="flex h-full w-full flex-col items-center justify-center gap-3">
-      <div className="flex aspect-[4/5] w-[62%] items-center justify-center rounded-xl shadow-2xl shadow-black/40" style={{ backgroundColor: SKY }}>
-        <Print name="garden" className="aspect-[4/5] w-[72%]" />
-      </div>
-      <div className="flex gap-1.5">
-        {swatches.map((c) => (
-          <span
-            key={c}
-            className={`h-5 w-5 rounded-full border border-black/10 ${c === SKY ? 'ring-2 ring-white ring-offset-2 ring-offset-ink-900' : ''}`}
-            style={{ backgroundColor: c }}
-          />
+    <div className="flex h-full w-full flex-col items-center justify-center gap-4">
+      <div className="flex w-full items-start justify-center gap-4">
+        {[false, true].map((withBg) => (
+          <div key={String(withBg)} className="flex w-[36%] flex-col items-center gap-2">
+            <div
+              className={`flex aspect-[9/16] w-full items-center justify-center rounded-lg ${withBg ? 'shadow-2xl shadow-black/50 ring-1 ring-white/10' : ''}`}
+              style={withBg ? { backgroundColor: SKY } : undefined}
+            >
+              <Print name="garden" pad="4%" className="aspect-[4/5] w-[91%]" />
+            </div>
+            <span
+              className={`font-label rounded-full px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide ${
+                withBg ? 'bg-white text-ink-900' : 'bg-white/10 text-white/70'
+              }`}
+            >
+              {withBg ? tr.tour.withBackground : tr.tour.withoutBackground}
+            </span>
+          </div>
         ))}
       </div>
       <div className="flex w-[78%] items-center justify-between gap-3 rounded-xl bg-white/5 px-3 py-2">
@@ -209,35 +216,6 @@ function StoryToggleArt() {
         </span>
         <span className="tour-switch relative h-5 w-9 shrink-0 rounded-full">
           <span className="tour-knob absolute top-0.5 h-4 w-4 rounded-full shadow" />
-        </span>
-      </div>
-    </div>
-  )
-}
-
-/** Without the background against with it: the same bordered photo on its
- *  own, then centred on the 9:16 sky-blue canvas it exports onto. */
-function StoryResultArt() {
-  const tr = useTranslation()
-  return (
-    <div className="flex h-full w-full items-center justify-center gap-4">
-      <div className="flex w-[42%] flex-col items-center gap-2">
-        <div className="flex aspect-[9/16] w-full items-center justify-center">
-          <Print name="garden" pad="4%" className="aspect-[4/5] w-[91%]" />
-        </div>
-        <span className="font-label rounded-full bg-white/10 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide text-white/70">
-          {tr.tour.withoutBackground}
-        </span>
-      </div>
-      <div className="flex w-[42%] flex-col items-center gap-2">
-        <div
-          className="flex aspect-[9/16] w-full items-center justify-center rounded-lg shadow-2xl shadow-black/50 ring-1 ring-white/10"
-          style={{ backgroundColor: SKY }}
-        >
-          <Print name="garden" pad="4%" className="aspect-[4/5] w-[91%]" />
-        </div>
-        <span className="font-label rounded-full bg-white px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide text-ink-900">
-          {tr.tour.withBackground}
         </span>
       </div>
     </div>
@@ -274,8 +252,7 @@ const ART: ReactNode[] = [
   <EditArt key="e" />,
   <DetailArt key="d" />,
   <RetroArt key="r" />,
-  <StoryToggleArt key="st" />,
-  <StoryResultArt key="sr" />,
+  <StoryArt key="s" />,
   <ExportArt key="x" />,
 ]
 

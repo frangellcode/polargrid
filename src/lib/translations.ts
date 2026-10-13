@@ -110,11 +110,7 @@ export const translations = {
         },
         {
           title: 'Ready for Stories',
-          body: 'Pick a background colour and turn on “Export with this background”: your photo comes out vertical 9:16, ready for Stories and Reels.',
-        },
-        {
-          title: 'Here’s how it looks',
-          body: 'The same photo without the background and with it: centred on the colour you picked, nothing cropped, at full quality.',
+          body: 'Pick a background colour and turn on “Export with this background”: your photo comes out vertical 9:16, centred on that colour, nothing cropped.',
         },
         {
           title: 'Export at full quality',
@@ -398,11 +394,7 @@ export const translations = {
         },
         {
           title: 'Listo para Historias',
-          body: 'Elige un color de fondo y activa «Exportar con este fondo»: tu foto sale en vertical 9:16, lista para Historias y Reels.',
-        },
-        {
-          title: 'Así queda',
-          body: 'La misma foto sin fondo y con fondo: centrada sobre el color que elegiste, sin recortes y en máxima calidad.',
+          body: 'Elige un color de fondo y activa «Exportar con este fondo»: tu foto sale en vertical 9:16, centrada sobre ese color y sin recortes.',
         },
         {
           title: 'Exporta en máxima calidad',
