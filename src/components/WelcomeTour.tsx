@@ -26,9 +26,9 @@ function Print({ name, className = '', style, pad = '5%' }: { name: string; clas
 /** Logo over a fan of prints that drift gently. */
 function WelcomeArt() {
   const prints = [
-    { name: 'evening', rotate: -14, x: '-58%', delay: '0s' },
-    { name: 'decor-hall', rotate: 13, x: '58%', delay: '-1.6s' },
-    { name: 'garden', rotate: -2, x: '0%', delay: '-0.8s' },
+    { name: 'island', rotate: -14, x: '-58%', delay: '0s' },
+    { name: 'cliff', rotate: 13, x: '58%', delay: '-1.6s' },
+    { name: 'resort', rotate: -2, x: '0%', delay: '-0.8s' },
   ]
   return (
     <div className="relative flex h-full w-full items-center justify-center">
@@ -51,7 +51,7 @@ function BorderArt() {
     <div className="flex h-full w-full flex-col items-center justify-center gap-4">
       <div className="tour-breathe aspect-[4/5] w-[62%] bg-white shadow-2xl shadow-black/50">
         <div className="h-full w-full overflow-hidden">
-          <Img name="garden" />
+          <Img name="resort" />
         </div>
       </div>
       <div className="flex gap-1.5">
@@ -81,10 +81,10 @@ function CollageArt() {
           <Img name="decor-lamps" />
         </div>
         <div className={cell} style={{ animationDelay: '0.24s' }}>
-          <Img name="decor-fountain" />
+          <Img name="bay" />
         </div>
         <div className={`${cell} col-span-2`} style={{ animationDelay: '0.36s' }}>
-          <Img name="decor-table" />
+          <Img name="sandbar" />
         </div>
       </div>
     </div>
@@ -160,7 +160,7 @@ function DetailArt() {
 /** The same photo in three Retro styles, fanned out like prints on a table. */
 function RetroArt() {
   const looks = [
-    { name: 'retro-retrato', rotate: -12, x: '-62%' },
+    { name: 'retro-atardecer', rotate: -12, x: '-62%' },
     { name: 'retro-cruzado', rotate: 12, x: '62%' },
     { name: 'retro-plata', rotate: 0, x: '0%' },
   ]
@@ -197,7 +197,7 @@ function StoryArt() {
               className={`flex aspect-[9/16] w-full items-center justify-center rounded-lg ${withBg ? 'shadow-2xl shadow-black/50 ring-1 ring-white/10' : ''}`}
               style={withBg ? { backgroundColor: SKY } : undefined}
             >
-              <Print name="garden" pad="4%" className="aspect-[4/5] w-[91%]" />
+              <Print name="island" pad="4%" className="aspect-[4/5] w-[91%]" />
             </div>
             <span
               className={`font-label rounded-full px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide ${
@@ -227,7 +227,7 @@ function ExportArt() {
   const tr = useTranslation()
   return (
     <div className="flex h-full w-full flex-col items-center justify-center gap-5">
-      <Print name="evening" className="aspect-[4/5] w-[58%]" />
+      <Print name="bay" className="aspect-[4/5] w-[58%]" />
       <div className="flex gap-1.5">
         {[tr.quality.native.label, tr.quality.high.label, tr.quality.web.label].map((q, i) => (
           <span

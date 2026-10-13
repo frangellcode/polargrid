@@ -51,38 +51,53 @@ BORDER = 0.04
 
 
 def story_export(photo: Image.Image, width: int) -> Image.Image:
-    """What "Export with this background" makes: the photo cropped 4:5 in a
-    white border, centred on a 9:16 sky-blue canvas with a margin all round —
-    the same geometry as exportImage.ts."""
+    """What "Export with this background" makes from a photo shown as-shot
+    ("Original" aspect): the photo in a white border, centred on a 9:16
+    sky-blue canvas with a margin all round — the same geometry as
+    exportImage.ts."""
     height = round(width * 16 / 9)
     canvas = Image.new('RGB', (width, height), SKY)
-    framed_w = round(width * (1 - 2 * STORY_MARGIN))
-    framed_h = round(framed_w * 5 / 4)
-    border = round(BORDER * framed_w)
-    inner = (framed_w - 2 * border, framed_h - 2 * border)
     src = photo.convert('RGB')
-    scale = max(inner[0] / src.width, inner[1] / src.height)
-    src = src.resize((round(src.width * scale), round(src.height * scale)), Image.LANCZOS)
-    left, top = (src.width - inner[0]) // 2, (src.height - inner[1]) // 2
-    src = src.crop((left, top, left + inner[0], top + inner[1]))
-    framed = Image.new('RGB', (framed_w, framed_h), (255, 255, 255))
-    framed.paste(src, (border, border))
-    canvas.paste(framed, ((width - framed_w) // 2, (height - framed_h) // 2))
+    # The framed photo spans the width less the margin, or the height less
+    # the same margin, whichever is tighter.
+    margin = round(width * STORY_MARGIN)
+    box_w, box_h = width - 2 * margin, height - 2 * margin
+    aspect = src.width / src.height
+    border_share = BORDER  # of the framed photo's short side
+    # Framed size for a given inner photo width.
+    def framed(inner_w: float) -> tuple[float, float]:
+        inner_h = inner_w / aspect
+        b = border_share * min(inner_w, inner_h) / (1 - 2 * border_share)
+        return inner_w + 2 * b, inner_h + 2 * b
+    lo, hi = 1.0, float(box_w)
+    for _ in range(40):
+        mid = (lo + hi) / 2
+        fw, fh = framed(mid)
+        if fw <= box_w and fh <= box_h:
+            lo = mid
+        else:
+            hi = mid
+    inner_w = round(lo)
+    inner_h = round(inner_w / aspect)
+    fw, fh = (round(v) for v in framed(inner_w))
+    framed_img = Image.new('RGB', (fw, fh), (255, 255, 255))
+    framed_img.paste(src.resize((inner_w, inner_h), Image.LANCZOS), ((fw - inner_w) // 2, (fh - inner_h) // 2))
+    canvas.paste(framed_img, ((width - fw) // 2, (height - fh) // 2))
     return canvas
 
 
 def story_screen(spec: dict, photo: Image.Image, img_height: int) -> Image.Image:
-    """The finished Story as it looks opened on the device: full width, on black."""
+    """The finished Story as it looks opened on the device: as large as fits
+    the full screen, centred, on black."""
     left, top, right, bottom = spec['screen']
     w = right - left
     h = (bottom or img_height) - top
-    screen = Image.new('RGB', (w, h), (0, 0, 0))
-    story = story_export(photo, w)
-    # Centred in the device's full screen height, not just the visible part.
     full_h = round(w * (2622 / 1206 if bottom is None else 2752 / 2064))
-    y = max(0, (full_h - story.height) // 2)
-    screen.paste(story, (0, y))
-    return screen
+    story_w = min(w, round(full_h * 9 / 16))
+    story = story_export(photo, story_w)
+    screen = Image.new('RGB', (w, max(h, full_h)), (0, 0, 0))
+    screen.paste(story, ((w - story.width) // 2, max(0, (full_h - story.height) // 2)))
+    return screen.crop((0, 0, w, h))
 
 
 def font(size: int, weight: str) -> ImageFont.FreeTypeFont:

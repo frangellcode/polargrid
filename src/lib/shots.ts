@@ -77,7 +77,7 @@ async function run(scene: (typeof SCENES)[number]) {
   if (scene === 'layouts') {
     (await waitFor(() => homeButton('Collage'))).click()
     await sleep(900)
-    await upload(['decorA0', 'decorA1', 'decorA2', 'decorA3', 'decorA4', 'decorA5'], true)
+    await upload(['decorA0', 'bay', 'decorA1', 'resort', 'decorA3', 'sandbar'], true)
     await tool('Template')
     return
   }
@@ -86,11 +86,14 @@ async function run(scene: (typeof SCENES)[number]) {
   await sleep(900)
 
   if (scene === 'batch') {
-    await upload(['garden2', 'garden', 'evening', 'decorB0'], true)
+    await upload(['resort', 'island', 'cliff', 'bay'], true)
+    await tool('4:5')
     return
   }
 
-  await upload([scene === 'retro' ? 'garden2' : scene === 'border' || scene === 'story' ? 'garden' : 'evening'], false)
+  await upload([{ border: 'resort', edit: 'island', retro: 'cliff', story: 'island' }[scene] ?? 'resort'], false)
+  // The tall resort photo reads best framed 4:5 rather than as-shot.
+  if (scene === 'border') await tool('4:5')
 
   if (scene === 'edit') {
     const id = editor().border.photoId!
@@ -118,7 +121,7 @@ async function run(scene: (typeof SCENES)[number]) {
 
   if (scene === 'retro') {
     await tool('Retro')
-    await tool('Silver 400')
+    await tool('Sunset')
     setRange('Intensity', 0.9)
     return
   }
