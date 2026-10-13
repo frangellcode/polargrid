@@ -18,6 +18,7 @@ export const WORKSPACE_BACKGROUNDS: WorkspaceBackgroundOption[] = [
   { id: 'pearl', label: 'Pearl', hex: '#c9c6c0' },
   { id: 'beige', label: 'Beige', hex: '#d8cbb8' },
   { id: 'mist', label: 'Mist', hex: '#a7b2bd' },
+  { id: 'sky', label: 'Sky', hex: '#9ccbea' },
   { id: 'terracotta', label: 'Terracotta', hex: '#c9a08c' },
   { id: 'white', label: 'White', hex: '#ffffff' },
 ]

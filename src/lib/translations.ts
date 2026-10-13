@@ -106,6 +106,14 @@ export const translations = {
           body: 'Our own film looks — warm portrait film, soft pastels, grainy black and white — previewed on your photo, at the strength you choose.',
         },
         {
+          title: 'Ready for Stories',
+          body: 'Pick a background colour and turn on “Export with this background”: your photo comes out vertical 9:16, ready for Stories and Reels.',
+        },
+        {
+          title: 'Here’s how it looks',
+          body: 'Your photo and its border, centred on the background — nothing cropped, at full quality.',
+        },
+        {
           title: 'Export at full quality',
           body: 'Save at your camera’s native resolution, or lighter for sharing. With Pro: maximum quality, Edit, Retro, any border colour, a 9:16 background for Stories and batches of up to 15.',
         },
@@ -279,6 +287,7 @@ export const translations = {
       pearl: 'Pearl',
       beige: 'Beige',
       mist: 'Mist',
+      sky: 'Sky',
       terracotta: 'Terracotta',
       checkered: 'No background',
     },
@@ -380,6 +389,14 @@ export const translations = {
         {
           title: 'Estilos Retro',
           body: 'Looks de película creados por nosotros — retrato cálido, pasteles suaves, blanco y negro con grano — vistos sobre tu foto, con la intensidad que quieras.',
+        },
+        {
+          title: 'Listo para Historias',
+          body: 'Elige un color de fondo y activa «Exportar con este fondo»: tu foto sale en vertical 9:16, lista para Historias y Reels.',
+        },
+        {
+          title: 'Así queda',
+          body: 'Tu foto con su borde, centrada sobre el fondo — sin recortes y en máxima calidad.',
         },
         {
           title: 'Exporta en máxima calidad',
@@ -555,6 +572,7 @@ export const translations = {
       pearl: 'Perla',
       beige: 'Beige',
       mist: 'Bruma',
+      sky: 'Cielo',
       terracotta: 'Terracota',
       checkered: 'Sin fondo',
     },

@@ -180,15 +180,69 @@ function RetroArt() {
   )
 }
 
-/** A finished photo on a 9:16 story background that keeps changing colour,
- *  over the export qualities. */
+/** Sky blue — the "Cielo" workspace background the Stories cards show. */
+const SKY = '#9ccbea'
+
+/** The Fondo panel in miniature: the photo on the sky-blue workspace, the
+ *  colour picked, and "Export with this background" switching on. */
+function StoryToggleArt() {
+  const tr = useTranslation()
+  const swatches = ['#1c1c1e', '#c9c6c0', '#d8cbb8', '#a7b2bd', SKY, '#c9a08c', '#ffffff']
+  return (
+    <div className="flex h-full w-full flex-col items-center justify-center gap-3">
+      <div className="flex aspect-[4/5] w-[62%] items-center justify-center rounded-xl shadow-2xl shadow-black/40" style={{ backgroundColor: SKY }}>
+        <Print name="garden" className="aspect-[4/5] w-[72%]" />
+      </div>
+      <div className="flex gap-1.5">
+        {swatches.map((c) => (
+          <span
+            key={c}
+            className={`h-5 w-5 rounded-full border border-black/10 ${c === SKY ? 'ring-2 ring-white ring-offset-2 ring-offset-ink-900' : ''}`}
+            style={{ backgroundColor: c }}
+          />
+        ))}
+      </div>
+      <div className="flex w-[78%] items-center justify-between gap-3 rounded-xl bg-white/5 px-3 py-2">
+        <span className="flex flex-col">
+          <span className="font-label text-[11px] font-semibold text-white">{tr.pickers.exportWithBackground}</span>
+          <span className="font-label text-[9px] text-white/45">{tr.pickers.exportWithBackgroundHint}</span>
+        </span>
+        <span className="tour-switch relative h-5 w-9 shrink-0 rounded-full">
+          <span className="tour-knob absolute top-0.5 h-4 w-4 rounded-full shadow" />
+        </span>
+      </div>
+    </div>
+  )
+}
+
+/** What comes out: a 9:16 Story, sky-blue background all round the photo,
+ *  with a Story's progress bars along the top. */
+function StoryResultArt() {
+  return (
+    <div className="flex h-full w-full items-center justify-center">
+      <div
+        className="tour-rise relative flex aspect-[9/16] h-[92%] items-center justify-center overflow-hidden rounded-2xl shadow-2xl shadow-black/60 ring-1 ring-white/10"
+        style={{ backgroundColor: SKY }}
+      >
+        <div className="absolute inset-x-2.5 top-2.5 flex gap-1">
+          {[1, 0.55, 0].map((fill, i) => (
+            <span key={i} className="h-0.5 flex-1 overflow-hidden rounded-full bg-white/45">
+              <span className="block h-full bg-white" style={{ width: `${fill * 100}%` }} />
+            </span>
+          ))}
+        </div>
+        <Print name="garden" pad="4%" className="aspect-[4/5] w-[91%]" />
+      </div>
+    </div>
+  )
+}
+
+/** A finished print over the three export qualities, the Pro one marked. */
 function ExportArt() {
   const tr = useTranslation()
   return (
-    <div className="flex h-full w-full flex-col items-center justify-center gap-4">
-      <div className="tour-story flex aspect-[9/16] h-[78%] items-center justify-center rounded-xl shadow-2xl shadow-black/50">
-        <Print name="evening" className="aspect-[4/5] w-[86%]" />
-      </div>
+    <div className="flex h-full w-full flex-col items-center justify-center gap-5">
+      <Print name="evening" className="aspect-[4/5] w-[58%]" />
       <div className="flex gap-1.5">
         {[tr.quality.native.label, tr.quality.high.label, tr.quality.web.label].map((q, i) => (
           <span
@@ -213,6 +267,8 @@ const ART: ReactNode[] = [
   <EditArt key="e" />,
   <DetailArt key="d" />,
   <RetroArt key="r" />,
+  <StoryToggleArt key="st" />,
+  <StoryResultArt key="sr" />,
   <ExportArt key="x" />,
 ]
 

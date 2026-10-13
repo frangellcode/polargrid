@@ -124,7 +124,7 @@ async function run(scene: (typeof SCENES)[number]) {
   }
 
   if (scene === 'story') {
-    editor().setWorkspaceBackground('mist')
+    editor().setWorkspaceBackground('sky')
     editor().setBorderExportWithBackground(true)
     await tool('Workspace')
   }

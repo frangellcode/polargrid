@@ -269,35 +269,66 @@ textarea {
   animation: tour-dial 3.6s ease-out infinite;
 }
 
-/* The 9:16 background cycling through the workspace colours. */
-@keyframes tour-story {
+/* "Export with this background" switching on, holding, and resetting. */
+@keyframes tour-switch {
   0%,
+  20% {
+    background-color: rgba(255, 255, 255, 0.2);
+  }
+  30%,
   100% {
-    background-color: #a7b2bd;
-  }
-  25% {
-    background-color: #d8cbb8;
-  }
-  50% {
-    background-color: #c9a08c;
-  }
-  75% {
-    background-color: #1c1c1e;
+    background-color: #ffffff;
   }
 }
 
-.tour-story {
-  animation: tour-story 8s ease-in-out infinite;
+@keyframes tour-knob {
+  0%,
+  20% {
+    left: 2px;
+    background-color: #ffffff;
+  }
+  30%,
+  100% {
+    left: 18px;
+    background-color: #151d30;
+  }
+}
+
+.tour-switch {
+  animation: tour-switch 3.4s ease-in-out infinite;
+}
+
+.tour-knob {
+  animation: tour-knob 3.4s ease-in-out infinite;
+}
+
+/* The finished Story arriving. */
+@keyframes tour-rise {
+  0% {
+    opacity: 0;
+    transform: translateY(18px) scale(0.96);
+  }
+  14%,
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.tour-rise {
+  animation: tour-rise 5s cubic-bezier(0.22, 1, 0.36, 1) infinite both;
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .tour-switch,
+  .tour-knob,
+  .tour-rise,
   .tour-breathe,
   .tour-split,
   .tour-divider,
   .tour-float,
   .tour-pop,
-  .tour-dial,
-  .tour-story {
+  .tour-dial {
     animation: none;
   }
 }
