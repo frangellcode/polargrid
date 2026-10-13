@@ -495,7 +495,7 @@ export function BorderEditor({ plain = false }: { plain?: boolean }) {
   }
 
   /** The open tool's controls — in the bottom bar, or in Edit's own row. */
-  const panelFor = (tool: string | null) => (
+  const panelFor = (tool: string | null) => photo && (
     <>
           {tool === 'aspecto' && (
             <div>

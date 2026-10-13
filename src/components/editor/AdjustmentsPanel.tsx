@@ -150,7 +150,7 @@ interface AdjustmentsPanelProps {
   onChange: (adjustments: PhotoAdjustments) => void
   /** Above the dials: which photo is being edited, and the batch's sync. */
   header?: ReactNode
-  /** Edit's own screen: its other tools as the first buttons of the same row
+  /** Edit's own screen: its other tools after the dials in the same row
    *  (Aspect, Rotate…), the row moved to the bottom like a toolbar, and the
    *  picked tool's controls shown where the slider goes. */
   tools?: PanelTool[]
@@ -188,19 +188,6 @@ export function AdjustmentsPanel({ value, onChange, header, tools, activeTool = 
 
   const row = (
     <div className="scroll-row -mx-1 flex gap-0.5 overflow-x-auto overscroll-x-contain px-1 pt-1">
-      {tools?.map((t) => (
-        <Dial
-          key={t.id}
-          icon={t.icon}
-          value={0}
-          active={t.id === activeTool}
-          proBadge={t.locked !== undefined}
-          locked={!!t.locked}
-          label={t.label}
-          onClick={() => (t.locked ? t.onLocked?.() : onToolChange?.(t.id === activeTool ? null : t.id))}
-        />
-      ))}
-      {tools && tools.length > 0 && <span aria-hidden className="mx-1 my-2 w-px shrink-0 self-stretch bg-white/15" />}
       {KEYS.map((k) => (
         <Dial
           key={k}
@@ -218,6 +205,19 @@ export function AdjustmentsPanel({ value, onChange, header, tools, activeTool = 
             onToolChange?.(null)
             setActiveKey(k)
           }}
+        />
+      ))}
+      {tools && tools.length > 0 && <span aria-hidden className="mx-1 my-2 w-px shrink-0 self-stretch bg-white/15" />}
+      {tools?.map((t) => (
+        <Dial
+          key={t.id}
+          icon={t.icon}
+          value={0}
+          active={t.id === activeTool}
+          proBadge={t.locked !== undefined}
+          locked={!!t.locked}
+          label={t.label}
+          onClick={() => (t.locked ? t.onLocked?.() : onToolChange?.(t.id === activeTool ? null : t.id))}
         />
       ))}
     </div>
