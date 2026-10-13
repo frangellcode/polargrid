@@ -115,6 +115,7 @@ interface HomeRenderProps {
 function renderView(mode: AppMode, homeProps: HomeRenderProps) {
   if (mode === 'home') return <HomeScreen {...homeProps} />
   if (mode === 'border') return <BorderEditor />
+  if (mode === 'edit') return <BorderEditor plain />
   return <CollageEditor />
 }
 
@@ -440,7 +441,7 @@ function App() {
       // back button's own onClick) wiped the photo/collage state while that
       // screen was still visible mid-fade, snapping its canvas to the empty
       // Dropzone right in front of the user.
-      if (displayedMode === 'border') useEditorStore.getState().resetBorder()
+      if (displayedMode === 'border' || displayedMode === 'edit') useEditorStore.getState().resetBorder()
       if (displayedMode === 'collage') useEditorStore.getState().resetCollage()
       setDisplayedMode(mode)
       setIsExiting(false)

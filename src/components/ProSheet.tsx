@@ -37,7 +37,7 @@ export function ProSheet() {
   // placed in the collage.
   const photo = useEditorStore((s): LoadedPhoto | null => {
     const id =
-      s.mode === 'border'
+      s.mode === 'border' || s.mode === 'edit'
         ? s.border.photoId
         : (s.collage.assignments.find((a) => a.photoId)?.photoId ?? s.collage.freeItems[0]?.photoId)
     return (id && s.photos[id]) || null

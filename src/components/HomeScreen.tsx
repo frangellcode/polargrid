@@ -149,10 +149,22 @@ export function HomeScreen({
 
         <button
           type="button"
-          onClick={() => setMode('collage')}
+          onClick={() => setMode('edit')}
           className="flex items-baseline gap-3 border-b border-white/15 py-5 text-left"
         >
           <span className="font-display w-5 text-sm font-bold text-white/50">II</span>
+          <span className="flex flex-col gap-1">
+            <span className="font-display text-base font-medium text-white"><FadeText value={tr.home.editTitle} trigger={language} /></span>
+            <span className="font-label text-[10.5px] font-light text-white/50"><FadeText value={tr.home.editDesc} trigger={language} /></span>
+          </span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setMode('collage')}
+          className="flex items-baseline gap-3 border-b border-white/15 py-5 text-left"
+        >
+          <span className="font-display w-5 text-sm font-bold text-white/50">III</span>
           <span className="flex flex-col gap-1">
             <span className="font-display text-base font-medium text-white"><FadeText value={tr.home.collageTitle} trigger={language} /></span>
             <span className="font-label text-[10.5px] font-light text-white/50"><FadeText value={tr.home.collageDesc} trigger={language} /></span>

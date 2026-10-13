@@ -57,7 +57,13 @@ const EXIT_MS = 200
 const FREE_BORDER_BATCH_PHOTOS = 1
 const PRO_BORDER_BATCH_PHOTOS = isNativeApp ? 15 : 5
 
-export function BorderEditor() {
+/**
+ * White border, and — with `plain` — Edit: the same editor with no border at
+ * all, for someone who only wants to adjust a photo and export it as it is.
+ * Plain drops the Border tool, batches and the 9:16 background export, which
+ * are all about the frame.
+ */
+export function BorderEditor({ plain = false }: { plain?: boolean }) {
   const tr = useTranslation()
   const isPro = useIsPro()
   const openPaywall = useProStore((s) => s.openPaywall)
@@ -68,8 +74,8 @@ export function BorderEditor() {
   const TOOLS: BottomBarTool[] = [
     { id: 'aspecto', label: tr.borderEditor.toolAspect, icon: <IconCrop /> },
     { id: 'rotate', label: tr.borderEditor.toolRotate, icon: <IconRotate /> },
-    { id: 'workspace', label: tr.tools.workspace, icon: <IconDrop />, proInside: true },
-    { id: 'bordes', label: tr.borderEditor.toolBorder, icon: <IconFrame />, proInside: true },
+    { id: 'workspace', label: tr.tools.workspace, icon: <IconDrop />, proInside: !plain },
+    ...(plain ? [] : [{ id: 'bordes', label: tr.borderEditor.toolBorder, icon: <IconFrame />, proInside: true }]),
     { id: 'edit', label: tr.tools.edit, icon: <IconSliders />, proInside: true },
     { id: 'retro', label: tr.tools.retro, icon: <IconRetro />, pro: 'retro' },
   ]
@@ -320,7 +326,8 @@ export function BorderEditor() {
   // Unlocked is switched.
   const fitMix = useAnimatedNumber(border.locked ? 0 : 1)
 
-  const borderPx = border.borderThicknessPct * shortSide
+  const thicknessPct = plain ? 0 : border.borderThicknessPct
+  const borderPx = thicknessPct * shortSide
   const borderColorHex = getBorderColor(border.borderColor).hex
   // Only the live preview eases between colors — the export just paints the
   // final picked color once, no animation needed for a static file.
@@ -409,13 +416,13 @@ export function BorderEditor() {
         const shown = orientedSize(p.width, p.height, border.transform)
         return resolveRatio(border.aspectRatioId, shown.width / shown.height, border.ratioOrientation)
       },
-      border.borderThicknessPct,
+      thicknessPct,
       border.transform,
       guard.quality(quality),
       border.locked,
       guard.borderHex(borderColorHex),
       (p) => guard.adjustments(border.adjustments[p.id] ?? null),
-      guard.storyHex(border.exportWithBackground ? getWorkspaceBackground(workspaceBackground).hex : null),
+      guard.storyHex(!plain && border.exportWithBackground ? getWorkspaceBackground(workspaceBackground).hex : null),
       (done, total, progress) => setExportFlow((s) => (s ? { ...s, done, total, progress } : s)),
     )
     setExportFlow({ phase: 'ready', done: files.length, total: files.length, progress: 1, files })
@@ -480,7 +487,7 @@ export function BorderEditor() {
   return (
     <div className="flex h-full flex-col bg-ink-900">
       <Toolbar
-        title={tr.borderEditor.title}
+        title={plain ? tr.home.editTitle : tr.borderEditor.title}
         onBack={() => (photo ? setConfirmingBack(true) : setMode('home'))}
         onUpload={isBatch ? handleBatchUpload : handleUpload}
         onExport={handleExport}
@@ -587,6 +594,7 @@ export function BorderEditor() {
                 onFiles={handleUpload}
                 multiple={false}
               />
+              {!plain && (
               <Dropzone
                 label={tr.borderEditor.dropBatchLabel}
                 hint={
@@ -601,6 +609,7 @@ export function BorderEditor() {
                 multiple
                 maxPhotos={pickerBatchLimit}
               />
+              )}
             </div>
           )}
         </div>
@@ -680,11 +689,13 @@ export function BorderEditor() {
           {activeTool === 'workspace' && (
             <div className="flex flex-col gap-4">
               <WorkspaceBackgroundPicker value={workspaceBackground} onChange={setWorkspaceBackground} />
-              <ExportBackgroundToggle
-                on={border.exportWithBackground}
-                onChange={setBorderExportWithBackground}
-                backgroundHex={getWorkspaceBackground(workspaceBackground).hex}
-              />
+              {!plain && (
+                <ExportBackgroundToggle
+                  on={border.exportWithBackground}
+                  onChange={setBorderExportWithBackground}
+                  backgroundHex={getWorkspaceBackground(workspaceBackground).hex}
+                />
+              )}
             </div>
           )}
 

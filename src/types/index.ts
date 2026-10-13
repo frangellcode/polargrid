@@ -1,6 +1,6 @@
 import type { PhotoSource } from '../lib/photoSource'
 
-export type AppMode = 'home' | 'border' | 'collage'
+export type AppMode = 'home' | 'border' | 'edit' | 'collage'
 
 export type CollageLayoutMode = 'grid' | 'free'
 
