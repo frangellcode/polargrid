@@ -53,7 +53,7 @@ export function ExportBackgroundToggle({ on, onChange, backgroundHex }: ExportBa
           <span className="font-label flex items-center gap-1.5 text-xs font-semibold text-white">
             {tr.pickers.exportWithBackground}
             {!isPro && (
-              <span className="flex h-4 w-4 items-center justify-center rounded-full bg-white text-ink-900">
+              <span className="flex h-4 w-4 items-center justify-center rounded-full bg-amber-300 text-ink-900">
                 <IconLock className="h-2.5 w-2.5" />
               </span>
             )}

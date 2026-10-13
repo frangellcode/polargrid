@@ -123,7 +123,7 @@ function Dial({
         // Always mounted and faded, so it melts away when Pro unlocks.
         <span
           aria-hidden
-          className={`absolute -right-0.5 -top-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-white text-ink-900 shadow transition duration-300 ease-out ${
+          className={`absolute -right-0.5 -top-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-amber-300 text-ink-900 shadow transition duration-300 ease-out ${
             locked ? 'scale-100 opacity-100' : 'scale-50 opacity-0'
           }`}
         >
@@ -133,7 +133,7 @@ function Dial({
       </span>
       <span
         className={`font-label max-w-full truncate text-[9px] font-semibold uppercase tracking-normal ${
-          active ? 'text-white' : 'text-white/45'
+          locked ? 'text-amber-300/80' : active ? 'text-white' : 'text-white/45'
         }`}
       >
         {label}
@@ -170,7 +170,9 @@ export function AdjustmentsPanel({ value, onChange, header }: AdjustmentsPanelPr
   return (
     <div className="flex flex-col gap-3">
       {header}
-      <div className="scroll-row -mx-1 flex gap-0.5 overflow-x-auto overscroll-x-contain px-1">
+      {/* pt-1: the scroll row clips vertically too, and the Pro dials' badges
+          sit just above their rings. */}
+      <div className="scroll-row -mx-1 flex gap-0.5 overflow-x-auto overscroll-x-contain px-1 pt-1">
         {KEYS.map((k) => (
           <Dial
             key={k}

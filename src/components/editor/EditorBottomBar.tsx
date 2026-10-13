@@ -114,7 +114,7 @@ export function EditorBottomBar({ tools, activeId, onSelect, children }: EditorB
                   // Always mounted and faded, so it melts away when Pro unlocks.
                   <span
                     aria-hidden
-                    className={`absolute -right-0.5 -top-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-white text-ink-900 shadow transition duration-300 ease-out ${
+                    className={`absolute -right-0.5 -top-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-amber-300 text-ink-900 shadow transition duration-300 ease-out ${
                       locked ? 'scale-100 opacity-100' : 'scale-50 opacity-0'
                     }`}
                   >

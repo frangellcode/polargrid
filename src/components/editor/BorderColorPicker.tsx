@@ -51,7 +51,15 @@ export function BorderColorPicker({ value, onChange, heading }: BorderColorPicke
 
   return (
     <div>
-      <p className="font-label mb-2 text-center text-xs font-semibold uppercase tracking-wider text-white/40">{heading ?? tr.pickers.borderColor}</p>
+      <p className="font-label mb-2 flex items-center justify-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-white/40">
+        {heading ?? tr.pickers.borderColor}
+        {!isPro && (
+          <span className="fade-in flex items-center gap-1 rounded-full bg-amber-300 px-1.5 py-0.5 text-[9px] tracking-normal text-ink-900">
+            <IconLock className="h-2.5 w-2.5" />
+            {tr.pro.locked}
+          </span>
+        )}
+      </p>
       {/* One row, always — see WorkspaceBackgroundPicker. */}
       <div className="mx-auto grid max-w-[340px] gap-2" style={{ gridTemplateColumns: `repeat(${BORDER_COLORS.length + 1}, minmax(0, 1fr))` }}>
         {BORDER_COLORS.map((color) => {
@@ -116,7 +124,7 @@ function LockBadge({ shown }: { shown: boolean }) {
   return (
     <span
       aria-hidden
-      className={`absolute -right-0.5 -top-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-white text-ink-900 shadow transition duration-300 ease-out ${
+      className={`absolute -right-0.5 -top-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-amber-300 text-ink-900 shadow transition duration-300 ease-out ${
         shown ? 'scale-100 opacity-100' : 'scale-50 opacity-0'
       }`}
     >

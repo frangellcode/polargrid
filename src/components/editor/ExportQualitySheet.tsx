@@ -112,7 +112,7 @@ export function ExportQualitySheet({ open, defaultQuality, onClose, onExport }: 
                 <p className="font-label flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-white">
                   {tr.quality[preset.id].label}
                   {isLocked(preset.id) && (
-                    <span className="fade-in flex items-center gap-1 rounded-full bg-white px-1.5 py-0.5 text-[9px] text-ink-900">
+                    <span className="fade-in flex items-center gap-1 rounded-full bg-amber-300 px-1.5 py-0.5 text-[9px] text-ink-900">
                       <IconLock className="h-2.5 w-2.5" />
                       {tr.pro.locked}
                     </span>
