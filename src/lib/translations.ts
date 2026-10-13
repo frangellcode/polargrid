@@ -156,9 +156,8 @@ export const translations = {
       dropLabel: 'Tap to upload a photo',
       dropHint: (mb: number) => `or drag it here — under ${mb} MB`,
       dropBatchLabel: 'Tap to upload a batch',
-      dropBatchHint: (n: number, mb: number) =>
-        `up to ${n} photos under ${mb} MB, same adjustment applied to all`,
-      dropBatchHintPro: (pro: number, mb: number) => `Pro: up to ${pro} photos under ${mb} MB, framed all at once`,
+      dropBatchHint: (n: number, mb: number) => `up to ${n} photos under ${mb} MB, all at once`,
+      dropBatchHintPro: (pro: number, mb: number) => `Pro: up to ${pro} photos under ${mb} MB, all at once`,
       batchCount: (n: number) => `${n} photos selected — this adjustment will be applied to all of them on export`,
       batchNote: (n: number) => `same adjustment\nfor all ${n}`,
       batchThumb: (n: number) => `Preview photo ${n}`,
@@ -441,9 +440,8 @@ export const translations = {
       dropLabel: 'Toca para subir una foto',
       dropHint: (mb: number) => `o arrástrala aquí — menos de ${mb} MB`,
       dropBatchLabel: 'Toca para subir por lotes',
-      dropBatchHint: (n: number, mb: number) =>
-        `hasta ${n} fotos de menos de ${mb} MB, mismo ajuste para todas`,
-      dropBatchHintPro: (pro: number, mb: number) => `Pro: hasta ${pro} fotos de menos de ${mb} MB, enmarcadas de una vez`,
+      dropBatchHint: (n: number, mb: number) => `hasta ${n} fotos de menos de ${mb} MB, todas a la vez`,
+      dropBatchHintPro: (pro: number, mb: number) => `Pro: hasta ${pro} fotos de menos de ${mb} MB, todas a la vez`,
       batchCount: (n: number) => `${n} fotos seleccionadas — este ajuste se aplicará a todas al exportar`,
       batchNote: (n: number) => `mismo ajuste\npara las ${n}`,
       batchThumb: (n: number) => `Ver la foto ${n}`,

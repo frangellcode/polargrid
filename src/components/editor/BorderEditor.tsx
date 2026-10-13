@@ -60,8 +60,8 @@ const PRO_BORDER_BATCH_PHOTOS = isNativeApp ? 15 : 5
 /**
  * White border, and — with `plain` — Edit: the same editor with no border at
  * all, for someone who only wants to adjust a photo and export it as it is.
- * Plain drops the Border tool, batches and the 9:16 background export, which
- * are all about the frame.
+ * Plain drops the Border tool and the 9:16 background export, which are all
+ * about the frame; batches stay, each photo edited on its own or synced.
  */
 export function BorderEditor({ plain = false }: { plain?: boolean }) {
   const tr = useTranslation()
@@ -594,7 +594,6 @@ export function BorderEditor({ plain = false }: { plain?: boolean }) {
                 onFiles={handleUpload}
                 multiple={false}
               />
-              {!plain && (
               <Dropzone
                 label={tr.borderEditor.dropBatchLabel}
                 hint={
@@ -609,7 +608,6 @@ export function BorderEditor({ plain = false }: { plain?: boolean }) {
                 multiple
                 maxPhotos={pickerBatchLimit}
               />
-              )}
             </div>
           )}
         </div>
