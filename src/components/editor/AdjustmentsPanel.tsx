@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import { useTranslation } from '../../store/languageStore'
 import { DEFAULT_ADJUSTMENTS, TONE_KEYS, type AdjustmentKey, type PhotoAdjustments } from '../../lib/adjustments'
@@ -264,8 +264,12 @@ export function AdjustmentsPanel({ value, onChange, header, tools, activeTool = 
   if (tools) {
     return (
       <div className="flex flex-col gap-3">
-        {header}
-        {activeTool ? toolPanel : slider}
+        <SmoothHeight id={activeTool}>
+          <div className="flex flex-col gap-3">
+            {header}
+            {activeTool ? toolPanel : slider}
+          </div>
+        </SmoothHeight>
         {row}
       </div>
     )
@@ -278,6 +282,47 @@ export function AdjustmentsPanel({ value, onChange, header, tools, activeTool = 
       {header}
       {row}
       {slider}
+    </div>
+  )
+}
+
+/** Same budget as EditorBottomBar's panel: past it the controls scroll. */
+const MAX_PANEL_VIEWPORT_SHARE = 0.45
+
+/**
+ * Eases the controls' height when switching tools, the way the bottom bar's
+ * panel does in Borders, instead of snapping to the new tool's size.
+ */
+function SmoothHeight({ id, children }: { id: string | null; children: ReactNode }) {
+  const contentRef = useRef<HTMLDivElement>(null)
+  const [height, setHeight] = useState<number | null>(null)
+  const [maxHeight, setMaxHeight] = useState<number>(Number.POSITIVE_INFINITY)
+
+  useEffect(() => {
+    const update = () => setMaxHeight(Math.round(window.innerHeight * MAX_PANEL_VIEWPORT_SHARE))
+    update()
+    window.addEventListener('resize', update)
+    return () => window.removeEventListener('resize', update)
+  }, [])
+
+  useLayoutEffect(() => {
+    const el = contentRef.current
+    if (!el) return
+    setHeight(el.scrollHeight)
+    const observer = new ResizeObserver(() => setHeight(el.scrollHeight))
+    observer.observe(el)
+    return () => observer.disconnect()
+  }, [id])
+
+  const scrolls = height != null && height > maxHeight
+  return (
+    <div
+      className="overflow-hidden transition-[height] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]"
+      style={{ height: height == null ? undefined : Math.min(height, maxHeight) }}
+    >
+      <div key={id ?? 'adjust'} ref={contentRef} className={`fade-in ${scrolls ? 'h-full overflow-y-auto overscroll-contain' : ''}`}>
+        {children}
+      </div>
     </div>
   )
 }
