@@ -23,6 +23,8 @@ const EXIT_MS = 200
 // flying to its resting place, while the rest of Home's text fades in. See the
 // boot effect below for why the handoff has to happen inside the motion.
 const BOOT_HOLD_MS = 700
+/** First launch: how long the splash takes to fade into the welcome tour. */
+const TOUR_CROSSFADE_MS = 400
 const BOOT_FLIGHT_MS = 900
 // Backstop margin for the transitionend handlers below. Every handoff in this
 // file (boot flight -> Home, update flight -> progress bar) hangs off a single
@@ -137,8 +139,8 @@ function App() {
   // Update replay state (see UPDATE_* constants above).
   const [updatePhase, setUpdatePhase] = useState<UpdatePhase>('idle')
 
-  // First launch only — and only once the boot flight has landed, so the tour
-  // never fights the splash for the screen.
+  // First launch only. On a cold start it opens straight out of the splash
+  // (see the boot hold below); the effect further down is the fallback.
   const [tourOpen, setTourOpen] = useState(false)
   const [tourChecked, setTourChecked] = useState(false)
   const [updateProgress, setUpdateProgress] = useState(0)
@@ -382,6 +384,21 @@ function App() {
       const splash = document.getElementById('boot-splash')
       const splashLogo = splash?.querySelector('svg')
       const node = homeLogoNode.current
+
+      // First launch: the welcome tour is the entrance. Skip the flight to
+      // Home and cross-fade the splash straight into the tour, instead of
+      // landing on Home and having the tour cover it a beat later.
+      if (splash && !hasSeenTour()) {
+        setTourChecked(true)
+        setTourOpen(true)
+        splash.style.transition = `opacity ${TOUR_CROSSFADE_MS}ms ease-out`
+        splash.style.opacity = '0'
+        setTimeout(() => {
+          splash.remove()
+          finishBoot()
+        }, TOUR_CROSSFADE_MS)
+        return
+      }
 
       if (!splash || !splashLogo || !node || prefersReducedMotion()) {
         splash?.remove()
