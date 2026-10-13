@@ -9,6 +9,12 @@
  */
 import { useEditorStore } from '../store/editorStore'
 import { useProStore } from '../store/proStore'
+import { translations } from './translations'
+import type { Language } from './translations'
+
+/** VITE_SHOTS_LANG=es makes the Spanish set; English otherwise. */
+const LANG: Language = import.meta.env.VITE_SHOTS_LANG === 'es' ? 'es' : 'en'
+const tr = translations[LANG]
 
 const SCENES = ['home', 'border', 'batch', 'edit', 'retro', 'story', 'layouts'] as const
 
@@ -75,7 +81,7 @@ async function run(scene: (typeof SCENES)[number]) {
   if (scene === 'home') return
 
   if (scene === 'layouts') {
-    (await waitFor(() => homeButton('Collage'))).click()
+    (await waitFor(() => homeButton(tr.home.collageTitle))).click()
     await sleep(900)
     // The event collage from the welcome tour: the big ceiling shot, the
     // cake, the tent, the table and the buffet, laid out tall.
@@ -83,11 +89,11 @@ async function run(scene: (typeof SCENES)[number]) {
     editor().setCollageTemplateId('grid-9-big')
     editor().setCollageAspectRatio('9-16')
     editor().setCollageOrientation('vertical')
-    await tool('Template')
+    await tool(tr.collageEditor.toolTemplate)
     return
   }
 
-  (await waitFor(() => homeButton('White border'))).click()
+  (await waitFor(() => homeButton(tr.home.borderTitle))).click()
   await sleep(900)
 
   if (scene === 'batch') {
@@ -119,32 +125,32 @@ async function run(scene: (typeof SCENES)[number]) {
       retro: null,
       retroAmount: 1,
     })
-    await tool('Edit')
-    byLabel('Shadows')?.click()
+    await tool(tr.tools.edit)
+    byLabel(tr.edit.shadows)?.click()
     return
   }
 
   if (scene === 'retro') {
-    await tool('Retro')
-    await tool('Silver 400')
-    button('Silver 400')?.scrollIntoView({ inline: 'center' })
-    setRange('Intensity', 0.9)
+    await tool(tr.tools.retro)
+    await tool(tr.retro.names.plata)
+    button(tr.retro.names.plata)?.scrollIntoView({ inline: 'center' })
+    setRange(tr.retro.intensity, 0.9)
     return
   }
 
   if (scene === 'story') {
     editor().setWorkspaceBackground('sky')
     editor().setBorderExportWithBackground(true)
-    await tool('Workspace')
+    await tool(tr.tools.workspace)
   }
 }
 
 export async function startShots() {
-  // The store screenshots are in English; the language is read once at
-  // startup, so switching it costs one reload before the first scene.
-  if (localStorage.getItem('polargrid:language') !== 'en' || !localStorage.getItem('polargrid:tourSeen')) {
+  // The language is read once at startup, so switching it costs one reload
+  // before the first scene.
+  if (localStorage.getItem('polargrid:language') !== LANG || !localStorage.getItem('polargrid:tourSeen')) {
     localStorage.setItem('polargrid:tourSeen', '1')
-    localStorage.setItem('polargrid:language', 'en')
+    localStorage.setItem('polargrid:language', LANG)
     location.reload()
     return
   }

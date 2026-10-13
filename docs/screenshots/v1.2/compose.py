@@ -5,7 +5,7 @@ device frame — repaints the headline area from the background's own gradient,
 writes the new headline, and drops a fresh simulator capture into the frame's
 screen. Captures come from the app's screenshots mode (src/lib/shots.ts).
 
-    python3 compose.py <captures dir with iphone/ and ipad/> <out dir> <story photo>
+    python3 compose.py <captures dir with iphone/ and ipad/> <out dir> <story photo> [en|es]
 """
 import sys
 from pathlib import Path
@@ -44,6 +44,19 @@ SHOTS = [
     ('7_story_result', None, ['Post it', 'as it is.'], '9:16, background included'),
     ('8_layouts', 'layouts', ['A layout for', 'every set.'], 'Grids and creative templates'),
 ]
+
+# The Spanish set: the same scenes, captured with the app in Spanish.
+SHOTS_ES = [
+    ('1_home', 'home', ['Bordes y collages', 'para tus fotos.'], 'Sin cuenta. Sin subir nada. Sin marca de agua.'),
+    ('2_border', 'border', ['Bordes limpios.', 'Calidad total.'], 'Enmarca cualquier foto en segundos'),
+    ('3_batch', 'batch', ['Edita una vez.', 'Exporta quince.'], 'Hasta 15 fotos a la vez con Pro'),
+    ('4_edit', 'edit', ['Edita cada', 'foto.'], 'Luz, color, grano y nitidez, con Pro'),
+    ('5_retro', 'retro', ['Look de película,', 'a tu manera.'], 'Once estilos Retro, con Pro'),
+    ('6_story', 'story', ['Listo para', 'Historias.'], 'Exporta sobre un fondo 9:16, con Pro'),
+    ('7_story_result', None, ['Publícala', 'tal cual.'], '9:16, con el fondo incluido'),
+    ('8_layouts', 'layouts', ['Un diseño para', 'cada ocasión.'], 'Cuadrículas y plantillas creativas'),
+]
+READY = {'en': (['Ready to post.'], 'Exported at full resolution'), 'es': (['Lista para publicar.'], 'Exportada a resolución completa')}
 
 SKY = (156, 203, 234)
 STORY_MARGIN = 0.045
@@ -140,9 +153,10 @@ def place_screen(img: Image.Image, spec: dict, capture: Image.Image) -> None:
 
 def main() -> None:
     captures, out, story_photo = Path(sys.argv[1]), Path(sys.argv[2]), Path(sys.argv[3])
+    lang = sys.argv[4] if len(sys.argv) > 4 else 'en'
     out.mkdir(parents=True, exist_ok=True)
     for device, spec in DEVICES.items():
-        for name, capture, title, subtitle in SHOTS:
+        for name, capture, title, subtitle in (SHOTS_ES if lang == 'es' else SHOTS):
             img = Image.open(spec['template']).convert('RGB')
             repaint_header(img, spec['header_until'])
             write_header(img, spec, title, subtitle)
@@ -158,7 +172,7 @@ def main() -> None:
     spec = DEVICES['iphone']
     img = Image.open(OLD / 'iphone_8_ready.jpg').convert('RGB')
     repaint_header(img, spec['header_until'])
-    write_header(img, spec, ['Ready to post.'], 'Exported at full resolution')
+    write_header(img, spec, *READY[lang])
     img.save(out / 'iphone_9_ready.jpg', quality=92)
     print('wrote iphone 9_ready')
 
