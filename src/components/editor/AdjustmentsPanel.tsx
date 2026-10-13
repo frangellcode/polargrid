@@ -77,16 +77,19 @@ const RING_C = 2 * Math.PI * RING_R
  *  positive and anticlockwise for negative — like the Photos app's editor —
  *  with its name underneath, so nobody has to tap through them to find one. */
 function Dial({
-  k,
+  icon,
   value,
   active,
+  proBadge,
   locked,
   label,
   onClick,
 }: {
-  k: AdjustmentKey
+  icon: ReactNode
   value: number
   active: boolean
+  /** Has a Pro badge slot: shown while `locked`, faded out with Pro. */
+  proBadge: boolean
   locked: boolean
   label: string
   onClick: () => void
@@ -118,8 +121,8 @@ function Dial({
           />
         )}
       </svg>
-      <span className={`relative ${active || value !== 0 ? 'text-white' : 'text-white/55'}`}>{ICONS[k]}</span>
-      {PRO_KEYS.has(k) && (
+      <span className={`relative ${active || value !== 0 ? 'text-white' : 'text-white/55'}`}>{icon}</span>
+      {proBadge && (
         // Always mounted and faded, so it melts away when Pro unlocks.
         <span
           aria-hidden
@@ -147,6 +150,22 @@ interface AdjustmentsPanelProps {
   onChange: (adjustments: PhotoAdjustments) => void
   /** Above the dials: which photo is being edited, and the batch's sync. */
   header?: ReactNode
+  /** Edit's own screen: its other tools as the first buttons of the same row
+   *  (Aspect, Rotate…), the row moved to the bottom like a toolbar, and the
+   *  picked tool's controls shown where the slider goes. */
+  tools?: PanelTool[]
+  activeTool?: string | null
+  onToolChange?: (id: string | null) => void
+  toolPanel?: ReactNode
+}
+
+export interface PanelTool {
+  id: string
+  label: string
+  icon: ReactNode
+  /** Opens the paywall instead, with a lock badge, while true. */
+  locked?: boolean
+  onLocked?: () => void
 }
 
 /**
@@ -155,7 +174,7 @@ interface AdjustmentsPanelProps {
  * stays short and the photo keeps the screen. Tapping the number puts that
  * one back to 0; Reset clears the photo's whole edit (its Retro style stays).
  */
-export function AdjustmentsPanel({ value, onChange, header }: AdjustmentsPanelProps) {
+export function AdjustmentsPanel({ value, onChange, header, tools, activeTool = null, onToolChange, toolPanel }: AdjustmentsPanelProps) {
   const tr = useTranslation()
   const isPro = useProStore((s) => s.isPro)
   const openPaywall = useProStore((s) => s.openPaywall)
@@ -167,59 +186,98 @@ export function AdjustmentsPanel({ value, onChange, header }: AdjustmentsPanelPr
   const bipolar = BIPOLAR.has(activeKey)
   const edited = KEYS.some((k) => current[k] !== 0)
 
+  const row = (
+    <div className="scroll-row -mx-1 flex gap-0.5 overflow-x-auto overscroll-x-contain px-1 pt-1">
+      {tools?.map((t) => (
+        <Dial
+          key={t.id}
+          icon={t.icon}
+          value={0}
+          active={t.id === activeTool}
+          proBadge={t.locked !== undefined}
+          locked={!!t.locked}
+          label={t.label}
+          onClick={() => (t.locked ? t.onLocked?.() : onToolChange?.(t.id === activeTool ? null : t.id))}
+        />
+      ))}
+      {tools && tools.length > 0 && <span aria-hidden className="mx-1 my-2 w-px shrink-0 self-stretch bg-white/15" />}
+      {KEYS.map((k) => (
+        <Dial
+          key={k}
+          icon={ICONS[k]}
+          value={current[k]}
+          active={activeTool == null && k === activeKey}
+          proBadge={PRO_KEYS.has(k)}
+          locked={!isPro && PRO_KEYS.has(k)}
+          label={tr.edit[k]}
+          onClick={() => {
+            if (!isPro && PRO_KEYS.has(k)) {
+              openPaywall('detail')
+              return
+            }
+            onToolChange?.(null)
+            setActiveKey(k)
+          }}
+        />
+      ))}
+    </div>
+  )
+  const slider = (
+    <div className="flex flex-col gap-1.5">
+      <div className="flex items-center justify-between text-xs">
+        <span className="font-label text-xs font-semibold uppercase tracking-wider text-white/70">{tr.edit[activeKey]}</span>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            aria-label={`${tr.edit.reset}: ${tr.edit[activeKey]}`}
+            onClick={() => set(activeKey, 0)}
+            className="rounded-full px-1.5 py-1 tabular-nums text-white transition active:scale-90"
+          >
+            {shown > 0 && bipolar ? `+${shown}` : shown}
+          </button>
+          <button
+            type="button"
+            disabled={!edited}
+            onClick={() => onChange({ ...DEFAULT_ADJUSTMENTS, retro: current.retro, retroAmount: current.retroAmount })}
+            className="font-label rounded-full bg-white/10 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide text-white/70 transition hover:bg-white/15 active:scale-95 disabled:opacity-30"
+          >
+            {tr.edit.reset}
+          </button>
+        </div>
+      </div>
+      <input
+        type="range"
+        min={bipolar ? -1 : 0}
+        max={1}
+        step={0.01}
+        value={v}
+        aria-label={tr.edit[activeKey]}
+        onChange={(e) => set(activeKey, Number(e.target.value))}
+        onDoubleClick={() => set(activeKey, 0)}
+        className="h-1.5 w-full cursor-pointer appearance-none rounded-full bg-white/15 accent-white"
+        style={TRACKS[activeKey] ? { background: TRACKS[activeKey] } : undefined}
+      />
+    </div>
+  )
+
+  // Edit's own screen: controls on top, the row at the bottom like a toolbar.
+  if (tools) {
+    return (
+      <div className="flex flex-col gap-3">
+        {header}
+        {activeTool ? toolPanel : slider}
+        {row}
+      </div>
+    )
+  }
+
   return (
     <div className="flex flex-col gap-3">
+      {/* pt-1 on the row: the scroll row clips vertically too, and the Pro
+          dials' badges sit just above their rings. */}
       {header}
-      {/* pt-1: the scroll row clips vertically too, and the Pro dials' badges
-          sit just above their rings. */}
-      <div className="scroll-row -mx-1 flex gap-0.5 overflow-x-auto overscroll-x-contain px-1 pt-1">
-        {KEYS.map((k) => (
-          <Dial
-            key={k}
-            k={k}
-            value={current[k]}
-            active={k === activeKey}
-            locked={!isPro && PRO_KEYS.has(k)}
-            label={tr.edit[k]}
-            onClick={() => (!isPro && PRO_KEYS.has(k) ? openPaywall('detail') : setActiveKey(k))}
-          />
-        ))}
-      </div>
-      <div className="flex flex-col gap-1.5">
-        <div className="flex items-center justify-between text-xs">
-          <span className="font-label text-xs font-semibold uppercase tracking-wider text-white/70">{tr.edit[activeKey]}</span>
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              aria-label={`${tr.edit.reset}: ${tr.edit[activeKey]}`}
-              onClick={() => set(activeKey, 0)}
-              className="rounded-full px-1.5 py-1 tabular-nums text-white transition active:scale-90"
-            >
-              {shown > 0 && bipolar ? `+${shown}` : shown}
-            </button>
-            <button
-              type="button"
-              disabled={!edited}
-              onClick={() => onChange({ ...DEFAULT_ADJUSTMENTS, retro: current.retro, retroAmount: current.retroAmount })}
-              className="font-label rounded-full bg-white/10 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide text-white/70 transition hover:bg-white/15 active:scale-95 disabled:opacity-30"
-            >
-              {tr.edit.reset}
-            </button>
-          </div>
-        </div>
-        <input
-          type="range"
-          min={bipolar ? -1 : 0}
-          max={1}
-          step={0.01}
-          value={v}
-          aria-label={tr.edit[activeKey]}
-          onChange={(e) => set(activeKey, Number(e.target.value))}
-          onDoubleClick={() => set(activeKey, 0)}
-          className="h-1.5 w-full cursor-pointer appearance-none rounded-full bg-white/15 accent-white"
-          style={TRACKS[activeKey] ? { background: TRACKS[activeKey] } : undefined}
-        />
-      </div>
+      {row}
+      {slider}
     </div>
   )
 }

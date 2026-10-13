@@ -28,7 +28,7 @@ import { RotateControls } from './RotateControls'
 import { SegmentedToggle } from './SegmentedToggle'
 import { BorderColorPicker } from './BorderColorPicker'
 import { getBorderColor } from '../../lib/borderColors'
-import { AdjustmentsPanel } from './AdjustmentsPanel'
+import { AdjustmentsPanel, type PanelTool } from './AdjustmentsPanel'
 import { IconCrop, IconDrop, IconFrame, IconRetro, IconRotate, IconSliders } from './icons'
 import { RetroPanel } from './RetroPanel'
 import { proExportGuard } from '../../lib/proGuard'
@@ -80,6 +80,13 @@ export function BorderEditor({ plain = false }: { plain?: boolean }) {
     ...(plain ? [] : [{ id: 'edit', label: tr.tools.edit, icon: <IconSliders />, proInside: true }]),
     { id: 'retro', label: tr.tools.retro, icon: <IconRetro />, pro: 'retro' },
   ]
+  // Edit's own screen: these lead the dials' row instead of a bottom bar.
+  const PLAIN_TOOLS: PanelTool[] = [
+    { id: 'aspecto', label: tr.borderEditor.toolAspect, icon: <IconCrop className="h-[18px] w-[18px]" /> },
+    { id: 'rotate', label: tr.borderEditor.toolRotate, icon: <IconRotate className="h-[18px] w-[18px]" /> },
+    { id: 'workspace', label: tr.tools.workspace, icon: <IconDrop className="h-[18px] w-[18px]" /> },
+    { id: 'retro', label: tr.tools.retro, icon: <IconRetro className="h-[18px] w-[18px]" />, locked: !isPro, onLocked: () => openPaywall('retro') },
+  ]
   const {
     photos,
     border,
@@ -119,8 +126,6 @@ export function BorderEditor({ plain = false }: { plain?: boolean }) {
   // moment a photo lands — the bottom bar itself is gated on `photo` below,
   // so this has no effect until then.
   const [activeTool, setActiveTool] = useState<string | null>(plain ? null : 'aspecto')
-  // In Edit, the dials are what shows whenever no other tool is open.
-  const shownTool = plain ? (activeTool ?? 'edit') : activeTool
   // Edit always fills the frame: there's no border to show a whole photo inside.
   const locked = plain || border.locked
   // Why the last selection was (partly) refused: too many, an unsupported
@@ -489,6 +494,88 @@ export function BorderEditor({ plain = false }: { plain?: boolean }) {
     }
   }
 
+  /** The open tool's controls — in the bottom bar, or in Edit's own row. */
+  const panelFor = (tool: string | null) => (
+    <>
+          {tool === 'aspecto' && (
+            <div>
+              <p className="font-label mb-2 text-center text-xs font-semibold uppercase tracking-wider text-white/40">{tr.borderEditor.cropHeading}</p>
+              <AspectRatioPicker
+                value={border.aspectRatioId}
+                onChange={setBorderAspectRatio}
+                orientation={border.ratioOrientation}
+                onOrientationChange={setBorderRatioOrientation}
+                extra={
+                  plain ? undefined : (
+                    <SegmentedToggle
+                      options={[
+                        { value: true, label: tr.borderEditor.locked },
+                        { value: false, label: tr.borderEditor.unlocked },
+                      ]}
+                      value={border.locked}
+                      onChange={setBorderLocked}
+                    />
+                  )
+                }
+              />
+              <div className="flex flex-col items-center">
+                {!locked && (
+                  <p className="fade-in font-label mt-2 max-w-[220px] text-center text-[11px] text-white/40">
+                    {tr.borderEditor.unlockedHint}
+                  </p>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Thickness and colour together: a "Color" tool of its own read as
+              the photo's colour, not the border's. */}
+          {tool === 'bordes' && (
+            <div className="flex flex-col gap-4">
+              <BorderThicknessSlider
+                label={tr.borderEditor.borderThickness}
+                value={border.borderThicknessPct}
+                onChange={setBorderThickness}
+              />
+              <BorderColorPicker value={border.borderColor} onChange={setBorderColor} />
+            </div>
+          )}
+
+          {tool === 'edit' && (
+            <AdjustmentsPanel
+              value={border.adjustments[photo.id]}
+              onChange={(a) => setBorderAdjustments(photo.id, a)}
+              header={syncHeader}
+            />
+          )}
+
+          {tool === 'retro' && (
+            <RetroPanel
+              photo={photo}
+              value={border.adjustments[photo.id]}
+              onChange={(a) => setBorderAdjustments(photo.id, a)}
+              header={syncHeader}
+            />
+          )}
+
+          {tool === 'rotate' && <RotateControls transform={border.transform} onChange={setBorderTransform} />}
+
+          {tool === 'workspace' && (
+            <div className="flex flex-col gap-4">
+              <WorkspaceBackgroundPicker value={workspaceBackground} onChange={setWorkspaceBackground} />
+              {!plain && (
+                <ExportBackgroundToggle
+                  on={border.exportWithBackground}
+                  onChange={setBorderExportWithBackground}
+                  backgroundHex={getWorkspaceBackground(workspaceBackground).hex}
+                />
+              )}
+            </div>
+          )}
+
+    </>
+  )
+
   return (
     <div className="flex h-full flex-col bg-ink-900">
       <Toolbar
@@ -627,84 +714,23 @@ export function BorderEditor({ plain = false }: { plain?: boolean }) {
           // canvas (flex-1 min-h-0) is what should absorb the pressure.
           className={`shrink-0 ${swapPhase === 'exiting' ? 'view-exit' : swapPhase === 'mounting' ? 'opacity-0' : swapPhase === 'entering' ? 'view-enter' : ''}`}
         >
-        <EditorBottomBar tools={TOOLS} activeId={shownTool} onSelect={setActiveTool}>
-          {shownTool === 'aspecto' && (
-            <div>
-              <p className="font-label mb-2 text-center text-xs font-semibold uppercase tracking-wider text-white/40">{tr.borderEditor.cropHeading}</p>
-              <AspectRatioPicker
-                value={border.aspectRatioId}
-                onChange={setBorderAspectRatio}
-                orientation={border.ratioOrientation}
-                onOrientationChange={setBorderRatioOrientation}
-                extra={
-                  plain ? undefined : (
-                    <SegmentedToggle
-                      options={[
-                        { value: true, label: tr.borderEditor.locked },
-                        { value: false, label: tr.borderEditor.unlocked },
-                      ]}
-                      value={border.locked}
-                      onChange={setBorderLocked}
-                    />
-                  )
-                }
-              />
-              <div className="flex flex-col items-center">
-                {!locked && (
-                  <p className="fade-in font-label mt-2 max-w-[220px] text-center text-[11px] text-white/40">
-                    {tr.borderEditor.unlockedHint}
-                  </p>
-                )}
-              </div>
-            </div>
-          )}
-
-          {/* Thickness and colour together: a "Color" tool of its own read as
-              the photo's colour, not the border's. */}
-          {shownTool === 'bordes' && (
-            <div className="flex flex-col gap-4">
-              <BorderThicknessSlider
-                label={tr.borderEditor.borderThickness}
-                value={border.borderThicknessPct}
-                onChange={setBorderThickness}
-              />
-              <BorderColorPicker value={border.borderColor} onChange={setBorderColor} />
-            </div>
-          )}
-
-          {shownTool === 'edit' && (
+        {plain ? (
+          <div className="border-t border-white/10 bg-ink-900 px-4 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-4">
             <AdjustmentsPanel
               value={border.adjustments[photo.id]}
               onChange={(a) => setBorderAdjustments(photo.id, a)}
               header={syncHeader}
+              tools={PLAIN_TOOLS}
+              activeTool={activeTool}
+              onToolChange={setActiveTool}
+              toolPanel={panelFor(activeTool)}
             />
-          )}
-
-          {shownTool === 'retro' && (
-            <RetroPanel
-              photo={photo}
-              value={border.adjustments[photo.id]}
-              onChange={(a) => setBorderAdjustments(photo.id, a)}
-              header={syncHeader}
-            />
-          )}
-
-          {shownTool === 'rotate' && <RotateControls transform={border.transform} onChange={setBorderTransform} />}
-
-          {shownTool === 'workspace' && (
-            <div className="flex flex-col gap-4">
-              <WorkspaceBackgroundPicker value={workspaceBackground} onChange={setWorkspaceBackground} />
-              {!plain && (
-                <ExportBackgroundToggle
-                  on={border.exportWithBackground}
-                  onChange={setBorderExportWithBackground}
-                  backgroundHex={getWorkspaceBackground(workspaceBackground).hex}
-                />
-              )}
-            </div>
-          )}
-
+          </div>
+        ) : (
+        <EditorBottomBar tools={TOOLS} activeId={activeTool} onSelect={setActiveTool}>
+          {panelFor(activeTool)}
         </EditorBottomBar>
+        )}
         </div>
       )}
 
