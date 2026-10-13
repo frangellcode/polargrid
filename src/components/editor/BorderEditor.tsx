@@ -53,8 +53,9 @@ const EXIT_MS = 200
 // keeps only its path, so fifteen costs it no more than one.
 //
 // In the app, batches past five are a Pro feature.
-const FREE_BORDER_BATCH_PHOTOS = 5
-const PRO_BORDER_BATCH_PHOTOS = isNativeApp ? 15 : FREE_BORDER_BATCH_PHOTOS
+/** Batches are PolarGrid Pro: without it, one photo at a time. */
+const FREE_BORDER_BATCH_PHOTOS = 1
+const PRO_BORDER_BATCH_PHOTOS = isNativeApp ? 15 : 5
 
 export function BorderEditor() {
   const tr = useTranslation()
@@ -365,6 +366,10 @@ export function BorderEditor() {
   // until the count is known to be good, so an over-sized pick costs no memory
   // at all.
   const handleBatchUpload = async (files: FileList | PhotoSource[]) => {
+    if (!isPro) {
+      openPaywall('batch')
+      return
+    }
     const images = screen(files)
     if (!images) return
     if (images.length > MAX_BORDER_BATCH_PHOTOS) {
@@ -585,10 +590,12 @@ export function BorderEditor() {
               <Dropzone
                 label={tr.borderEditor.dropBatchLabel}
                 hint={
-                  MAX_BORDER_BATCH_PHOTOS < PRO_BORDER_BATCH_PHOTOS
-                    ? tr.borderEditor.dropBatchHintPro(MAX_BORDER_BATCH_PHOTOS, PRO_BORDER_BATCH_PHOTOS, MAX_PHOTO_MB)
-                    : tr.borderEditor.dropBatchHint(MAX_BORDER_BATCH_PHOTOS, MAX_PHOTO_MB)
+                  isPro
+                    ? tr.borderEditor.dropBatchHint(MAX_BORDER_BATCH_PHOTOS, MAX_PHOTO_MB)
+                    : tr.borderEditor.dropBatchHintPro(PRO_BORDER_BATCH_PHOTOS, MAX_PHOTO_MB)
                 }
+                locked={!isPro}
+                onLocked={() => openPaywall('batch')}
                 error={uploadError}
                 onFiles={handleBatchUpload}
                 multiple

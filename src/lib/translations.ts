@@ -90,7 +90,7 @@ export const translations = {
         },
         {
           title: 'White border',
-          body: 'Frame a photo in a border of any thickness and colour. Pick the aspect for Instagram, lock it to crop or unlock it to show the whole photo — or load a batch and frame them all at once.',
+          body: 'Frame a photo in a border of any thickness and colour. Pick the aspect for Instagram, lock it to crop or unlock it to show the whole photo — or, with Pro, load a batch and frame them all at once.',
         },
         {
           title: 'Collage',
@@ -156,8 +156,7 @@ export const translations = {
       dropBatchLabel: 'Tap to upload a batch',
       dropBatchHint: (n: number, mb: number) =>
         `up to ${n} photos under ${mb} MB, same adjustment applied to all`,
-      dropBatchHintPro: (n: number, pro: number, mb: number) =>
-        `up to ${n} photos under ${mb} MB (${pro} with Pro), same adjustment applied to all`,
+      dropBatchHintPro: (pro: number, mb: number) => `Pro: up to ${pro} photos under ${mb} MB, framed all at once`,
       batchCount: (n: number) => `${n} photos selected — this adjustment will be applied to all of them on export`,
       batchNote: (n: number) => `same adjustment\nfor all ${n}`,
       batchThumb: (n: number) => `Preview photo ${n}`,
@@ -374,7 +373,7 @@ export const translations = {
         },
         {
           title: 'Bordes blancos',
-          body: 'Enmarca una foto con un borde del grosor y color que quieras. Elige el aspecto para Instagram, bloquéalo para recortar o desbloquéalo para ver la foto completa — o sube un lote y enmárcalas todas a la vez.',
+          body: 'Enmarca una foto con un borde del grosor y color que quieras. Elige el aspecto para Instagram, bloquéalo para recortar o desbloquéalo para ver la foto completa — o, con Pro, sube un lote y enmárcalas todas a la vez.',
         },
         {
           title: 'Collage',
@@ -440,8 +439,7 @@ export const translations = {
       dropBatchLabel: 'Toca para subir por lotes',
       dropBatchHint: (n: number, mb: number) =>
         `hasta ${n} fotos de menos de ${mb} MB, mismo ajuste para todas`,
-      dropBatchHintPro: (n: number, pro: number, mb: number) =>
-        `hasta ${n} fotos de menos de ${mb} MB (${pro} con Pro), mismo ajuste para todas`,
+      dropBatchHintPro: (pro: number, mb: number) => `Pro: hasta ${pro} fotos de menos de ${mb} MB, enmarcadas de una vez`,
       batchCount: (n: number) => `${n} fotos seleccionadas — este ajuste se aplicará a todas al exportar`,
       batchNote: (n: number) => `mismo ajuste\npara las ${n}`,
       batchThumb: (n: number) => `Ver la foto ${n}`,

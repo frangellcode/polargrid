@@ -4,6 +4,7 @@ import type { ChangeEvent, DragEvent } from 'react'
 import { PHOTO_ACCEPT_ATTR } from '../../lib/photoInput'
 import { isNativeApp } from '../../lib/native'
 import { pickPhotosNatively } from '../../lib/nativePhotos'
+import { IconLock } from './icons'
 
 interface DropzoneProps {
   label: string
@@ -15,6 +16,9 @@ interface DropzoneProps {
   /** Most photos one pick may return. Only the native picker can enforce it;
    *  on the web the caller still has to check what comes back. */
   maxPhotos?: number
+  /** A Pro-only drop zone: a tap or a drop opens the paywall instead. */
+  locked?: boolean
+  onLocked?: () => void
 }
 
 /** Accepts drag & drop across the whole box on desktop, but the actual tap
@@ -24,11 +28,15 @@ interface DropzoneProps {
  *  compositing glitch on large `:active`-driven layers (the same family of
  *  bug App.tsx's screen-transition fix already worked around elsewhere). A
  *  small button doesn't trigger it. */
-export function Dropzone({ label, hint, error, onFiles, multiple = true, maxPhotos }: DropzoneProps) {
+export function Dropzone({ label, hint, error, onFiles, multiple = true, maxPhotos, locked = false, onLocked }: DropzoneProps) {
   const inputRef = useRef<HTMLInputElement>(null)
   const [isDragOver, setIsDragOver] = useState(false)
 
   const openPicker = async () => {
+    if (locked) {
+      onLocked?.()
+      return
+    }
     if (!isNativeApp) {
       inputRef.current?.click()
       return
@@ -40,6 +48,10 @@ export function Dropzone({ label, hint, error, onFiles, multiple = true, maxPhot
   const handleDrop = (e: DragEvent<HTMLDivElement>) => {
     e.preventDefault()
     setIsDragOver(false)
+    if (locked) {
+      onLocked?.()
+      return
+    }
     if (e.dataTransfer.files && e.dataTransfer.files.length > 0) onFiles(e.dataTransfer.files)
   }
 
@@ -65,8 +77,13 @@ export function Dropzone({ label, hint, error, onFiles, multiple = true, maxPhot
         type="button"
         onClick={openPicker}
         aria-label={label}
-        className="flex h-16 w-16 items-center justify-center rounded-full bg-white text-ink-900 shadow-sm transition duration-200 active:scale-90"
+        className="relative flex h-16 w-16 items-center justify-center rounded-full bg-white text-ink-900 shadow-sm transition duration-200 active:scale-90"
       >
+        {locked && (
+          <span aria-hidden className="absolute -right-0.5 -top-0.5 flex h-5 w-5 items-center justify-center rounded-full bg-amber-300 text-ink-900 shadow">
+            <IconLock className="h-3 w-3" />
+          </span>
+        )}
         <svg width={28} height={28} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
           <path d="M12 16V4M12 4l-4 4M12 4l4 4" />
           <path d="M4 16v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2" />
