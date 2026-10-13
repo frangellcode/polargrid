@@ -215,23 +215,30 @@ function StoryToggleArt() {
   )
 }
 
-/** What comes out: a 9:16 Story, sky-blue background all round the photo,
- *  with a Story's progress bars along the top. */
+/** Without the background against with it: the same bordered photo on its
+ *  own, then centred on the 9:16 sky-blue canvas it exports onto. */
 function StoryResultArt() {
+  const tr = useTranslation()
   return (
-    <div className="flex h-full w-full items-center justify-center">
-      <div
-        className="tour-rise relative flex aspect-[9/16] h-[92%] items-center justify-center overflow-hidden rounded-2xl shadow-2xl shadow-black/60 ring-1 ring-white/10"
-        style={{ backgroundColor: SKY }}
-      >
-        <div className="absolute inset-x-2.5 top-2.5 flex gap-1">
-          {[1, 0.55, 0].map((fill, i) => (
-            <span key={i} className="h-0.5 flex-1 overflow-hidden rounded-full bg-white/45">
-              <span className="block h-full bg-white" style={{ width: `${fill * 100}%` }} />
-            </span>
-          ))}
+    <div className="flex h-full w-full items-center justify-center gap-4">
+      <div className="flex w-[42%] flex-col items-center gap-2">
+        <div className="flex aspect-[9/16] w-full items-center justify-center">
+          <Print name="garden" pad="4%" className="aspect-[4/5] w-[91%]" />
         </div>
-        <Print name="garden" pad="4%" className="aspect-[4/5] w-[91%]" />
+        <span className="font-label rounded-full bg-white/10 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide text-white/70">
+          {tr.tour.withoutBackground}
+        </span>
+      </div>
+      <div className="flex w-[42%] flex-col items-center gap-2">
+        <div
+          className="flex aspect-[9/16] w-full items-center justify-center rounded-lg shadow-2xl shadow-black/50 ring-1 ring-white/10"
+          style={{ backgroundColor: SKY }}
+        >
+          <Print name="garden" pad="4%" className="aspect-[4/5] w-[91%]" />
+        </div>
+        <span className="font-label rounded-full bg-white px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide text-ink-900">
+          {tr.tour.withBackground}
+        </span>
       </div>
     </div>
   )
@@ -357,13 +364,24 @@ export function WelcomeTour({ onClose }: WelcomeTourProps) {
             />
           ))}
         </div>
-        <button
-          type="button"
-          onClick={() => (last ? close() : goTo(index + 1))}
-          className="font-label w-full max-w-xs rounded-full bg-white py-3 text-xs font-semibold uppercase tracking-[0.14em] text-ink-900 transition active:scale-95"
-        >
-          {last ? tr.tour.start : tr.tour.next}
-        </button>
+        <div className="flex w-full max-w-xs gap-2">
+          {/* Back as well as Next — swiping isn't the only way people page. */}
+          <button
+            type="button"
+            onClick={() => goTo(index - 1)}
+            disabled={index === 0}
+            className="font-label w-[38%] shrink-0 rounded-full bg-white/10 py-3 text-xs font-semibold uppercase tracking-[0.14em] text-white transition active:scale-95 disabled:opacity-30"
+          >
+            {tr.tour.back}
+          </button>
+          <button
+            type="button"
+            onClick={() => (last ? close() : goTo(index + 1))}
+            className="font-label flex-1 rounded-full bg-white py-3 text-xs font-semibold uppercase tracking-[0.14em] text-ink-900 transition active:scale-95"
+          >
+            {last ? tr.tour.start : tr.tour.next}
+          </button>
+        </div>
       </div>
     </div>
   )

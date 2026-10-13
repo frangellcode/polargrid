@@ -78,6 +78,9 @@ export const translations = {
     tour: {
       skip: 'Skip',
       next: 'Next',
+      back: 'Back',
+      withoutBackground: 'Without',
+      withBackground: 'With background',
       start: 'Get started',
       help: 'How it works',
       slides: [
@@ -111,7 +114,7 @@ export const translations = {
         },
         {
           title: 'Here’s how it looks',
-          body: 'Your photo and its border, centred on the background — nothing cropped, at full quality.',
+          body: 'The same photo without the background and with it: centred on the colour you picked, nothing cropped, at full quality.',
         },
         {
           title: 'Export at full quality',
@@ -363,6 +366,9 @@ export const translations = {
     tour: {
       skip: 'Saltar',
       next: 'Siguiente',
+      back: 'Atrás',
+      withoutBackground: 'Sin fondo',
+      withBackground: 'Con fondo',
       start: 'Empezar',
       help: 'Cómo funciona',
       slides: [
@@ -396,7 +402,7 @@ export const translations = {
         },
         {
           title: 'Así queda',
-          body: 'Tu foto con su borde, centrada sobre el fondo — sin recortes y en máxima calidad.',
+          body: 'La misma foto sin fondo y con fondo: centrada sobre el color que elegiste, sin recortes y en máxima calidad.',
         },
         {
           title: 'Exporta en máxima calidad',
