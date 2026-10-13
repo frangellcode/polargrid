@@ -2,11 +2,14 @@ import { useState } from 'react'
 import type { ReactNode } from 'react'
 import { useTranslation } from '../../store/languageStore'
 import { DEFAULT_ADJUSTMENTS, TONE_KEYS, type AdjustmentKey, type PhotoAdjustments } from '../../lib/adjustments'
-import { IconGrain, IconSharpen } from './icons'
+import { useProStore } from '../../store/proStore'
+import { IconGrain, IconLock, IconSharpen } from './icons'
 
 /** Order of the dials, light first, then colour, then detail. */
 const KEYS: AdjustmentKey[] = [...TONE_KEYS, 'sharpness', 'grain']
 const BIPOLAR = new Set<AdjustmentKey>(TONE_KEYS)
+/** Light and colour are free; the film detail is PolarGrid Pro. */
+const PRO_KEYS = new Set<AdjustmentKey>(['sharpness', 'grain'])
 
 /** Slider tracks that show which way each colour slider pushes. */
 const TRACKS: Partial<Record<AdjustmentKey, string>> = {
@@ -73,7 +76,21 @@ const RING_C = 2 * Math.PI * RING_R
 /** One dial: its icon in a ring that fills with the value, clockwise for
  *  positive and anticlockwise for negative — like the Photos app's editor —
  *  with its name underneath, so nobody has to tap through them to find one. */
-function Dial({ k, value, active, label, onClick }: { k: AdjustmentKey; value: number; active: boolean; label: string; onClick: () => void }) {
+function Dial({
+  k,
+  value,
+  active,
+  locked,
+  label,
+  onClick,
+}: {
+  k: AdjustmentKey
+  value: number
+  active: boolean
+  locked: boolean
+  label: string
+  onClick: () => void
+}) {
   const share = Math.min(1, Math.abs(value))
   return (
     <button
@@ -102,6 +119,17 @@ function Dial({ k, value, active, label, onClick }: { k: AdjustmentKey; value: n
         )}
       </svg>
       <span className={`relative ${active || value !== 0 ? 'text-white' : 'text-white/55'}`}>{ICONS[k]}</span>
+      {PRO_KEYS.has(k) && (
+        // Always mounted and faded, so it melts away when Pro unlocks.
+        <span
+          aria-hidden
+          className={`absolute -right-0.5 -top-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-white text-ink-900 shadow transition duration-300 ease-out ${
+            locked ? 'scale-100 opacity-100' : 'scale-50 opacity-0'
+          }`}
+        >
+          <IconLock className="h-2.5 w-2.5" />
+        </span>
+      )}
       </span>
       <span
         className={`font-label max-w-full truncate text-[9px] font-semibold uppercase tracking-normal ${
@@ -129,6 +157,8 @@ interface AdjustmentsPanelProps {
  */
 export function AdjustmentsPanel({ value, onChange, header }: AdjustmentsPanelProps) {
   const tr = useTranslation()
+  const isPro = useProStore((s) => s.isPro)
+  const openPaywall = useProStore((s) => s.openPaywall)
   const [activeKey, setActiveKey] = useState<AdjustmentKey>('exposure')
   const current = value ?? DEFAULT_ADJUSTMENTS
   const set = (key: AdjustmentKey, v: number) => onChange({ ...current, [key]: v })
@@ -142,7 +172,15 @@ export function AdjustmentsPanel({ value, onChange, header }: AdjustmentsPanelPr
       {header}
       <div className="scroll-row -mx-1 flex gap-0.5 overflow-x-auto overscroll-x-contain px-1">
         {KEYS.map((k) => (
-          <Dial key={k} k={k} value={current[k]} active={k === activeKey} label={tr.edit[k]} onClick={() => setActiveKey(k)} />
+          <Dial
+            key={k}
+            k={k}
+            value={current[k]}
+            active={k === activeKey}
+            locked={!isPro && PRO_KEYS.has(k)}
+            label={tr.edit[k]}
+            onClick={() => (!isPro && PRO_KEYS.has(k) ? openPaywall('detail') : setActiveKey(k))}
+          />
         ))}
       </div>
       <div className="flex flex-col gap-1.5">

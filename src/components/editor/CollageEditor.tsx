@@ -1089,7 +1089,7 @@ export function CollageEditor() {
     { id: 'plantilla', label: tr.collageEditor.toolTemplate, icon: <IconGrid /> },
     { id: 'workspace', label: tr.tools.workspace, icon: <IconDrop /> },
     { id: 'bordes', label: tr.collageEditor.toolBorder, icon: <IconFrame /> },
-    { id: 'edit', label: tr.tools.edit, icon: <IconSliders />, pro: 'edit' },
+    { id: 'edit', label: tr.tools.edit, icon: <IconSliders /> },
     { id: 'retro', label: tr.tools.retro, icon: <IconRetro />, pro: 'retro' },
   ]
   const FREE_TOOLS: BottomBarTool[] = [
@@ -1098,7 +1098,7 @@ export function CollageEditor() {
     // Free mode has no border, so its one colour is the canvas behind the
     // photos — named for that instead of "Color", which read as the photos'.
     { id: 'color', label: tr.collageEditor.toolBackground, icon: <IconSwatch /> },
-    { id: 'edit', label: tr.tools.edit, icon: <IconSliders />, pro: 'edit' },
+    { id: 'edit', label: tr.tools.edit, icon: <IconSliders /> },
     { id: 'retro', label: tr.tools.retro, icon: <IconRetro />, pro: 'retro' },
   ]
   const store = useEditorStore()

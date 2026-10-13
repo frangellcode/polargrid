@@ -180,12 +180,11 @@ async function drawSplit(
     drawVignette(after, width, height, getRetroPreset('retrato')?.vignette ?? 0)
     drawGrainOverlay(after, width, height, getRetroPreset('retrato')?.grain ?? 0)
   } else {
-    // Edit: a lifted, punchier, warmer take with a touch of sharpening and
-    // grain — enough to read at a glance in a small box.
-    applyAdjustments(image, { ...DEFAULT_ADJUSTMENTS, exposure: 0.12, contrast: 0.25, shadows: 0.35, highlights: -0.3, vibrance: 0.45, temperature: 0.25 })
-    unsharpMask(image, sharpenRadiusFor(Math.max(width, height)), sharpenAmount(0.6))
+    // Grain and sharpness: the same photo crisper, with film grain — strong
+    // enough to read at a glance in a small box.
+    unsharpMask(image, sharpenRadiusFor(Math.max(width, height)), sharpenAmount(0.8))
     after.putImageData(image, 0, 0)
-    drawGrainOverlay(after, width, height, 0.2)
+    drawGrainOverlay(after, width, height, 0.35)
   }
   return true
 }

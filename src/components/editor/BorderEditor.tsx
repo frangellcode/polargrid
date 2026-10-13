@@ -69,7 +69,7 @@ export function BorderEditor() {
     { id: 'rotate', label: tr.borderEditor.toolRotate, icon: <IconRotate /> },
     { id: 'workspace', label: tr.tools.workspace, icon: <IconDrop /> },
     { id: 'bordes', label: tr.borderEditor.toolBorder, icon: <IconFrame /> },
-    { id: 'edit', label: tr.tools.edit, icon: <IconSliders />, pro: 'edit' },
+    { id: 'edit', label: tr.tools.edit, icon: <IconSliders /> },
     { id: 'retro', label: tr.tools.retro, icon: <IconRetro />, pro: 'retro' },
   ]
   const {
@@ -336,7 +336,8 @@ export function BorderEditor() {
           { value: true, label: tr.edit.syncOn },
         ]}
         value={border.syncAdjustments}
-        onChange={(sync) => setBorderSyncAdjustments(sync, photo.id)}
+        // Applying one edit to the whole batch is Pro; editing each photo isn't.
+        onChange={(sync) => (sync && !isPro ? openPaywall('batch') : setBorderSyncAdjustments(sync, photo.id))}
       />
     </div>
   )

@@ -14,6 +14,11 @@ import { useProStore } from '../store/proStore'
  * StoreKit check finished, a future control that forgets its lock — so that
  * whatever is on screen, a free export can only ever carry free features.
  */
+/** An edit with its Pro parts taken out. */
+function freeOnly<T extends PhotoAdjustments>(a: T): T {
+  return { ...a, grain: 0, sharpness: 0, retro: null }
+}
+
 export function proExportGuard() {
   const isPro = useProStore.getState().isPro
   return {
@@ -22,9 +27,11 @@ export function proExportGuard() {
     quality: (quality: ExportQuality): ExportQuality => (isPro || quality !== 'native' ? quality : 'high'),
     /** White is the free border colour; anything else is Pro. */
     borderHex: (hex: string): string => (isPro ? hex : getBorderColor(DEFAULT_BORDER_COLOR).hex),
-    /** Edit and Retro are Pro. */
-    adjustments: <T extends PhotoAdjustments | null | undefined>(a: T): T | null => (isPro ? a : null),
-    adjustmentsMap: (map: Record<string, PhotoAdjustments>): Record<string, PhotoAdjustments> => (isPro ? map : {}),
+    /** Edit's light and colour are free; its grain and sharpness, and Retro,
+     *  are Pro. */
+    adjustments: <T extends PhotoAdjustments | null | undefined>(a: T): T | null => (isPro || !a ? a : freeOnly(a)),
+    adjustmentsMap: (map: Record<string, PhotoAdjustments>): Record<string, PhotoAdjustments> =>
+      isPro ? map : Object.fromEntries(Object.entries(map).map(([id, a]) => [id, freeOnly(a)])),
     /** The 9:16 background is Pro. */
     storyHex: (hex: string | null): string | null => (isPro ? hex : null),
     /** Batches past `freeLimit` photos are Pro. */

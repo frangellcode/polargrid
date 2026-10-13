@@ -4,7 +4,7 @@ import { Pro } from '../lib/pro'
 import type { ProProduct } from '../lib/pro'
 
 /** What Pro unlocks, in the order the paywall lists it. */
-export const PRO_FEATURES = ['quality', 'colors', 'edit', 'retro', 'batch', 'story'] as const
+export const PRO_FEATURES = ['quality', 'colors', 'detail', 'retro', 'batch', 'story'] as const
 export type ProFeature = (typeof PRO_FEATURES)[number]
 
 interface ProStoreState {

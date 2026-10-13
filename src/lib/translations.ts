@@ -114,7 +114,7 @@ export const translations = {
         },
         {
           title: 'Export at full quality',
-          body: 'Save at your camera’s native resolution, or lighter for sharing. With Pro: maximum quality, Edit, Retro, any border colour, a 9:16 background for Stories and batches of up to 15.',
+          body: 'Save at your camera’s native resolution, or lighter for sharing. With Pro: maximum quality, grain and sharpness, Retro, any border colour, a 9:16 background for Stories and batches of up to 15.',
         },
       ],
     },
@@ -226,7 +226,7 @@ export const translations = {
     pro: {
       title: 'PolarGrid Pro',
       subtitle: 'One purchase, yours forever. No subscription.',
-      features: ['Maximum-quality export', 'Unlimited border colours', 'Edit: light, colour, grain, sharpness', 'Retro film styles', 'Batches of up to 15 photos', 'Export on a 9:16 background'],
+      features: ['Maximum-quality export', 'Unlimited border colours', 'Film grain and sharpness', 'Retro film styles', 'Batches of up to 15, one edit for all', 'Export on a 9:16 background'],
       unlock: (price: string) => `Unlock for ${price}`,
       loadingPrice: 'Loading…',
       unavailable: 'Pro isn\u2019t available right now. Try again later.',
@@ -398,7 +398,7 @@ export const translations = {
         },
         {
           title: 'Exporta en máxima calidad',
-          body: 'Guarda a la resolución nativa de tu cámara, o más liviano para compartir. Con Pro: calidad máxima, Editar, Retro, cualquier color de borde, fondo 9:16 para Historias y lotes de hasta 15.',
+          body: 'Guarda a la resolución nativa de tu cámara, o más liviano para compartir. Con Pro: calidad máxima, grano y nitidez, Retro, cualquier color de borde, fondo 9:16 para Historias y lotes de hasta 15.',
         },
       ],
     },
@@ -510,7 +510,7 @@ export const translations = {
     pro: {
       title: 'PolarGrid Pro',
       subtitle: 'Un solo pago, para siempre. Sin suscripción.',
-      features: ['Exportación en calidad máxima', 'Colores de borde ilimitados', 'Editar: luz, color, grano, nitidez', 'Estilos Retro de película', 'Lotes de hasta 15 fotos', 'Exportar con fondo 9:16'],
+      features: ['Exportación en calidad máxima', 'Colores de borde ilimitados', 'Grano de película y nitidez', 'Estilos Retro de película', 'Lotes de hasta 15, un ajuste para todas', 'Exportar con fondo 9:16'],
       unlock: (price: string) => `Desbloquear por ${price}`,
       loadingPrice: 'Cargando…',
       unavailable: 'Pro no está disponible ahora. Inténtalo más tarde.',
