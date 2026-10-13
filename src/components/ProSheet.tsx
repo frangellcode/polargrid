@@ -42,6 +42,30 @@ export function ProSheet() {
         : (s.collage.assignments.find((a) => a.photoId)?.photoId ?? s.collage.freeItems[0]?.photoId)
     return (id && s.photos[id]) || null
   })
+  // Opened before any photo is in (the batch drop zone, say): the examples
+  // use one of the welcome tour's photos instead.
+  const [sample, setSample] = useState<LoadedPhoto | null>(null)
+  useEffect(() => {
+    if (!open || photo || sample) return
+    let cancelled = false
+    const url = `${import.meta.env.BASE_URL}tour/resort.jpg`
+    fetch(url)
+      .then((r) => r.blob())
+      .then(async (blob) => {
+        const bitmap = await createImageBitmap(blob)
+        if (cancelled) {
+          bitmap.close()
+          return
+        }
+        const file = new File([blob], 'resort.jpg', { type: 'image/jpeg' })
+        setSample({ id: 'pro-sample', file, previewBitmap: bitmap, width: bitmap.width, height: bitmap.height, name: file.name })
+      })
+      .catch(() => {})
+    return () => {
+      cancelled = true
+    }
+  }, [open, photo, sample])
+  const examplePhoto = photo ?? sample
   const [mounted, setMounted] = useState(open)
   const [visible, setVisible] = useState(false)
   const [price, setPrice] = useState<Price>({ kind: 'loading' })
@@ -143,7 +167,7 @@ export function ProSheet() {
             <p className="font-label text-xs leading-snug text-white/50">{tr.pro.subtitle}</p>
           </div>
 
-          {photo && <ProPreview feature={feature} photo={photo} />}
+          {examplePhoto && <ProPreview feature={feature} photo={examplePhoto} />}
 
           <div className="grid w-full grid-cols-2 gap-2">
             {PRO_FEATURES.map((id, i) => (
