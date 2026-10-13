@@ -149,9 +149,28 @@ textarea {
   animation: fade-in-up 450ms cubic-bezier(0.22, 1, 0.36, 1) backwards;
 }
 
+/* The welcome tour's first-launch entrance: each part drifts up into place,
+   slowly, one after another (delays set inline). `backwards` for the same
+   reason as .fade-in. */
+@keyframes tour-soft-in {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.tour-soft-in {
+  animation: tour-soft-in 1000ms cubic-bezier(0.22, 1, 0.36, 1) backwards;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .view-enter,
-  .view-exit {
+  .view-exit,
+  .tour-soft-in {
     animation: none;
   }
 

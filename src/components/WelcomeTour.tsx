@@ -252,6 +252,10 @@ const ART: ReactNode[] = [
 
 interface WelcomeTourProps {
   onClose: () => void
+  /** First launch, straight out of the splash: the screen is already there
+   *  (same colour as the splash), and its contents ease in one after another
+   *  instead of the whole view sliding in. */
+  soft?: boolean
 }
 
 /**
@@ -260,7 +264,12 @@ interface WelcomeTourProps {
  * back). Native scroll snapping does the swiping, so it moves exactly like any
  * other horizontal swipe on the phone.
  */
-export function WelcomeTour({ onClose }: WelcomeTourProps) {
+export function WelcomeTour({ onClose, soft = false }: WelcomeTourProps) {
+  /** Staggered entrance, first launch only. */
+  const softIn = (delay: number, on = true) => ({
+    cls: soft && on ? 'tour-soft-in' : '',
+    style: soft && on ? { animationDelay: `${delay}ms` } : undefined,
+  })
   const tr = useTranslation()
   const slides = tr.tour.slides
   const trackRef = useRef<HTMLDivElement>(null)
@@ -291,10 +300,10 @@ export function WelcomeTour({ onClose }: WelcomeTourProps) {
       role="dialog"
       aria-modal="true"
       aria-label={slides[0].title}
-      className={`fixed inset-0 z-40 flex flex-col bg-ink-900 pb-[max(1.5rem,env(safe-area-inset-bottom))] pt-[max(1rem,env(safe-area-inset-top))] ${leaving ? 'view-exit' : 'view-enter'}`}
+      className={`fixed inset-0 z-40 flex flex-col bg-ink-900 pb-[max(1.5rem,env(safe-area-inset-bottom))] pt-[max(1rem,env(safe-area-inset-top))] ${leaving ? 'view-exit' : soft ? '' : 'view-enter'}`}
       onAnimationEnd={(e) => e.target === e.currentTarget && leaving && onClose()}
     >
-      <div className="flex justify-end px-4">
+      <div className={`flex justify-end px-4 ${softIn(1100).cls}`} style={softIn(1100).style}>
         <button
           type="button"
           onClick={close}
@@ -314,8 +323,16 @@ export function WelcomeTour({ onClose }: WelcomeTourProps) {
       >
         {slides.map((slide, i) => (
           <section key={i} className="flex w-full shrink-0 snap-center flex-col items-center px-8" aria-hidden={i !== index}>
-            <div className="flex min-h-0 w-full max-w-xs flex-1 items-center justify-center py-4">{ART[i]}</div>
-            <div className="flex w-full max-w-xs flex-col items-center gap-3 pb-4 text-center">
+            <div
+              className={`flex min-h-0 w-full max-w-xs flex-1 items-center justify-center py-4 ${softIn(250, i === 0).cls}`}
+              style={softIn(250, i === 0).style}
+            >
+              {ART[i]}
+            </div>
+            <div
+              className={`flex w-full max-w-xs flex-col items-center gap-3 pb-4 text-center ${softIn(550, i === 0).cls}`}
+              style={softIn(550, i === 0).style}
+            >
               <h2 className="font-display text-balance text-2xl font-bold text-white">{slide.title}</h2>
               <p className="font-label text-balance text-[14px] font-light leading-6 text-white/65">{slide.body}</p>
             </div>
@@ -323,7 +340,7 @@ export function WelcomeTour({ onClose }: WelcomeTourProps) {
         ))}
       </div>
 
-      <div className="flex flex-col items-center gap-5 px-8">
+      <div className={`flex flex-col items-center gap-5 px-8 ${softIn(800).cls}`} style={softIn(800).style}>
         <div className="flex gap-2">
           {slides.map((_, i) => (
             <button

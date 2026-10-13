@@ -24,7 +24,7 @@ const EXIT_MS = 200
 // boot effect below for why the handoff has to happen inside the motion.
 const BOOT_HOLD_MS = 700
 /** First launch: how long the splash takes to fade into the welcome tour. */
-const TOUR_CROSSFADE_MS = 400
+const TOUR_CROSSFADE_MS = 600
 const BOOT_FLIGHT_MS = 900
 // Backstop margin for the transitionend handlers below. Every handoff in this
 // file (boot flight -> Home, update flight -> progress bar) hangs off a single
@@ -142,6 +142,8 @@ function App() {
   // First launch only. On a cold start it opens straight out of the splash
   // (see the boot hold below); the effect further down is the fallback.
   const [tourOpen, setTourOpen] = useState(false)
+  // True only while the tour that opened out of the splash is up.
+  const [tourFromSplash, setTourFromSplash] = useState(false)
   const [tourChecked, setTourChecked] = useState(false)
   const [updateProgress, setUpdateProgress] = useState(0)
 
@@ -390,8 +392,9 @@ function App() {
       // landing on Home and having the tour cover it a beat later.
       if (splash && !hasSeenTour()) {
         setTourChecked(true)
+        setTourFromSplash(true)
         setTourOpen(true)
-        splash.style.transition = `opacity ${TOUR_CROSSFADE_MS}ms ease-out`
+        splash.style.transition = `opacity ${TOUR_CROSSFADE_MS}ms ease-in-out`
         splash.style.opacity = '0'
         setTimeout(() => {
           splash.remove()
@@ -557,7 +560,15 @@ function App() {
         </div>
       )}
 
-      {tourOpen && <WelcomeTour onClose={() => setTourOpen(false)} />}
+      {tourOpen && (
+        <WelcomeTour
+          soft={tourFromSplash}
+          onClose={() => {
+            setTourOpen(false)
+            setTourFromSplash(false)
+          }}
+        />
+      )}
 
       {isNativeApp && <ProSheet />}
     </div>
