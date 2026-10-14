@@ -148,6 +148,8 @@ async function drawSplit(
   isCancelled: () => boolean,
   /** The caption example's text. */
   sample = '',
+  /** The storyPhoto example's two halves: sharp, then blurred. */
+  halfLabels: [string, string] = ['', ''],
 ) {
   const source = photo.previewBitmap
 
@@ -222,14 +224,27 @@ async function drawSplit(
   }
 
   if (feature === 'storyPhoto') {
-    // The same print on a plain background, and on the photo itself, blurred.
+    // The same print on a plain background, and on the photo itself — sharp
+    // over the top half, blurred under it, since either is one tap away.
     const short = Math.min(width, height)
     const blurred = photoBackdrop(source, DEFAULT_TRANSFORM, null, 'blur')
+    const sharp = photoBackdrop(source, DEFAULT_TRANSFORM, null, 'sharp')
+    const half = height / 2
     const scene = (canvas: HTMLCanvasElement, withPhoto: boolean) => {
       const ctx = prepare(canvas, width, height)
       ctx.fillStyle = '#ece9e4'
       ctx.fillRect(0, 0, width, height)
-      if (withPhoto) drawBackdropCover(ctx, blurred, width, height)
+      if (withPhoto) {
+        drawBackdropCover(ctx, blurred, width, height)
+        ctx.save()
+        ctx.beginPath()
+        ctx.rect(0, 0, width, half)
+        ctx.clip()
+        drawBackdropCover(ctx, sharp, width, height)
+        ctx.restore()
+        ctx.fillStyle = 'rgba(255,255,255,0.9)'
+        ctx.fillRect(0, half - Math.max(1, short * 0.003), width, Math.max(2, short * 0.006))
+      }
       const pw = width * 0.62
       const ph = pw * 1.25
       const x = (width - pw) / 2
@@ -252,6 +267,28 @@ async function drawSplit(
     }
     scene(beforeCanvas, false)
     scene(afterCanvas, true)
+    // Which half is which, at the right edge where the "after" side shows,
+    // above and below the print so neither covers it.
+    const ctx = afterCanvas.getContext('2d')!
+    const size = Math.round(short * 0.034)
+    ctx.font = `600 ${size}px system-ui, -apple-system, sans-serif`
+    ctx.textBaseline = 'middle'
+    const pill = (text: string, cy: number) => {
+      const label = text.toUpperCase()
+      const w = ctx.measureText(label).width + size * 1.4
+      const h = size * 1.8
+      const x = width - w - short * 0.025
+      ctx.fillStyle = 'rgba(0,0,0,0.55)'
+      ctx.beginPath()
+      ctx.roundRect(x, cy - h / 2, w, h, h / 2)
+      ctx.fill()
+      ctx.fillStyle = '#ffffff'
+      ctx.fillText(label, x + size * 0.7, cy)
+    }
+    pill(halfLabels[0], height * 0.08)
+    pill(halfLabels[1], height * 0.86)
+    sharp.width = 0
+    sharp.height = 0
     return true
   }
 
@@ -451,7 +488,7 @@ export function ProPreview({ feature, photo }: ProPreviewProps) {
 
     // Fades the old split out while the new one draws, then back in.
     setShown((prev) => (prev === 'colors' || prev === 'batch' || prev === 'story' ? prev : null))
-    drawSplit(feature, photo, before, after, width, height, () => cancelled, tr.caption.sample)
+    drawSplit(feature, photo, before, after, width, height, () => cancelled, tr.caption.sample, [tr.carousel.sharp, tr.carousel.blurred])
       .then((drawn) => {
         if (drawn && !cancelled) {
           setSplit(55)

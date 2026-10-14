@@ -275,7 +275,7 @@ export const translations = {
     pro: {
       title: 'PolarGrid Pro',
       subtitle: 'One purchase, yours forever. No subscription.',
-      features: ['Maximum-quality export', 'Unlimited border colours', 'Film grain', 'Curves', 'Retro film styles', 'Healing brush to erase distractions', 'Polaroid-style text', 'Edit up to 15 photos at once with the same look', '9:16 Stories with a colour background', '9:16 Stories with your photo blurred behind it', 'Your photo behind your carousels'],
+      features: ['Maximum-quality export', 'Unlimited border colours', 'Film grain', 'Curves', 'Retro film styles', 'Healing brush to erase distractions', 'Polaroid-style text', 'Edit up to 15 photos at once with the same look', '9:16 Stories with a colour background', '9:16 Stories with your photo behind it, sharp or blurred', 'Your photo behind your carousels'],
       unlock: (price: string) => `Unlock for ${price}`,
       loadingPrice: 'Loading…',
       unavailable: 'Pro isn\u2019t available right now. Try again later.',
@@ -609,7 +609,7 @@ export const translations = {
     pro: {
       title: 'PolarGrid Pro',
       subtitle: 'Un solo pago, para siempre. Sin suscripción.',
-      features: ['Exportación en calidad máxima', 'Colores de borde ilimitados', 'Grano de película', 'Curvas', 'Estilos Retro de película', 'Corrector para borrar distracciones', 'Texto estilo polaroid', 'Edita hasta 15 fotos a la vez con el mismo ajuste', 'Historias 9:16 con fondo de color', 'Historias 9:16 con tu foto desenfocada de fondo', 'Tu foto de fondo en los carruseles'],
+      features: ['Exportación en calidad máxima', 'Colores de borde ilimitados', 'Grano de película', 'Curvas', 'Estilos Retro de película', 'Corrector para borrar distracciones', 'Texto estilo polaroid', 'Edita hasta 15 fotos a la vez con el mismo ajuste', 'Historias 9:16 con fondo de color', 'Historias 9:16 con tu foto de fondo, nítida o desenfocada', 'Tu foto de fondo en los carruseles'],
       unlock: (price: string) => `Desbloquear por ${price}`,
       loadingPrice: 'Cargando…',
       unavailable: 'Pro no está disponible ahora. Inténtalo más tarde.',
