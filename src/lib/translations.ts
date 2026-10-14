@@ -56,7 +56,7 @@ export const translations = {
     caption: {
       tool: 'Text',
       placeholder: 'Write something…',
-      hint: 'It goes in the bottom border, polaroid style',
+      hint: 'It goes in the bottom border, like an instant photo',
       font: 'Font',
       fonts: { hand: 'Handwritten', type: 'Typewriter', clean: 'Simple' },
       size: 'Size',
@@ -396,7 +396,7 @@ export const translations = {
     caption: {
       tool: 'Texto',
       placeholder: 'Escribe algo…',
-      hint: 'Va en el borde de abajo, estilo polaroid',
+      hint: 'Va en el borde de abajo, como en una foto instantánea',
       font: 'Letra',
       fonts: { hand: 'Manuscrita', type: 'Máquina', clean: 'Simple' },
       size: 'Tamaño',

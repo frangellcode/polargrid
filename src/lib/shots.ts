@@ -16,7 +16,7 @@ import type { Language } from './translations'
 const LANG: Language = import.meta.env.VITE_SHOTS_LANG === 'es' ? 'es' : 'en'
 const tr = translations[LANG]
 
-const SCENES = ['home', 'border', 'batch', 'edit', 'retro', 'story', 'layouts', 'carousel', 'carouselFree', 'paywall', 'tour'] as const
+const SCENES = ['home', 'border', 'batch', 'edit', 'retro', 'story', 'layouts', 'carousel', 'carouselFree', 'paywall', 'tour', 'editPlain', 'retouch', 'caption', 'quality'] as const
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
 
@@ -113,6 +113,49 @@ async function run(scene: (typeof SCENES)[number]) {
     return
   }
 
+  if (scene === 'editPlain' || scene === 'retouch') {
+    (await waitFor(() => homeButton(tr.home.editTitle))).click()
+    await sleep(900)
+    await upload([scene === 'editPlain' ? 'hotel' : 'boats'], false)
+    const id = editor().border.photoId!
+    if (scene === 'editPlain') {
+      // A warm, punchy grade with a gentle S curve, Curves open.
+      editor().setBorderAdjustments(id, {
+        ...editor().border.adjustments[id],
+        contrast: 0.15,
+        shadows: 0.25,
+        vibrance: 0.3,
+        temperature: 0.1,
+        toneCurves: {
+          rgb: [[0, 0], [0.25, 0.2], [0.75, 0.82], [1, 1]],
+          r: [[0, 0], [1, 1]],
+          g: [[0, 0], [1, 1]],
+          b: [[0, 0], [1, 1]],
+        },
+      })
+      byLabel(tr.edit.curves)?.click()
+      return
+    }
+    // The healing brush mid-stroke, painting over one boat.
+    byLabel(tr.tools.retouch)?.click()
+    await sleep(2500)
+    const canvas = await waitFor(() => document.querySelector<HTMLCanvasElement>('.touch-none canvas'))
+    const viewport = canvas.closest('.touch-none')!
+    const r = canvas.getBoundingClientRect()
+    const at = (fx: number, fy: number) => ({ clientX: r.left + fx * r.width, clientY: r.top + fy * r.height })
+    const fire = (type: string, fx: number, fy: number) =>
+      viewport.dispatchEvent(new PointerEvent(type, { bubbles: true, pointerId: 7, pointerType: 'touch', isPrimary: true, ...at(fx, fy) }))
+    const path: [number, number][] = [
+      [0.47, 0.455], [0.56, 0.45], [0.575, 0.47], [0.465, 0.475], [0.46, 0.49], [0.57, 0.49], [0.56, 0.505], [0.47, 0.5],
+    ]
+    fire('pointerdown', ...path[0])
+    for (const [x, y] of path.slice(1)) {
+      await sleep(40)
+      fire('pointermove', x, y)
+    }
+    return
+  }
+
   if (scene === 'layouts') {
     (await waitFor(() => homeButton(tr.home.collageTitle))).click()
     await sleep(900)
@@ -135,9 +178,22 @@ async function run(scene: (typeof SCENES)[number]) {
     return
   }
 
-  await upload([{ border: 'resort', edit: 'boat', retro: 'bay', story: 'story' }[scene] ?? 'resort'], false)
+  await upload([{ border: 'resort', edit: 'boat', retro: 'bay', story: 'story', caption: 'resort', quality: 'pano' }[scene] ?? 'resort'], false)
   // The tall photos read best framed 4:5 rather than as-shot.
-  if (scene === 'border' || scene === 'retro') await tool('4:5')
+  if (scene === 'border' || scene === 'retro' || scene === 'caption' || scene === 'quality') await tool('4:5')
+
+  if (scene === 'caption') {
+    editor().setBorderCaption({ text: tr.caption.sample, font: 'hand', size: 0.06 })
+    await tool(tr.caption.tool)
+    return
+  }
+
+  if (scene === 'quality') {
+    await tool(tr.toolbar.export)
+    await sleep(600)
+    button(tr.quality.native.label)?.click()
+    return
+  }
   // Square on a phone, so the blurred photo behind it shows above and below;
   // 4:5 on the iPad's wider canvas, so it shows either side.
   if (scene === 'story') await tool(window.innerWidth > 700 ? '4:5' : '1:1')

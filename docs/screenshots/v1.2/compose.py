@@ -10,7 +10,7 @@ Shots whose screen hasn't changed since the first 1.2 set ('keep') are taken
 as they were from git (KEPT_FROM) — their source photos are gone, and nothing
 in them is out of date.
 
-The 6.3" iPhone set is the 6.5" one scaled to 1206×2622.
+Ten each for iPhone and iPad. The 6.3" iPhone set is the 6.5" one scaled to 1206×2622.
 
     python3 compose.py <captures dir with iphone/ and ipad/> <out dir> <story photo> [en|es]
 """
@@ -46,31 +46,31 @@ DEVICES = {
 # (name, source, title, subtitle). source: a scene captured in screenshots
 # mode, 'story_result' (drawn here), or ('keep', old file name).
 SHOTS = [
-    ('1_home', 'home', ['Borders, collages', '& carousels.'], 'No account. No uploads. No watermark.'),
-    ('2_border', ('keep', '2_border'), ['Clean borders.', 'Full quality.'], 'Frame any photo in seconds'),
-    ('3_carousel', 'carousel', ['Carousels that', 'flow.'], 'One photo per post, cut to line up — free'),
-    ('4_batch', ('keep', '3_batch'), ['Edit once.', 'Export fifteen.'], 'Up to 15 photos at once with Pro'),
-    ('5_edit', ('keep', '4_edit'), ['Edit every', 'photo.'], 'Light and colour, photo by photo — free'),
+    ('1_edit', 'editPlain', ['Edit, with or', 'without borders.'], 'Light and colour free; curves with Pro'),
+    ('2_border', 'caption', ['Clean borders.', 'Your words.'], 'Write under the photo, with Pro'),
+    ('3_layouts', ('keep', '8_layouts'), ['A layout for', 'every set.'], 'Grids and creative templates'),
+    ('4_carousel', 'carousel', ['Carousels that', 'flow.'], 'One photo per post, cut to line up — free'),
+    ('5_retouch', 'retouch', ['Erase what', "doesn't belong."], 'Paint over it and it’s gone, with Pro'),
     ('6_retro', ('keep', '5_retro'), ['Film looks,', 'your way.'], 'Eleven Retro styles, with Pro'),
     ('7_story', 'story', ['Ready for', 'Stories.'], 'On a colour or on your own photo, with Pro'),
-    ('8_story_result', 'story_result', ['Post it', 'as it is.'], '9:16, background included'),
-    ('9_layouts', ('keep', '8_layouts'), ['A layout for', 'every set.'], 'Grids and creative templates'),
+    ('8_batch', ('keep', '3_batch'), ['Edit once.', 'Export fifteen.'], 'Up to 15 photos at once with Pro'),
+    ('9_quality', 'quality', ['Full', 'resolution.'], 'Your camera’s native resolution, with Pro'),
+    ('10_home', 'home', ['Borders, collages', '& carousels.'], 'No account. No uploads. No watermark.'),
 ]
 
 # The Spanish set: the same scenes, captured with the app in Spanish.
 SHOTS_ES = [
-    ('1_home', 'home', ['Bordes, collages', 'y carruseles.'], 'Sin cuenta. Sin subir nada. Sin marca de agua.'),
-    ('2_border', ('keep', '2_border'), ['Bordes limpios.', 'Calidad total.'], 'Enmarca cualquier foto en segundos'),
-    ('3_carousel', 'carousel', ['Carruseles que', 'fluyen.'], 'Una foto por post, cortadas para encajar — gratis'),
-    ('4_batch', ('keep', '3_batch'), ['Edita una vez.', 'Exporta quince.'], 'Hasta 15 fotos a la vez con Pro'),
-    ('5_edit', ('keep', '4_edit'), ['Edita cada', 'foto.'], 'Luz y color, foto por foto — gratis'),
+    ('1_edit', 'editPlain', ['Edita, con o', 'sin bordes.'], 'Luz y color gratis; curvas con Pro'),
+    ('2_border', 'caption', ['Bordes limpios.', 'Con tu texto.'], 'Escribe debajo de la foto, con Pro'),
+    ('3_layouts', ('keep', '8_layouts'), ['Un diseño para', 'cada ocasión.'], 'Cuadrículas y plantillas creativas'),
+    ('4_carousel', 'carousel', ['Carruseles que', 'fluyen.'], 'Una foto por post, cortadas para encajar — gratis'),
+    ('5_retouch', 'retouch', ['Borra lo que', 'sobra.'], 'Pinta encima y desaparece, con Pro'),
     ('6_retro', ('keep', '5_retro'), ['Look de película,', 'a tu manera.'], 'Once estilos Retro, con Pro'),
     ('7_story', 'story', ['Listo para', 'Historias.'], 'Sobre un color o sobre tu foto, con Pro'),
-    ('8_story_result', 'story_result', ['Publícala', 'tal cual.'], '9:16, con el fondo incluido'),
-    ('9_layouts', ('keep', '8_layouts'), ['Un diseño para', 'cada ocasión.'], 'Cuadrículas y plantillas creativas'),
+    ('8_batch', ('keep', '3_batch'), ['Edita una vez.', 'Exporta quince.'], 'Hasta 15 fotos a la vez con Pro'),
+    ('9_quality', 'quality', ['Calidad', 'máxima.'], 'A la resolución nativa de tu cámara, con Pro'),
+    ('10_home', 'home', ['Bordes, collages', 'y carruseles.'], 'Sin cuenta. Sin subir nada. Sin marca de agua.'),
 ]
-READY = {'en': (['Ready to post.'], 'Exported at full resolution'), 'es': (['Lista para publicar.'], 'Exportada a resolución completa')}
-READY_NAME = '10_ready'
 # The commit holding the first 1.2 set, which 'keep' shots come from.
 KEPT_FROM = '1b52b52'
 SIZE_63 = (1206, 2622)
@@ -223,13 +223,6 @@ def main() -> None:
                     shot = Image.open(captures / device / f'{source}-{lang}.png')
                 place_screen(img, spec, shot)
             made[f'{device}_{name}'] = img
-    # The finished-collage close-up has no editor UI in it, so the 1.1 one
-    # still holds; only its headline is rewritten in the same type.
-    spec = DEVICES['iphone']
-    img = Image.open(OLD / 'iphone_8_ready.jpg').convert('RGB')
-    repaint_header(img, spec['header_until'])
-    write_header(img, spec, *READY[lang])
-    made[f'iphone_{READY_NAME}'] = img
     # Written only once everything is read: kept shots come from the old names.
     for old in list(out.glob('iphone_*.jpg')) + list(out.glob('ipad_*.jpg')) + list((out / 'iphone-6.3').glob('*.jpg')):
         old.unlink()
