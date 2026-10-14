@@ -23,3 +23,6 @@ dev-dist
 *.njsproj
 *.sln
 *.sw?
+
+# Full-resolution originals behind the app's own assets (tour, paywall, store) — large, kept locally
+assets/originals/

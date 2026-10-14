@@ -3,8 +3,10 @@ import type {
   AppMode,
   CellAssignment,
   CellShape,
+  CollageBackdrop,
   CollageLayoutMode,
   CollageOrientation,
+  FreeFrame,
   ExportQuality,
   FreeItem,
   LoadedPhoto,
@@ -15,6 +17,13 @@ import { DEFAULT_ASPECT_RATIO_ID } from '../lib/aspectRatios'
 import { DEFAULT_TRANSFORM, clampTransform } from '../lib/cropMath'
 import type { GridSizes } from '../lib/gridLayout'
 import { GRID_TEMPLATES, MAX_COLLAGE_PHOTOS, MIN_COLLAGE_PHOTOS, getTemplatesForCount } from '../lib/collageTemplates'
+import {
+  CAROUSEL_POST_RATIO,
+  DEFAULT_CAROUSEL_POSTS,
+  carouselFamily,
+  carouselTemplateFor,
+  findCarouselTemplate,
+} from '../lib/carouselTemplates'
 import { DEFAULT_EXPORT_QUALITY } from '../lib/exportQuality'
 import { DEFAULT_WORKSPACE_BACKGROUND } from '../lib/workspaceBackgrounds'
 import { DEFAULT_BORDER_COLOR } from '../lib/borderColors'
@@ -78,6 +87,12 @@ interface CollageState {
   borderColor: string
   /** Edit sliders per photo id, so they follow a photo wherever it's moved. */
   adjustments: Record<string, PhotoAdjustments>
+  /** Carousel: how many 4:5 posts the canvas spans (0 = a plain collage). */
+  posts: number
+  /** Free mode's frame around every photo. */
+  frame: FreeFrame
+  /** A photo behind everything instead of the background colour. */
+  backdrop: CollageBackdrop | null
 }
 
 interface EditorStoreState {
@@ -99,7 +114,16 @@ interface EditorStoreState {
   replacePhoto: (photo: LoadedPhoto) => void
   reset: () => void
   resetBorder: () => void
-  resetCollage: () => void
+  /** A fresh collage — a carousel of the same post count by default, as
+   *  "create another" wants; 0 for a plain collage. */
+  resetCollage: (posts?: number) => void
+  /** Opens a fresh carousel in the collage state (Home's Carousel button). */
+  startCarousel: () => void
+  setCarouselPosts: (posts: number) => void
+  setCollageFrame: (frame: FreeFrame) => void
+  setCollageBackdrop: (backdrop: CollageBackdrop | null) => void
+  /** Spreads the free photos evenly across the carousel's posts again. */
+  spreadFreeItems: () => void
 
   setBorderPhoto: (photoId: string) => void
   /** Batch upload: `photoIds[0]` becomes `photoId` (shown/adjusted), the
@@ -174,6 +198,7 @@ function prunePhotos(
   border.batchPhotoIds.forEach((id) => keep.add(id))
   collage.assignments.forEach((a) => a.photoId && keep.add(a.photoId))
   collage.freeItems.forEach((f) => keep.add(f.photoId))
+  if (collage.backdrop) keep.add(collage.backdrop.photoId)
 
   const next: Record<string, LoadedPhoto> = {}
   let dropped = false
@@ -228,14 +253,51 @@ function buildFreeItems(photos: LoadedPhoto[], startIndex: number): FreeItem[] {
   })
 }
 
+/**
+ * A carousel's photos spread across its posts like prints on a table: one
+ * after another along the strip, alternately a little higher and lower, each
+ * turned a few degrees. Fractions of the canvas WIDTH, like buildFreeItems.
+ */
+function buildCarouselFreeItems(photos: LoadedPhoto[], startIndex: number, total: number, posts: number): FreeItem[] {
+  const ratio = posts * CAROUSEL_POST_RATIO
+  const span = 1 / Math.max(1, total)
+  return photos.map((p, i) => {
+    const slot = startIndex + i
+    // About two-thirds of a post wide, a little narrower when crowded, and
+    // never taller than three-quarters of the strip — a tall photo shrinks.
+    const aspect = p.height / p.width
+    const width = Math.min(0.68 / posts, span * 0.95, (0.75 / ratio) / aspect)
+    const height = width * aspect
+    const cx = span * (slot + 0.5)
+    const cy = (slot % 2 === 0 ? 0.46 : 0.54) * (1 / ratio)
+    return {
+      id: `free-${p.id}`,
+      photoId: p.id,
+      x: cx - width / 2,
+      // y is a fraction of the canvas HEIGHT in the store.
+      y: (cy - height / 2) * ratio,
+      width,
+      height,
+      rotation: slot % 3 === 0 ? -4 : slot % 3 === 1 ? 3 : -2,
+      transform: { ...DEFAULT_TRANSFORM },
+    }
+  })
+}
+
+/** The layout for `count` photos: a carousel's own — keeping the design of
+ *  `templateId` — or a collage's first. */
+function firstTemplateFor(posts: number, count: number, templateId = '') {
+  return posts ? carouselTemplateFor(posts, count, carouselFamily(templateId)) : getTemplatesForCount(count)[0]
+}
+
 /** Grid state (cell count, template, assignments) for a run of photos. */
-function buildGridFor(photoIds: string[]) {
+function buildGridFor(photoIds: string[], posts = 0, templateId = '') {
   const photoCount = Math.min(MAX_COLLAGE_PHOTOS, Math.max(MIN_COLLAGE_PHOTOS, photoIds.length))
   const assignments = buildAssignmentsForCount(photoCount)
   assignments.forEach((cell, i) => {
     if (photoIds[i]) cell.photoId = photoIds[i]
   })
-  return { photoCount, templateId: getTemplatesForCount(photoCount)[0].id, assignments }
+  return { photoCount, templateId: firstTemplateFor(posts, photoCount, templateId).id, assignments }
 }
 
 function buildAssignmentsForCount(count: number): CellAssignment[] {
@@ -264,7 +326,20 @@ function createInitialBorderState(): BorderState {
   }
 }
 
-function createInitialCollageState(): CollageState {
+function createInitialCollageState(posts = 0): CollageState {
+  if (posts) {
+    const template = carouselTemplateFor(posts, posts + 1)
+    return {
+      ...createInitialCollageState(),
+      photoCount: template.count,
+      templateId: template.id,
+      orientation: 'horizontal',
+      ratioOrientation: 'horizontal',
+      assignments: buildAssignmentsForCount(template.count),
+      posts,
+      frame: 'polaroid',
+    }
+  }
   return {
     layoutMode: 'grid',
     photoCount: 4,
@@ -281,6 +356,9 @@ function createInitialCollageState(): CollageState {
     gridSizes: null,
     borderColor: DEFAULT_BORDER_COLOR,
     adjustments: {},
+    posts: 0,
+    frame: 'none',
+    backdrop: null,
   }
 }
 
@@ -334,9 +412,9 @@ export const useEditorStore = create<EditorStoreState>((set, get) => ({
       }
     }),
 
-  resetCollage: () =>
+  resetCollage: (posts) =>
     set((state) => {
-      const collage = createInitialCollageState()
+      const collage = createInitialCollageState(posts ?? state.collage.posts)
       return {
         collage,
         photos: prunePhotos(state.photos, state.border, collage),
@@ -441,6 +519,58 @@ export const useEditorStore = create<EditorStoreState>((set, get) => ({
    * already decoded and sitting in memory, was pure friction (and it left both
    * copies resident afterwards).
    */
+  startCarousel: () =>
+    set((state) => {
+      const collage = createInitialCollageState(DEFAULT_CAROUSEL_POSTS)
+      return { collage, photos: prunePhotos(state.photos, state.border, collage) }
+    }),
+
+  setCarouselPosts: (posts) =>
+    set((state) => {
+      const collage = state.collage
+      if (!collage.posts || posts === collage.posts) return {}
+      const photoIds = collage.assignments.flatMap((a) => (a.photoId ? [a.photoId] : []))
+      // The same design, laid out again for the new strip.
+      const template = carouselTemplateFor(posts, Math.max(photoIds.length, collage.photoCount), carouselFamily(collage.templateId))
+      const assignments = buildAssignmentsForCount(template.count)
+      collage.assignments
+        .filter((a) => a.photoId)
+        .forEach((a, i) => {
+          if (assignments[i]) assignments[i] = { ...assignments[i], photoId: a.photoId, transform: a.transform }
+        })
+      // Free photos keep their place on the strip: their fractions of its
+      // width shrink or grow with it, so they're redistributed instead.
+      const free = collage.freeItems.map((f) => state.photos[f.photoId]).filter((p): p is LoadedPhoto => !!p)
+      return {
+        collage: {
+          ...collage,
+          posts,
+          templateId: template.id,
+          photoCount: template.count,
+          assignments,
+          gridSizes: null,
+          freeItems: free.length ? buildCarouselFreeItems(free, 0, free.length, posts) : collage.freeItems,
+        },
+      }
+    }),
+
+  setCollageFrame: (frame) => set((state) => ({ collage: { ...state.collage, frame } })),
+
+  setCollageBackdrop: (backdrop) =>
+    set((state) => {
+      const collage = { ...state.collage, backdrop }
+      return { collage, photos: prunePhotos(state.photos, state.border, collage) }
+    }),
+
+  spreadFreeItems: () =>
+    set((state) => {
+      const collage = state.collage
+      const free = collage.freeItems.map((f) => state.photos[f.photoId]).filter((p): p is LoadedPhoto => !!p)
+      if (!free.length) return {}
+      const spread = collage.posts ? buildCarouselFreeItems(free, 0, free.length, collage.posts) : buildFreeItems(free, 0)
+      return { collage: { ...collage, freeItems: spread } }
+    }),
+
   setCollageLayoutMode: (layoutMode) =>
     set((state) => {
       const collage = state.collage
@@ -451,14 +581,15 @@ export const useEditorStore = create<EditorStoreState>((set, get) => ({
           .map((a) => (a.photoId ? state.photos[a.photoId] : null))
           .filter((p): p is LoadedPhoto => !!p)
         if (carried.length > 0) {
-          return { collage: { ...collage, layoutMode, freeItems: buildFreeItems(carried, 0) } }
+          const freeItems = collage.posts ? buildCarouselFreeItems(carried, 0, carried.length, collage.posts) : buildFreeItems(carried, 0)
+          return { collage: { ...collage, layoutMode, freeItems } }
         }
       }
 
       if (layoutMode === 'grid' && !collage.assignments.some((a) => a.photoId)) {
         const carried = collage.freeItems.map((f) => f.photoId).filter((id) => !!state.photos[id])
         if (carried.length > 0) {
-          return { collage: { ...collage, layoutMode, ...buildGridFor(carried) } }
+          return { collage: { ...collage, layoutMode, ...buildGridFor(carried, collage.posts, collage.templateId) } }
         }
       }
 
@@ -471,7 +602,7 @@ export const useEditorStore = create<EditorStoreState>((set, get) => ({
   // ever isn't the case.
   setCollageTemplateId: (templateId) =>
     set((state) => {
-      const count = GRID_TEMPLATES.find((t) => t.id === templateId)?.count ?? state.collage.photoCount
+      const count = (GRID_TEMPLATES.find((t) => t.id === templateId) ?? findCarouselTemplate(templateId))?.count ?? state.collage.photoCount
       if (count === state.collage.photoCount) {
         return { collage: { ...state.collage, templateId } }
       }
@@ -515,6 +646,19 @@ export const useEditorStore = create<EditorStoreState>((set, get) => ({
     if (startingFresh && newPhotos.length < MIN_COLLAGE_PHOTOS) return false
     const photoRecord = Object.fromEntries(newPhotos.map((p) => [p.id, p]))
     if (state.collage.layoutMode === 'free') {
+      const { posts, freeItems } = state.collage
+      // A carousel spreads everything again, the new photos included, so they
+      // land across the posts instead of piled at one end.
+      if (posts) {
+        const all = [...freeItems.map((f) => state.photos[f.photoId]).filter((p): p is LoadedPhoto => !!p), ...newPhotos]
+        const spread = buildCarouselFreeItems(all, 0, all.length, posts)
+        const kept = new Map(freeItems.map((f) => [f.photoId, f]))
+        set((s) => ({
+          photos: { ...s.photos, ...photoRecord },
+          collage: { ...s.collage, freeItems: spread.map((f) => kept.get(f.photoId) ?? f) },
+        }))
+        return true
+      }
       const items = buildFreeItems(newPhotos, state.collage.freeItems.length)
       set((s) => ({
         photos: { ...s.photos, ...photoRecord },
@@ -538,7 +682,7 @@ export const useEditorStore = create<EditorStoreState>((set, get) => ({
         filled === 0
           ? Math.min(MAX_COLLAGE_PHOTOS, Math.max(MIN_COLLAGE_PHOTOS, needed))
           : Math.min(MAX_COLLAGE_PHOTOS, needed)
-      templateId = getTemplatesForCount(photoCount)[0].id
+      templateId = firstTemplateFor(state.collage.posts, photoCount, state.collage.templateId).id
       const nextAssignments = buildAssignmentsForCount(photoCount)
       // preserve existing photoId order into new template's cells
       const existingPhotoIds = assignments.filter((a) => a.photoId).map((a) => a.photoId)
@@ -623,7 +767,7 @@ export const useEditorStore = create<EditorStoreState>((set, get) => ({
         remaining.length >= MIN_COLLAGE_PHOTOS
           ? {
               ...state.collage,
-              ...buildGridFor(remaining.map((a) => a.photoId as string)),
+              ...buildGridFor(remaining.map((a) => a.photoId as string), state.collage.posts, state.collage.templateId),
             }
           : {
               ...state.collage,

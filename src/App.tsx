@@ -118,6 +118,7 @@ function renderView(mode: AppMode, homeProps: HomeRenderProps) {
   if (mode === 'home') return <HomeScreen {...homeProps} />
   if (mode === 'border') return <BorderEditor />
   if (mode === 'edit') return <BorderEditor plain />
+  // Carousel is the collage editor on a strip of posts (collage.posts).
   return <CollageEditor />
 }
 
@@ -462,7 +463,7 @@ function App() {
       // screen was still visible mid-fade, snapping its canvas to the empty
       // Dropzone right in front of the user.
       if (displayedMode === 'border' || displayedMode === 'edit') useEditorStore.getState().resetBorder()
-      if (displayedMode === 'collage') useEditorStore.getState().resetCollage()
+      if (displayedMode === 'collage' || displayedMode === 'carousel') useEditorStore.getState().resetCollage(0)
       setDisplayedMode(mode)
       setIsExiting(false)
       // Must land in the same batch as setDisplayedMode above, not in a

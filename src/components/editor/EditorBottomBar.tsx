@@ -134,7 +134,7 @@ export function EditorBottomBar({ tools, activeId, onSelect, children }: EditorB
                   </span>
                 )}
               </span>
-              <span className={`transition-colors duration-200 ${active ? 'text-white' : 'text-white/45'}`}>
+              <span className={`whitespace-nowrap transition-colors duration-200 ${active ? 'text-white' : 'text-white/45'}`}>
                 {tool.label}
               </span>
             </button>

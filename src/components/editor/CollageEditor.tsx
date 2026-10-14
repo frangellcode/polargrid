@@ -4,6 +4,7 @@ import { Circle, Group, Image as KonvaImage, Line, Rect } from 'react-konva'
 import type Konva from 'konva'
 import type { CellAssignment, CellShape, ExportQuality, FreeItem, GridTemplate, LoadedPhoto, PhotoTransform } from '../../types'
 import { useEditorStore } from '../../store/editorStore'
+import { useIsPro, useProStore } from '../../store/proStore'
 import { useTranslation } from '../../store/languageStore'
 import { useImageBitmap } from '../../hooks/useImageBitmap'
 import { easeInOutCubic, useAnimatedColor, useAnimatedNumber, useIsReflowing } from '../../hooks/useAnimatedNumber'
@@ -15,7 +16,9 @@ import { snapRotation } from '../../lib/rotationSnap'
 import { MAX_PHOTO_MB, screenPhotoFiles } from '../../lib/photoInput'
 import { holdForSheetClose, holdImportCard } from '../../lib/uiTiming'
 import { MAX_COLLAGE_PHOTOS, MIN_COLLAGE_PHOTOS, getTemplateById, transposeTemplate } from '../../lib/collageTemplates'
-import { renderCollageFree, renderCollageGrid, resolveRatio, saveExportedFiles } from '../../lib/exportImage'
+import { frameInsets, renderCollageFree, renderCollageGrid, resolveRatio, saveExportedFiles } from '../../lib/exportImage'
+import { CAROUSEL_POST_RATIO, findCarouselTemplate } from '../../lib/carouselTemplates'
+import { BackdropLayer, BackdropPicker, FramePicker, PostsPicker, SeamsOverlay } from './CarouselPanels'
 import type { ExportedImage } from '../../lib/exportImage'
 import { getBorderColor } from '../../lib/borderColors'
 import { Toolbar, type ToolbarHandle } from './Toolbar'
@@ -34,7 +37,7 @@ import { ActionRow } from './ActionRow'
 import { WorkspaceBackgroundPicker } from './WorkspaceBackgroundPicker'
 import { useSharpenedPreview } from '../../hooks/useSharpenedPreview'
 import { BorderColorPicker } from './BorderColorPicker'
-import { IconCrop, IconDrop, IconFrame, IconFlip, IconRetro, IconRotate, IconGrid, IconSliders, IconSwatch } from './icons'
+import { IconCrop, IconDrop, IconFrame, IconFlip, IconRetro, IconRotate, IconGrid, IconSliders, IconSwatch, IconPosts } from './icons'
 import { AdjustmentsPanel } from './AdjustmentsPanel'
 import { RetroPanel } from './RetroPanel'
 import { proExportGuard } from '../../lib/proGuard'
@@ -452,7 +455,32 @@ function FreeItemsLayer({ outputWidth, outputHeight, selectedId, onSelect }: Fre
         if (!photo) return null
         const { w, h, cx, cy } = geom(item)
         const draw = getImageDrawRect(w, h, photo.width, photo.height, item.transform)
+        const framed = collage.frame !== 'none'
+        const inset = frameInsets(collage.frame, w)
+        const iw = w - inset.pad * 2
+        const ih = h - inset.pad - inset.bottom
+        const innerDraw = getImageDrawRect(iw, ih, photo.width, photo.height, item.transform)
         return (
+          <Group key={item.id}>
+          {framed && (
+            // The print's shadow, outside the photo's clip so it can spill.
+            <Rect
+              x={cx}
+              y={cy}
+              offsetX={w / 2}
+              offsetY={h / 2}
+              width={w}
+              height={h}
+              rotation={item.rotation}
+              fill="#ffffff"
+              shadowColor="#000000"
+              shadowBlur={w * 0.04}
+              shadowOffsetY={w * 0.012}
+              shadowOpacity={0.35}
+              opacity={draggingId === item.id || pinchingId === item.id ? 0 : 1}
+              listening={false}
+            />
+          )}
           <Group
             key={item.id}
             ref={(node) => {
@@ -485,23 +513,51 @@ function FreeItemsLayer({ outputWidth, outputHeight, selectedId, onSelect }: Fre
               })
             }}
           >
-            <Rect width={w} height={h} fill="#f8fafc" />
-            <SharpenedKonvaImage
-              bitmap={photo.previewBitmap}
-              adjustments={collage.adjustments[photo.id]}
-              x={draw.x}
-              y={draw.y}
-              width={draw.width}
-              height={draw.height}
-            />
-            <VignetteOverlay width={w} height={h} strength={showOriginal ? 0 : effectiveVignette(collage.adjustments[photo.id])} />
-            <GrainOverlay
-              width={w}
-              height={h}
-              intensity={showOriginal ? 0 : effectiveGrain(collage.adjustments[photo.id])}
-              referenceWidth={photo.width}
-              referenceHeight={photo.height}
-            />
+            {framed ? (
+              <>
+                <Rect width={w} height={h} fill="#ffffff" />
+                <Group x={inset.pad} y={inset.pad} clipX={0} clipY={0} clipWidth={iw} clipHeight={ih}>
+                  <Rect width={iw} height={ih} fill="#f8fafc" />
+                  <SharpenedKonvaImage
+                    bitmap={photo.previewBitmap}
+                    adjustments={collage.adjustments[photo.id]}
+                    x={innerDraw.x}
+                    y={innerDraw.y}
+                    width={innerDraw.width}
+                    height={innerDraw.height}
+                  />
+                  <VignetteOverlay width={iw} height={ih} strength={showOriginal ? 0 : effectiveVignette(collage.adjustments[photo.id])} />
+                  <GrainOverlay
+                    width={iw}
+                    height={ih}
+                    intensity={showOriginal ? 0 : effectiveGrain(collage.adjustments[photo.id])}
+                    referenceWidth={photo.width}
+                    referenceHeight={photo.height}
+                  />
+                </Group>
+              </>
+            ) : (
+              <>
+                <Rect width={w} height={h} fill="#f8fafc" />
+                <SharpenedKonvaImage
+                  bitmap={photo.previewBitmap}
+                  adjustments={collage.adjustments[photo.id]}
+                  x={draw.x}
+                  y={draw.y}
+                  width={draw.width}
+                  height={draw.height}
+                />
+                <VignetteOverlay width={w} height={h} strength={showOriginal ? 0 : effectiveVignette(collage.adjustments[photo.id])} />
+                <GrainOverlay
+                  width={w}
+                  height={h}
+                  intensity={showOriginal ? 0 : effectiveGrain(collage.adjustments[photo.id])}
+                  referenceWidth={photo.width}
+                  referenceHeight={photo.height}
+                />
+              </>
+            )}
+          </Group>
           </Group>
         )
       })}
@@ -1103,6 +1159,15 @@ export function CollageEditor() {
   ]
   const store = useEditorStore()
   const { photos, collage } = store
+  const isPro = useIsPro()
+  const openPaywall = useProStore((s) => s.openPaywall)
+  /** A carousel: the canvas is this many 4:5 posts side by side. */
+  const posts = collage.posts
+  if (posts) {
+    GRID_TOOLS.splice(0, 1, { id: 'formato', label: tr.carousel.toolPosts, icon: <IconPosts /> })
+    FREE_TOOLS.splice(0, 1, { id: 'formato', label: tr.carousel.toolPosts, icon: <IconPosts /> })
+    FREE_TOOLS.splice(1, 0, { id: 'marco', label: tr.carousel.toolFrame, icon: <IconFrame /> })
+  }
   const { loadFiles } = useImageBitmap()
   const [exporting, setExporting] = useState(false)
   // Drives the content area's crossfade for a full content swap (the very
@@ -1201,8 +1266,8 @@ export function CollageEditor() {
   }, [exportError])
 
   const ratio = useMemo(
-    () => resolveRatio(collage.aspectRatioId, 1, collage.ratioOrientation),
-    [collage.aspectRatioId, collage.ratioOrientation],
+    () => (posts ? posts * CAROUSEL_POST_RATIO : resolveRatio(collage.aspectRatioId, 1, collage.ratioOrientation)),
+    [posts, collage.aspectRatioId, collage.ratioOrientation],
   )
   const { width: targetWidth, height: targetHeight } = useMemo(
     () => computeOutputPixelSize(ratio, PREVIEW_LONG_EDGE),
@@ -1225,6 +1290,8 @@ export function CollageEditor() {
   const shortSide = useAnimatedNumber(Math.min(targetWidth, targetHeight))
 
   const template = useMemo(() => {
+    const own = findCarouselTemplate(collage.templateId)
+    if (own) return own
     const base = getTemplateById(collage.templateId, collage.photoCount)
     return collage.orientation === 'vertical' ? transposeTemplate(base) : base
   }, [collage.templateId, collage.photoCount, collage.orientation])
@@ -1285,7 +1352,7 @@ export function CollageEditor() {
   // Windows run slightly longer than the 320ms tweens they gate so the flag
   // can't drop on the second-to-last frame and snap the final pixel.
   const retileKey = `${collage.templateId}|${collage.orientation}|${collage.photoCount}`
-  const ratioKey = `${collage.aspectRatioId}|${collage.ratioOrientation}`
+  const ratioKey = `${collage.aspectRatioId}|${collage.ratioOrientation}|${posts}`
   const ratioReflowing = useIsReflowing(ratioKey, 360)
   const animateCells = useIsReflowing(retileKey, 360) && !ratioReflowing
 
@@ -1427,7 +1494,8 @@ export function CollageEditor() {
       const onProgress = (progress: number) => setExportFlow((f) => (f ? { ...f, progress } : f))
       // What this export may use is checked here, not just on the controls.
       const guard = proExportGuard()
-      const file =
+      const extras = { posts, backdrop: guard.backdrop(collage.backdrop), frame: collage.frame }
+      const files =
         collage.layoutMode === 'grid'
           ? await renderCollageGrid(
               onProgress,
@@ -1442,6 +1510,7 @@ export function CollageEditor() {
               guard.borderHex(borderColorHex),
               collage.gridSizes,
               guard.adjustmentsMap(collage.adjustments),
+              extras,
             )
           : await renderCollageFree(
               onProgress,
@@ -1451,8 +1520,9 @@ export function CollageEditor() {
               guard.quality(quality),
               guard.borderHex(borderColorHex),
               guard.adjustmentsMap(collage.adjustments),
+              extras,
             )
-      setExportFlow({ phase: 'ready', progress: 1, files: [file] })
+      setExportFlow({ phase: 'ready', progress: 1, files })
     } catch {
       // Nothing upstream ever surfaced a failed export — it just quietly
       // reset the button, with no way to tell a real error apart from a
@@ -1530,7 +1600,7 @@ export function CollageEditor() {
     <div className="flex h-full flex-col bg-ink-900">
       <Toolbar
         ref={toolbarRef}
-        title={tr.home.collageTitle}
+        title={posts ? tr.home.carouselTitle : tr.home.collageTitle}
         onBack={() => (hasContent ? setConfirmingBack(true) : store.setMode('home'))}
         onUpload={handleUpload}
         onExport={handleExport}
@@ -1594,6 +1664,12 @@ export function CollageEditor() {
             outputHeight={outputHeight}
             background={animatedBorderColorHex}
           >
+            <BackdropLayer
+              backdrop={collage.backdrop}
+              width={outputWidth}
+              height={outputHeight}
+              adjustments={collage.backdrop ? collage.adjustments[collage.backdrop.photoId] : undefined}
+            />
             {collage.layoutMode === 'grid'
               ? (
                 <>
@@ -1646,11 +1722,12 @@ export function CollageEditor() {
                   onSelect={setSelectedFreeId}
                 />
               )}
+            {posts > 1 && <SeamsOverlay posts={posts} width={outputWidth} height={outputHeight} />}
           </CanvasStage>
         ) : (
           <Dropzone
             label={tr.collageEditor.dropLabel}
-            hint={tr.collageEditor.dropHint(MIN_COLLAGE_PHOTOS, MAX_COLLAGE_PHOTOS, MAX_PHOTO_MB)}
+            hint={(posts ? tr.carousel.dropHint : tr.collageEditor.dropHint)(MIN_COLLAGE_PHOTOS, MAX_COLLAGE_PHOTOS, MAX_PHOTO_MB)}
             error={uploadError}
             onFiles={handleUpload}
             maxPhotos={MAX_COLLAGE_PHOTOS}
@@ -1774,7 +1851,13 @@ export function CollageEditor() {
           className={`shrink-0 ${swapPhase === 'exiting' ? 'view-exit' : swapPhase === 'mounting' ? 'opacity-0' : swapPhase === 'entering' ? 'view-enter' : ''}`}
         >
         <EditorBottomBar tools={tools} activeId={activeToolId} onSelect={setActiveTool}>
-          {activeToolId === 'formato' && (
+          {activeToolId === 'formato' && posts > 0 && <PostsPicker value={posts} onChange={store.setCarouselPosts} />}
+
+          {activeToolId === 'marco' && (
+            <FramePicker value={collage.frame} onChange={store.setCollageFrame} onSpread={store.spreadFreeItems} />
+          )}
+
+          {activeToolId === 'formato' && !posts && (
             <div>
               <p className="font-label mb-2 text-center text-xs font-semibold uppercase tracking-wider text-white/40">{tr.collageEditor.canvasFormat}</p>
               <AspectRatioPicker
@@ -1793,15 +1876,20 @@ export function CollageEditor() {
                   stacked with a heading each they took four rows of height
                   from the collage above. */}
               <div className="flex flex-wrap items-center justify-center gap-x-2 gap-y-2">
-                <SegmentedToggle
-                  options={[
-                    { value: 'vertical', label: tr.collageEditor.vertical },
-                    { value: 'horizontal', label: tr.collageEditor.horizontal },
-                  ]}
-                  value={collage.orientation}
-                  onChange={store.setCollageOrientation}
-                />
-                <span aria-hidden className="h-5 w-px bg-white/15" />
+                {/* A carousel's layouts run along the strip; there's no other way round. */}
+                {!posts && (
+                  <>
+                    <SegmentedToggle
+                      options={[
+                        { value: 'vertical', label: tr.collageEditor.vertical },
+                        { value: 'horizontal', label: tr.collageEditor.horizontal },
+                      ]}
+                      value={collage.orientation}
+                      onChange={store.setCollageOrientation}
+                    />
+                    <span aria-hidden className="h-5 w-px bg-white/15" />
+                  </>
+                )}
                 <SegmentedToggle
                   options={[
                     { value: 'rect', label: tr.collageEditor.rectangular },
@@ -1816,6 +1904,7 @@ export function CollageEditor() {
                   {tr.collageEditor.layout(collage.photoCount)}
                 </p>
                 <GridTemplatePicker
+                  posts={posts}
                   count={collage.photoCount}
                   value={collage.templateId}
                   shape={collage.shape}
@@ -1836,6 +1925,7 @@ export function CollageEditor() {
             <>
               <BorderThicknessSlider
                 label={tr.collageEditor.outerBorder}
+                max={posts ? 0.06 : undefined}
                 value={collage.outerBorderPct}
                 onChange={(pct) => {
                   store.setOuterBorderPct(pct)
@@ -1845,6 +1935,7 @@ export function CollageEditor() {
               <div className="space-y-3">
                 <BorderThicknessSlider
                   label={tr.collageEditor.spaceBetween}
+                  max={posts ? 0.05 : undefined}
                   value={collage.gutterPct}
                   onChange={(pct) => {
                     store.setGutterPct(pct)
@@ -1873,6 +1964,17 @@ export function CollageEditor() {
                 </div>
               </div>
               <BorderColorPicker value={collage.borderColor} onChange={store.setCollageBorderColor} />
+              {/* Carousel: one of its own photos behind everything (Pro). */}
+              {posts > 0 && (
+                <BackdropPicker
+                  value={collage.backdrop}
+                  photoIds={editablePhotoIds}
+                  photos={photos}
+                  onChange={store.setCollageBackdrop}
+                  locked={!isPro}
+                  onLocked={() => openPaywall('backdrop')}
+                />
+              )}
             </>
           )}
 
@@ -1881,11 +1983,23 @@ export function CollageEditor() {
           )}
 
           {activeToolId === 'color' && (
-            <BorderColorPicker
-              value={collage.borderColor}
-              onChange={store.setCollageBorderColor}
-              heading={tr.pickers.backgroundColor}
-            />
+            <>
+              <BorderColorPicker
+                value={collage.borderColor}
+                onChange={store.setCollageBorderColor}
+                heading={tr.pickers.backgroundColor}
+              />
+              {posts > 0 && (
+                <BackdropPicker
+                  value={collage.backdrop}
+                  photoIds={editablePhotoIds}
+                  photos={photos}
+                  onChange={store.setCollageBackdrop}
+                  locked={!isPro}
+                  onLocked={() => openPaywall('backdrop')}
+                />
+              )}
+            </>
           )}
 
           {activeToolId === 'edit' && editTargetId && (
@@ -1923,8 +2037,8 @@ export function CollageEditor() {
       <ExportFlowModal
         open={!!exportFlow}
         phase={exportFlow?.phase ?? 'ready'}
-        done={1}
-        total={1}
+        done={posts ? Math.min(posts, Math.floor((exportFlow?.progress ?? 0) * posts)) : 1}
+        total={posts || 1}
         progress={exportFlow?.progress ?? 0}
         onSave={async () => {
           if (!exportFlow) return

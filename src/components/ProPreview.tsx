@@ -8,6 +8,8 @@ import { drawGrainOverlay } from '../lib/grain'
 import { readPhoto } from '../lib/photoSource'
 import { applyAdjustments, DEFAULT_ADJUSTMENTS, drawVignette, getRetroPreset } from '../lib/adjustments'
 import { useTranslation } from '../store/languageStore'
+import { drawBackdropCover, photoBackdrop } from '../lib/storyBackdrop'
+import { DEFAULT_TRANSFORM } from '../lib/cropMath'
 import { captionBandPct, captionFont, captionInk, DEFAULT_CAPTION, loadCaptionFont, type BorderCaption } from '../lib/caption'
 
 /** The preview box's shape, width / height. */
@@ -141,6 +143,39 @@ async function drawSplit(
   sample = '',
 ) {
   const source = photo.previewBitmap
+
+  if (feature === 'backdrop') {
+    // The same print on a plain background, and on the photo itself, blurred.
+    const short = Math.min(width, height)
+    const blurred = photoBackdrop(source, DEFAULT_TRANSFORM, null, 'blur')
+    const scene = (canvas: HTMLCanvasElement, withPhoto: boolean) => {
+      const ctx = prepare(canvas, width, height)
+      ctx.fillStyle = '#ece9e4'
+      ctx.fillRect(0, 0, width, height)
+      if (withPhoto) drawBackdropCover(ctx, blurred, width, height)
+      const pw = width * 0.62
+      const ph = pw * 1.18
+      const x = (width - pw) / 2
+      const y = (height - ph) / 2
+      const pad = pw * 0.05
+      ctx.save()
+      ctx.shadowColor = 'rgba(0,0,0,0.35)'
+      ctx.shadowBlur = short * 0.04
+      ctx.shadowOffsetY = short * 0.012
+      ctx.fillStyle = '#ffffff'
+      ctx.fillRect(x, y, pw, ph)
+      ctx.restore()
+      const iw = pw - pad * 2
+      const ih = ph - pad - pw * 0.17
+      const scale = Math.max(iw / source.width, ih / source.height)
+      const sw = iw / scale
+      const sh = ih / scale
+      ctx.drawImage(source, (source.width - sw) / 2, (source.height - sh) / 2, sw, sh, x + pad, y + pad, iw, ih)
+    }
+    scene(beforeCanvas, false)
+    scene(afterCanvas, true)
+    return true
+  }
 
   if (feature === 'caption') {
     // The same print with an even border, and as a polaroid with a caption.

@@ -1,5 +1,7 @@
 import type { CellAssignment, CellShape, ExportQuality, FreeItem, GridTemplate, LoadedPhoto, Orientation, PhotoFit, PhotoTransform } from '../types'
 import { drawBackdropCover, photoBackdrop, type StoryBackground } from './storyBackdrop'
+import { DEFAULT_TRANSFORM } from './cropMath'
+import type { CollageBackdrop, FreeFrame } from '../types'
 import { captionBandPct, captionFont, captionInk, captionX, hasCaption, loadCaptionFont, type BorderCaption } from './caption'
 import { computeNativeCanvasSize, computeNativeCanvasSizeContain, computeOutputPixelSize, drawOrientedImage, getImageDrawRect, orientedSize } from './cropMath'
 import { ASPECT_RATIOS } from './aspectRatios'
@@ -594,6 +596,93 @@ function nativeCollageLongEdge(fits: number[]): number {
   return Number.isFinite(scale) && scale > 0 ? REF_LONG_EDGE * scale : 2000
 }
 
+/** Carousel and free-mode extras a collage export can carry. */
+export interface CollageExtras {
+  /** Carousel: the canvas is this many posts side by side, exported one file
+   *  per post. 0 or 1 = one file. */
+  posts?: number
+  /** One of the collage's photos behind everything, instead of the colour. */
+  backdrop?: CollageBackdrop | null
+  /** Free mode: the frame around every photo. */
+  frame?: FreeFrame
+}
+
+/** The export's size: the long edge capped by quality — per POST for a
+ *  carousel, each of which is its own photo. */
+function collageSize(native: { width: number; height: number }, quality: ExportQuality, posts: number) {
+  if (posts <= 1) return capLongEdge(native.width, native.height, getMaxLongEdge(quality))
+  const post = capLongEdge(native.width / posts, native.height, getMaxLongEdge(quality))
+  const postW = Math.max(1, Math.round(post.width))
+  return { width: postW * posts, height: post.height }
+}
+
+/** Free-mode frame geometry for a `w`-wide item: side and bottom margins. */
+export function frameInsets(frame: FreeFrame | undefined, w: number) {
+  if (!frame || frame === 'none') return { pad: 0, bottom: 0 }
+  const pad = w * 0.045
+  return { pad, bottom: frame === 'polaroid' ? w * 0.17 : pad }
+}
+
+/** Paints the backdrop photo, blurred or as it is, over the whole canvas. */
+async function drawCollageBackdrop(
+  ctx: CanvasRenderingContext2D,
+  backdrop: CollageBackdrop,
+  photos: Record<string, LoadedPhoto>,
+  width: number,
+  height: number,
+  adjustments: Record<string, PhotoAdjustments>,
+  blurred: HTMLCanvasElement | null,
+  grainSeed: number,
+) {
+  const photo = photos[backdrop.photoId]
+  if (!photo) return
+  if (blurred) drawBackdropCover(ctx, blurred, width, height)
+  else await drawPhotoInRect(ctx, photo, 0, 0, width, height, DEFAULT_TRANSFORM, 0, 'cover', 'rect', adjustments[photo.id] ?? null, grainSeed + 999)
+}
+
+/**
+ * Runs one collage render, or — for a carousel — one per post: each post is
+ * its own file, drawn with the canvas shifted so only its slice lands on it.
+ * `paint` gets the slice's left and right edges to skip what can't reach it.
+ */
+async function renderCollageFiles(
+  width: number,
+  height: number,
+  posts: number,
+  paint: (ctx: CanvasRenderingContext2D, band: Band, report: Progress, xRange: [number, number]) => Promise<void>,
+  onProgress?: Progress,
+): Promise<ExportedImage[]> {
+  const stamp = Date.now()
+  if (posts <= 1) {
+    const { result } = await startRender(width, height, `polargrid-collage-${stamp}.jpg`, (ctx, band, report) => paint(ctx, band, report, [0, width]), onProgress)
+    return [await result]
+  }
+  const postW = width / posts
+  const files: ExportedImage[] = []
+  for (let k = 0; k < posts; k++) {
+    const left = k * postW
+    const { result } = await startRender(
+      postW,
+      height,
+      `polargrid-carousel-${stamp}-${k + 1}.jpg`,
+      async (ctx, band, report) => {
+        ctx.translate(-left, 0)
+        await paint(ctx, band, report, [left, left + postW])
+      },
+      (f) => onProgress?.((k + f) / posts),
+    )
+    files.push(await result)
+  }
+  return files
+}
+
+/** Whether a rect (rotated about its centre) reaches across [left, right). */
+function reachesX(x: [number, number], left: number, w: number, h: number, rotationDeg = 0): boolean {
+  const reach = rotationDeg ? Math.hypot(w, h) / 2 : w / 2
+  const cx = left + w / 2
+  return cx - reach < x[1] && cx + reach > x[0]
+}
+
 export async function renderCollageGrid(
   onProgress: Progress | undefined,
   template: GridTemplate,
@@ -608,7 +697,9 @@ export async function renderCollageGrid(
   gridSizes: GridSizes | null = null,
   /** Edit sliders per photo id. */
   adjustments: Record<string, PhotoAdjustments> = {},
-) {
+  extras: CollageExtras = {},
+): Promise<ExportedImage[]> {
+  const posts = extras.posts ?? 0
   const lines = gridLines(template, gridSizes)
   const refSize = computeOutputPixelSize(ratio, REF_LONG_EDGE)
   const refShortSide = Math.min(refSize.width, refSize.height)
@@ -629,7 +720,7 @@ export async function renderCollageGrid(
   })
 
   const native = computeOutputPixelSize(ratio, nativeCollageLongEdge(fits))
-  const { width, height } = capLongEdge(native.width, native.height, getMaxLongEdge(quality))
+  const { width, height } = collageSize(native, quality, posts)
 
   const shortSide = Math.min(width, height)
   const outerBorderPx = outerBorderPct * shortSide
@@ -653,14 +744,17 @@ export async function renderCollageGrid(
       ...gridCellRect(cell, template, lines, { x: contentX, y: contentY, w: contentW, h: contentH }, gutterPx),
     }]
   })
-  const { result } = await startRender(
+  const backdrop = extras.backdrop && photos[extras.backdrop.photoId] ? extras.backdrop : null
+  const blurred = backdrop?.blur ? photoBackdrop(photos[backdrop.photoId].previewBitmap, DEFAULT_TRANSFORM, adjustments[backdrop.photoId], 'blur') : null
+  return renderCollageFiles(
     width,
     height,
-    `polargrid-collage-${Date.now()}.jpg`,
-    async (ctx, band, report) => {
+    posts,
+    async (ctx, band, report, xRange) => {
       ctx.fillStyle = borderColorHex
       ctx.fillRect(0, 0, width, height)
-      const inBand = cells.filter((c) => reachesBand(band, c.y, c.w, c.h))
+      if (backdrop) await drawCollageBackdrop(ctx, backdrop, photos, width, height, adjustments, blurred, grainSeed)
+      const inBand = cells.filter((c) => reachesBand(band, c.y, c.w, c.h) && reachesX(xRange, c.x, c.w, c.h))
       // Sequential (not the equivalent forEach) so each cell's full-resolution
       // decode is closed before the next one is opened — see drawPhotoInRect.
       for (let k = 0; k < inBand.length; k++) {
@@ -671,7 +765,6 @@ export async function renderCollageGrid(
     },
     onProgress,
   )
-  return result
 }
 
 export async function renderCollageFree(
@@ -683,7 +776,9 @@ export async function renderCollageFree(
   borderColorHex = '#ffffff',
   /** Edit sliders per photo id. */
   adjustments: Record<string, PhotoAdjustments> = {},
-) {
+  extras: CollageExtras = {},
+): Promise<ExportedImage[]> {
+  const posts = extras.posts ?? 0
   const refSize = computeOutputPixelSize(ratio, REF_LONG_EDGE)
 
   const fits: number[] = []
@@ -701,31 +796,55 @@ export async function renderCollageFree(
   })
 
   const native = computeOutputPixelSize(ratio, nativeCollageLongEdge(fits))
-  const { width, height } = capLongEdge(native.width, native.height, getMaxLongEdge(quality))
+  const { width, height } = collageSize(native, quality, posts)
 
   if (isNativeApp) await resetNativeExports()
   const grainSeed = Math.floor(Math.random() * 2 ** 32)
+  const backdrop = extras.backdrop && photos[extras.backdrop.photoId] ? extras.backdrop : null
+  const blurred = backdrop?.blur ? photoBackdrop(photos[backdrop.photoId].previewBitmap, DEFAULT_TRANSFORM, adjustments[backdrop.photoId], 'blur') : null
+  const framed = !!extras.frame && extras.frame !== 'none'
   const items = freeItems.flatMap((item, i) => {
     const photo = photos[item.photoId]
     if (!photo) return []
     return [{ i, item, photo, x: item.x * width, y: item.y * height, w: item.width * width, h: item.height * width }]
   })
-  const { result } = await startRender(
+  return renderCollageFiles(
     width,
     height,
-    `polargrid-collage-${Date.now()}.jpg`,
-    async (ctx, band, report) => {
+    posts,
+    async (ctx, band, report, xRange) => {
       ctx.fillStyle = borderColorHex
       ctx.fillRect(0, 0, width, height)
-      // In list order even within a band: later items are drawn on top.
-      const inBand = items.filter((c) => reachesBand(band, c.y, c.w, c.h, c.item.rotation))
+      if (backdrop) await drawCollageBackdrop(ctx, backdrop, photos, width, height, adjustments, blurred, grainSeed)
+      // In list order even within a band: later items are drawn on top. A
+      // framed photo's shadow reaches a little past it, hence the margin.
+      const inBand = items.filter((c) => {
+        const m = framed ? c.w * 0.08 : 0
+        return reachesBand(band, c.y - m, c.w + m * 2, c.h + m * 2, c.item.rotation) && reachesX(xRange, c.x - m, c.w + m * 2, c.h + m * 2, c.item.rotation)
+      })
       for (let k = 0; k < inBand.length; k++) {
         const { i, item, photo, x, y, w, h } = inBand[k]
-        await drawPhotoInRect(ctx, photo, x, y, w, h, item.transform, item.rotation, 'cover', 'rect', adjustments[photo.id] ?? null, grainSeed + i)
+        if (!framed) {
+          await drawPhotoInRect(ctx, photo, x, y, w, h, item.transform, item.rotation, 'cover', 'rect', adjustments[photo.id] ?? null, grainSeed + i)
+        } else {
+          // The print — white card with a soft shadow — turned about its
+          // centre, then the photo inset in it, the same as on screen.
+          const { pad, bottom } = frameInsets(extras.frame, w)
+          ctx.save()
+          ctx.translate(x + w / 2, y + h / 2)
+          if (item.rotation) ctx.rotate((item.rotation * Math.PI) / 180)
+          ctx.shadowColor = 'rgba(0,0,0,0.35)'
+          ctx.shadowBlur = w * 0.04
+          ctx.shadowOffsetY = w * 0.012
+          ctx.fillStyle = '#ffffff'
+          ctx.fillRect(-w / 2, -h / 2, w, h)
+          ctx.shadowColor = 'transparent'
+          await drawPhotoInRect(ctx, photo, -w / 2 + pad, -h / 2 + pad, w - pad * 2, h - pad - bottom, item.transform, 0, 'cover', 'rect', adjustments[photo.id] ?? null, grainSeed + i)
+          ctx.restore()
+        }
         report((k + 1) / inBand.length)
       }
     },
     onProgress,
   )
-  return result
 }

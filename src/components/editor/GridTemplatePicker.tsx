@@ -2,8 +2,11 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react
 import type { CellShape, CollageOrientation } from '../../types'
 import { IconChevron } from './icons'
 import { getTemplatesForCount, transposeTemplate } from '../../lib/collageTemplates'
+import { getCarouselTemplates } from '../../lib/carouselTemplates'
 
 interface GridTemplatePickerProps {
+  /** Carousel: offer its layouts for this many posts instead. */
+  posts?: number
   count: number
   value: string
   /** Currently selected cell shape, just for previewing each thumbnail. */
@@ -20,8 +23,9 @@ function cellRadius(shape: CellShape) {
   return '2px'
 }
 
-export function GridTemplatePicker({ count, value, shape, orientation, onChange }: GridTemplatePickerProps) {
-  const templates = getTemplatesForCount(count)
+export function GridTemplatePicker({ posts = 0, count, value, shape, orientation, onChange }: GridTemplatePickerProps) {
+  // A carousel's layouts are all built for the photos it has.
+  const templates = posts ? getCarouselTemplates(posts, count) : getTemplatesForCount(count)
   const scrollerRef = useRef<HTMLDivElement>(null)
   const activeRef = useRef<HTMLButtonElement>(null)
   // Which ends are still scrollable, so the fade only appears where there's
@@ -87,7 +91,7 @@ export function GridTemplatePicker({ count, value, shape, orientation, onChange 
             take over when the whole set already fits. */}
         <div className="flex w-max min-w-full justify-center gap-2">
           {templates.map((base) => {
-            const template = orientation === 'vertical' ? transposeTemplate(base) : base
+            const template = !posts && orientation === 'vertical' ? transposeTemplate(base) : base
             const active = value === base.id
             return (
               <button
@@ -96,6 +100,8 @@ export function GridTemplatePicker({ count, value, shape, orientation, onChange 
                 type="button"
                 onClick={() => onChange(base.id)}
                 title={base.label}
+                // A carousel's thumbnails are as wide as its strip of posts.
+                style={posts ? { width: Math.round(44 * Math.min(3, posts * 0.8)) } : undefined}
                 className={`h-11 w-11 shrink-0 rounded-lg border p-1 transition duration-200 active:scale-90 ${
                   active ? 'border-white bg-white/10' : 'border-white/15 bg-white/5 hover:border-white/30'
                 }`}
@@ -117,6 +123,16 @@ export function GridTemplatePicker({ count, value, shape, orientation, onChange 
                       }}
                     />
                   ))}
+                  {/* Where one post ends and the next begins. */}
+                  {posts > 1 &&
+                    Array.from({ length: posts - 1 }, (_, k) => (
+                      <span
+                        key={`seam-${k}`}
+                        aria-hidden
+                        className="absolute -inset-y-1 w-px bg-rose-400/80"
+                        style={{ left: `${((k + 1) / posts) * 100}%` }}
+                      />
+                    ))}
                 </div>
               </button>
             )

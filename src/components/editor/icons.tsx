@@ -208,3 +208,14 @@ export function IconText({ className = 'h-5 w-5' }: IconProps) {
     </svg>
   )
 }
+
+/** Three posts side by side — the carousel's post count. */
+export function IconPosts({ className = 'h-5 w-5' }: IconProps) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinejoin="round" className={className}>
+      <rect x="2.5" y="7" width="5.6" height="10" rx="1" />
+      <rect x="9.2" y="7" width="5.6" height="10" rx="1" />
+      <rect x="15.9" y="7" width="5.6" height="10" rx="1" />
+    </svg>
+  )
+}

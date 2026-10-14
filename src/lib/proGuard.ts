@@ -34,6 +34,8 @@ export function proExportGuard() {
       isPro ? map : Object.fromEntries(Object.entries(map).map(([id, a]) => [id, freeOnly(a)])),
     /** The polaroid caption is Pro. */
     caption: <T>(caption: T | null): T | null => (isPro ? caption : null),
+    /** A carousel's backdrop photo is Pro. */
+    backdrop: <T>(backdrop: T | null): T | null => (isPro ? backdrop : null),
     /** The 9:16 background is Pro. */
     story: <T>(background: T | null): T | null => (isPro ? background : null),
     /** Batches past `freeLimit` photos are Pro. */

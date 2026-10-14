@@ -16,7 +16,7 @@ import type { Language } from './translations'
 const LANG: Language = import.meta.env.VITE_SHOTS_LANG === 'es' ? 'es' : 'en'
 const tr = translations[LANG]
 
-const SCENES = ['home', 'border', 'batch', 'edit', 'retro', 'story', 'layouts'] as const
+const SCENES = ['home', 'border', 'batch', 'edit', 'retro', 'story', 'layouts', 'carousel', 'carouselFree'] as const
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
 
@@ -79,6 +79,21 @@ async function tool(text: string) {
 async function run(scene: (typeof SCENES)[number]) {
   const editor = useEditorStore.getState
   if (scene === 'home') return
+
+  if (scene === 'carousel' || scene === 'carouselFree') {
+    (await waitFor(() => homeButton(tr.home.carouselTitle))).click()
+    await sleep(900)
+    if (scene === 'carouselFree') editor().setCollageLayoutMode('free')
+    await upload(scene === 'carousel' ? ['bay', 'boat', 'sandbar'] : ['bay', 'boat', 'sandbar', 'resort'], true)
+    if (scene === 'carousel') {
+      await tool(tr.collageEditor.toolTemplate)
+    } else {
+      const ids = editor().collage.freeItems.map((f) => f.photoId)
+      editor().setCollageBackdrop({ photoId: ids[0], blur: true })
+      await tool(tr.carousel.toolFrame)
+    }
+    return
+  }
 
   if (scene === 'layouts') {
     (await waitFor(() => homeButton(tr.home.collageTitle))).click()
@@ -154,7 +169,9 @@ export async function startShots() {
     location.reload()
     return
   }
-  const index = Number(localStorage.getItem('shots:scene') ?? '0') % SCENES.length
+  // VITE_SHOTS_SCENE=<name> pins one scene, for checking a single screen.
+  const pinned = SCENES.indexOf(import.meta.env.VITE_SHOTS_SCENE)
+  const index = pinned >= 0 ? pinned : Number(localStorage.getItem('shots:scene') ?? '0') % SCENES.length
   localStorage.setItem('shots:scene', String(index + 1))
   // After the boot flight, and after StoreKit's own answer (which would
   // otherwise put the locks back).

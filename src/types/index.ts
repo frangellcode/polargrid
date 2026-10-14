@@ -1,6 +1,6 @@
 import type { PhotoSource } from '../lib/photoSource'
 
-export type AppMode = 'home' | 'border' | 'edit' | 'collage'
+export type AppMode = 'home' | 'border' | 'edit' | 'carousel' | 'collage'
 
 export type CollageLayoutMode = 'grid' | 'free'
 
@@ -103,6 +103,15 @@ export interface GridTemplate {
   cols: number
   rows: number
   cells: { col: number; row: number; colSpan: number; rowSpan: number }[]
+}
+
+/** How free-mode photos are framed: bare, in a white border, or as a polaroid. */
+export type FreeFrame = 'none' | 'border' | 'polaroid'
+
+/** One of the collage's own photos behind everything else, blurred or as it is. */
+export interface CollageBackdrop {
+  photoId: string
+  blur: boolean
 }
 
 /** Freeform collage item: independent, draggable/resizable/rotatable photo */
