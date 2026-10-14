@@ -1,5 +1,6 @@
 import type { CellAssignment, CellShape, ExportQuality, FreeItem, GridTemplate, LoadedPhoto, Orientation, PhotoFit, PhotoTransform } from '../types'
 import { drawBackdropCover, photoBackdrop, type StoryBackground } from './storyBackdrop'
+import { captionBandPct, captionFont, captionInk, captionX, hasCaption, loadCaptionFont, type BorderCaption } from './caption'
 import { computeNativeCanvasSize, computeNativeCanvasSizeContain, computeOutputPixelSize, drawOrientedImage, getImageDrawRect, orientedSize } from './cropMath'
 import { ASPECT_RATIOS } from './aspectRatios'
 import { capLongEdge, getMaxLongEdge } from './exportQuality'
@@ -363,6 +364,8 @@ async function startBorderImage(
    *  on the photo itself, for Stories/Reels. Null exports the bordered photo
    *  on its own. */
   storyBackground: StoryBackground | null,
+  /** A line of text in a bottom border grown to hold it. */
+  caption: BorderCaption | null,
   filename: string,
   onProgress?: Progress,
 ): Promise<{ result: Promise<ExportedImage> }> {
@@ -400,6 +403,8 @@ async function startBorderImage(
   const offsetX = Math.round((outW - width) / 2)
   const offsetY = Math.round((outH - height) / 2)
   const borderPx = borderThicknessPct * Math.min(width, height)
+  const bottomPx = captionBandPct(caption, borderThicknessPct) * Math.min(width, height)
+  if (hasCaption(caption)) await loadCaptionFont(caption)
   const grainSeed = Math.floor(Math.random() * 2 ** 32)
   // Made once and stretched over every band; the sharp one is drawn at full
   // size per band instead.
@@ -441,7 +446,7 @@ async function startBorderImage(
         borderPx,
         borderPx,
         width - borderPx * 2,
-        height - borderPx * 2,
+        height - borderPx - bottomPx,
         transform,
         0,
         locked ? 'cover' : 'contain',
@@ -449,6 +454,16 @@ async function startBorderImage(
         adjustments,
         grainSeed,
       )
+      if (hasCaption(caption)) {
+        const short = Math.min(width, height)
+        ctx.save()
+        ctx.font = captionFont(caption, caption.size * short)
+        ctx.fillStyle = captionInk(borderColorHex)
+        ctx.textAlign = caption.align
+        ctx.textBaseline = 'middle'
+        ctx.fillText(caption.text, captionX(caption, width, Math.max(borderPx, caption.size * short)), height - bottomPx / 2, width - borderPx * 2)
+        ctx.restore()
+      }
       ctx.restore()
       report(1)
     },
@@ -490,6 +505,8 @@ export async function renderBorderPhotoFiles(
   adjustmentsFor: (photo: LoadedPhoto) => PhotoAdjustments | null,
   /** See startBorderImage: a 9:16 background, or null. */
   storyBackground: StoryBackground | null,
+  /** See startBorderImage: the polaroid caption, or null. */
+  caption: BorderCaption | null,
   /** `done` photos are finished; `fraction` is the whole batch, 0..1. */
   onProgress?: (done: number, total: number, fraction: number) => void,
 ): Promise<ExportedImage[]> {
@@ -513,6 +530,7 @@ export async function renderBorderPhotoFiles(
       borderColorHex,
       adjustmentsFor(photos[i]),
       storyBackground,
+      caption,
       `polargrid-border-${stamp}-${i + 1}.jpg`,
       (fraction) => {
         fractions[i] = fraction

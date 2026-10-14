@@ -12,9 +12,9 @@ type Slot = AdjustmentKey | 'colorMix' | 'curves'
 /** Order of the dials, light first, then colour, then detail. */
 const KEYS: Slot[] = [...TONE_KEYS, 'colorMix', 'curves', 'vignette', 'sharpness', 'grain']
 const BIPOLAR = new Set<Slot>(TONE_KEYS)
-/** Light, colour, the colour mix and the vignette are free; curves and the
- *  film detail are PolarGrid Pro. */
-const PRO_KEYS = new Set<Slot>(['curves', 'sharpness', 'grain'])
+/** Light, colour, the colour mix, the vignette and sharpness are free;
+ *  curves and grain are PolarGrid Pro. */
+const PRO_KEYS = new Set<Slot>(['curves', 'grain'])
 
 /** Slider tracks that show which way each colour slider pushes. */
 const TRACKS: Partial<Record<AdjustmentKey, string>> = {

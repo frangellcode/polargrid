@@ -29,12 +29,15 @@ import { SegmentedToggle } from './SegmentedToggle'
 import { BorderColorPicker } from './BorderColorPicker'
 import { getBorderColor } from '../../lib/borderColors'
 import { AdjustmentsPanel, type PanelTool } from './AdjustmentsPanel'
-import { IconCrop, IconDrop, IconFrame, IconRetro, IconRotate, IconSliders } from './icons'
+import { IconCrop, IconDrop, IconFrame, IconRetro, IconRotate, IconSliders, IconText } from './icons'
 import { RetroPanel } from './RetroPanel'
 import { proExportGuard } from '../../lib/proGuard'
 import { ExportBackgroundToggle } from './ExportBackgroundToggle'
 import { getWorkspaceBackground } from '../../lib/workspaceBackgrounds'
 import { photoBackdrop, type StoryBackground } from '../../lib/storyBackdrop'
+import { captionBandPct, hasCaption } from '../../lib/caption'
+import { CaptionText } from './CaptionText'
+import { CaptionPanel } from './CaptionPanel'
 import { CompareButton } from './CompareButton'
 import { adjustmentsKey, hasAdjustments } from '../../lib/adjustments'
 import { RetouchView } from './RetouchView'
@@ -78,6 +81,7 @@ export function BorderEditor({ plain = false }: { plain?: boolean }) {
     { id: 'rotate', label: tr.borderEditor.toolRotate, icon: <IconRotate /> },
     { id: 'workspace', label: tr.tools.workspace, icon: <IconDrop />, proInside: !plain },
     ...(plain ? [] : [{ id: 'bordes', label: tr.borderEditor.toolBorder, icon: <IconFrame />, proInside: true }]),
+    ...(plain ? [] : [{ id: 'texto', label: tr.caption.tool, icon: <IconText />, pro: 'caption' as const }]),
     // Edit's own screen keeps the dials out as its main panel, so no button.
     ...(plain ? [] : [{ id: 'edit', label: tr.tools.edit, icon: <IconSliders />, proInside: true }]),
     { id: 'retro', label: tr.tools.retro, icon: <IconRetro />, pro: 'retro' },
@@ -106,6 +110,7 @@ export function BorderEditor({ plain = false }: { plain?: boolean }) {
     setBorderAdjustments,
     setBorderSyncAdjustments,
     setBorderExportWithBackground,
+    setBorderCaption,
     resetBorder,
     workspaceBackground,
     setWorkspaceBackground,
@@ -342,6 +347,9 @@ export function BorderEditor({ plain = false }: { plain?: boolean }) {
 
   const thicknessPct = plain ? 0 : border.borderThicknessPct
   const borderPx = thicknessPct * shortSide
+  // The bottom border grows to hold a caption; the photo gives up the room.
+  const caption = plain ? null : border.caption
+  const bottomPx = useAnimatedNumber(captionBandPct(caption, thicknessPct) * shortSide - borderPx) + borderPx
   const borderColorHex = getBorderColor(border.borderColor).hex
   // Only the live preview eases between colors — the export just paints the
   // final picked color once, no animation needed for a static file.
@@ -478,6 +486,7 @@ export function BorderEditor({ plain = false }: { plain?: boolean }) {
       guard.borderHex(borderColorHex),
       (p) => guard.adjustments(border.adjustments[p.id] ?? null),
       guard.story(!plain && border.exportWithBackground ? storyBackground : null),
+      guard.caption(hasCaption(caption) ? caption : null),
       (done, total, progress) => setExportFlow((s) => (s ? { ...s, done, total, progress } : s)),
     )
     setExportFlow({ phase: 'ready', done: files.length, total: files.length, progress: 1, files })
@@ -594,6 +603,8 @@ export function BorderEditor({ plain = false }: { plain?: boolean }) {
               onRetouch={() => setRetouching(true)}
             />
           )}
+
+          {tool === 'texto' && <CaptionPanel caption={border.caption} onChange={setBorderCaption} />}
 
           {tool === 'retro' && (
             <RetroPanel
@@ -717,13 +728,24 @@ export function BorderEditor({ plain = false }: { plain?: boolean }) {
                 x={borderPx}
                 y={borderPx}
                 width={outputWidth - borderPx * 2}
-                height={outputHeight - borderPx * 2}
+                height={outputHeight - borderPx - bottomPx}
                 photo={photo}
                 transform={border.transform}
                 onTransformChange={setBorderTransform}
                 fit={fitMix}
                 adjustments={border.adjustments[photo.id]}
               />
+              {hasCaption(caption) && (
+                <CaptionText
+                  caption={caption}
+                  width={outputWidth}
+                  height={outputHeight}
+                  shortSide={shortSide}
+                  borderPx={borderPx}
+                  bandPx={bottomPx}
+                  borderHex={borderColorHex}
+                />
+              )}
             </CanvasStage>
           ) : (
             <div className="flex h-full w-full flex-col gap-3 sm:flex-row">

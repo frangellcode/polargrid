@@ -200,3 +200,11 @@ export function IconHeal({ className = 'h-5 w-5' }: IconProps) {
     </svg>
   )
 }
+
+export function IconText({ className = 'h-5 w-5' }: IconProps) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" className={className}>
+      <path d="M5 6.5V5h14v1.5M12 5v14M9.5 19h5" />
+    </svg>
+  )
+}

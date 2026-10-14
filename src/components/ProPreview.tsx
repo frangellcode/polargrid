@@ -6,9 +6,9 @@ import { BORDER_COLORS } from '../lib/borderColors'
 import { WORKSPACE_BACKGROUNDS } from '../lib/workspaceBackgrounds'
 import { drawGrainOverlay } from '../lib/grain'
 import { readPhoto } from '../lib/photoSource'
-import { sharpenAmount, sharpenRadiusFor, unsharpMask } from '../lib/sharpen'
 import { applyAdjustments, DEFAULT_ADJUSTMENTS, drawVignette, getRetroPreset } from '../lib/adjustments'
 import { useTranslation } from '../store/languageStore'
+import { captionBandPct, captionFont, captionInk, DEFAULT_CAPTION, loadCaptionFont, type BorderCaption } from '../lib/caption'
 
 /** The preview box's shape, width / height. */
 const ASPECT = 4 / 5
@@ -137,8 +137,40 @@ async function drawSplit(
   width: number,
   height: number,
   isCancelled: () => boolean,
+  /** The caption example's text. */
+  sample = '',
 ) {
   const source = photo.previewBitmap
+
+  if (feature === 'caption') {
+    // The same print with an even border, and as a polaroid with a caption.
+    const caption: BorderCaption = { ...DEFAULT_CAPTION, text: sample, size: 0.065 }
+    await loadCaptionFont(caption)
+    if (isCancelled()) return false
+    const short = Math.min(width, height)
+    const border = short * 0.06
+    const band = captionBandPct(caption, 0.06) * short
+    const print = (canvas: HTMLCanvasElement, bottom: number) => {
+      const ctx = prepare(canvas, width, height)
+      ctx.fillStyle = '#ffffff'
+      ctx.fillRect(0, 0, width, height)
+      const w = width - border * 2
+      const h = height - border - bottom
+      const scale = Math.max(w / source.width, h / source.height)
+      const sw = w / scale
+      const sh = h / scale
+      ctx.drawImage(source, (source.width - sw) / 2, (source.height - sh) / 2, sw, sh, border, border, w, h)
+      return ctx
+    }
+    print(beforeCanvas, border)
+    const ctx = print(afterCanvas, band)
+    ctx.font = captionFont(caption, caption.size * short)
+    ctx.fillStyle = captionInk('#ffffff')
+    ctx.textAlign = 'center'
+    ctx.textBaseline = 'middle'
+    ctx.fillText(caption.text, width / 2, height - band / 2, width - border * 2)
+    return true
+  }
 
   if (feature === 'quality') {
     // A detail at the photo's own resolution ("Maximum") against the same
@@ -211,11 +243,8 @@ async function drawSplit(
     drawVignette(after, width, height, getRetroPreset('retrato')?.vignette ?? 0)
     drawGrainOverlay(after, width, height, getRetroPreset('retrato')?.grain ?? 0)
   } else {
-    // Grain and sharpness: the same photo crisper, with film grain — strong
-    // enough to read at a glance in a small box.
-    unsharpMask(image, sharpenRadiusFor(Math.max(width, height)), sharpenAmount(0.8))
-    after.putImageData(image, 0, 0)
-    drawGrainOverlay(after, width, height, 0.35)
+    // Film grain — strong enough to read at a glance in a small box.
+    drawGrainOverlay(after, width, height, 0.4)
   }
   return true
 }
@@ -288,7 +317,7 @@ export function ProPreview({ feature, photo }: ProPreviewProps) {
 
     // Fades the old split out while the new one draws, then back in.
     setShown((prev) => (prev === 'colors' || prev === 'batch' || prev === 'story' ? prev : null))
-    drawSplit(feature, photo, before, after, width, height, () => cancelled)
+    drawSplit(feature, photo, before, after, width, height, () => cancelled, tr.caption.sample)
       .then((drawn) => {
         if (drawn && !cancelled) {
           setSplit(55)
@@ -299,7 +328,7 @@ export function ProPreview({ feature, photo }: ProPreviewProps) {
     return () => {
       cancelled = true
     }
-  }, [feature, photo])
+  }, [feature, photo, tr.caption.sample])
 
   // Released on the way out — WebKit caps the canvas memory a page may hold.
   useEffect(() => {

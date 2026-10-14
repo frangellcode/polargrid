@@ -19,6 +19,7 @@ import { DEFAULT_EXPORT_QUALITY } from '../lib/exportQuality'
 import { DEFAULT_WORKSPACE_BACKGROUND } from '../lib/workspaceBackgrounds'
 import { DEFAULT_BORDER_COLOR } from '../lib/borderColors'
 import { hasAdjustments, type PhotoAdjustments } from '../lib/adjustments'
+import { DEFAULT_CAPTION, type BorderCaption } from '../lib/caption'
 
 export const DEFAULT_BORDER_PCT = 0.04
 /** A collage starts with a 2% outer border and the same 2% between photos —
@@ -53,6 +54,8 @@ interface BorderState {
   /** Pro: export each photo centred on a 9:16 canvas of the workspace
    *  background's colour, for Stories/Reels. Not shown on screen. */
   exportWithBackground: boolean
+  /** A line of text in the bottom border, polaroid style. */
+  caption: BorderCaption
 }
 
 interface CollageState {
@@ -114,6 +117,7 @@ interface EditorStoreState {
   /** Turning sync on copies `fromPhotoId`'s edit to the whole batch. */
   setBorderSyncAdjustments: (sync: boolean, fromPhotoId: string) => void
   setBorderExportWithBackground: (on: boolean) => void
+  setBorderCaption: (caption: Partial<BorderCaption>) => void
 
   setCollageLayoutMode: (mode: CollageLayoutMode) => void
   setCollageTemplateId: (templateId: string) => void
@@ -256,6 +260,7 @@ function createInitialBorderState(): BorderState {
     adjustments: {},
     syncAdjustments: false,
     exportWithBackground: false,
+    caption: { ...DEFAULT_CAPTION },
   }
 }
 
@@ -406,6 +411,9 @@ export const useEditorStore = create<EditorStoreState>((set, get) => ({
 
   setBorderExportWithBackground: (on) =>
     set((state) => ({ border: { ...state.border, exportWithBackground: on } })),
+
+  setBorderCaption: (caption) =>
+    set((state) => ({ border: { ...state.border, caption: { ...state.border.caption, ...caption } } })),
 
   setBorderSyncAdjustments: (sync, fromPhotoId) =>
     set((state) => {

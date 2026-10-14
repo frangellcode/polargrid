@@ -38,6 +38,17 @@ export const translations = {
       retouch: 'Heal',
       compare: 'Hold to see the original',
     },
+    caption: {
+      tool: 'Text',
+      placeholder: 'Write something…',
+      hint: 'It goes in the bottom border, polaroid style',
+      font: 'Font',
+      fonts: { hand: 'Handwritten', type: 'Typewriter', clean: 'Simple' },
+      size: 'Size',
+      align: 'Align',
+      clear: 'Clear',
+      sample: 'My favourite place',
+    },
     retouch: {
       title: 'Heal',
       hint: 'Paint over what you want gone',
@@ -139,7 +150,7 @@ export const translations = {
         },
         {
           title: 'Export at full quality',
-          body: 'Save at your camera’s native resolution, or lighter for sharing. With Pro: maximum quality, grain and sharpness, Retro, the Healing brush, any border colour, a 9:16 background for Stories and batches of up to 15.',
+          body: 'Save at your camera’s native resolution, or lighter for sharing. With Pro: maximum quality, grain, curves, Retro, the Healing brush, polaroid text, any border colour, a 9:16 background for Stories and batches of up to 15.',
         },
       ],
     },
@@ -249,7 +260,7 @@ export const translations = {
     pro: {
       title: 'PolarGrid Pro',
       subtitle: 'One purchase, yours forever. No subscription.',
-      features: ['Maximum-quality export', 'Unlimited border colours', 'Film grain and sharpness', 'Curves', 'Retro film styles', 'Healing brush to erase distractions', 'Batches of up to 15, one edit for all', 'Export on a 9:16 background'],
+      features: ['Maximum-quality export', 'Unlimited border colours', 'Film grain', 'Curves', 'Retro film styles', 'Healing brush to erase distractions', 'Polaroid-style text', 'Batches of up to 15, one edit for all', 'Export on a 9:16 background'],
       unlock: (price: string) => `Unlock for ${price}`,
       loadingPrice: 'Loading…',
       unavailable: 'Pro isn\u2019t available right now. Try again later.',
@@ -346,6 +357,17 @@ export const translations = {
       retro: 'Retro',
       retouch: 'Corrector',
       compare: 'Mantén presionado para ver la original',
+    },
+    caption: {
+      tool: 'Texto',
+      placeholder: 'Escribe algo…',
+      hint: 'Va en el borde de abajo, estilo polaroid',
+      font: 'Letra',
+      fonts: { hand: 'Manuscrita', type: 'Máquina', clean: 'Simple' },
+      size: 'Tamaño',
+      align: 'Alinear',
+      clear: 'Borrar',
+      sample: 'Mi lugar favorito',
     },
     retouch: {
       title: 'Corrector',
@@ -448,7 +470,7 @@ export const translations = {
         },
         {
           title: 'Exporta en máxima calidad',
-          body: 'Guarda a la resolución nativa de tu cámara, o más liviano para compartir. Con Pro: calidad máxima, grano y nitidez, Retro, el Corrector, cualquier color de borde, fondo 9:16 para Historias y lotes de hasta 15.',
+          body: 'Guarda a la resolución nativa de tu cámara, o más liviano para compartir. Con Pro: calidad máxima, grano, curvas, Retro, el Corrector, texto polaroid, cualquier color de borde, fondo 9:16 para Historias y lotes de hasta 15.',
         },
       ],
     },
@@ -558,7 +580,7 @@ export const translations = {
     pro: {
       title: 'PolarGrid Pro',
       subtitle: 'Un solo pago, para siempre. Sin suscripción.',
-      features: ['Exportación en calidad máxima', 'Colores de borde ilimitados', 'Grano de película y nitidez', 'Curvas', 'Estilos Retro de película', 'Corrector para borrar lo que sobra', 'Lotes de hasta 15, un ajuste para todas', 'Exportar con fondo 9:16'],
+      features: ['Exportación en calidad máxima', 'Colores de borde ilimitados', 'Grano de película', 'Curvas', 'Estilos Retro de película', 'Corrector para borrar lo que sobra', 'Texto estilo polaroid', 'Lotes de hasta 15, un ajuste para todas', 'Exportar con fondo 9:16'],
       unlock: (price: string) => `Desbloquear por ${price}`,
       loadingPrice: 'Cargando…',
       unavailable: 'Pro no está disponible ahora. Inténtalo más tarde.',
