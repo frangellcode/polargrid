@@ -152,6 +152,76 @@ async function drawSplit(
   const source = photo.previewBitmap
 
   if (feature === 'backdrop') {
+    // A three-post carousel: polaroids along the strip, one across a cut, on
+    // a plain colour and then on the photo itself, blurred. The prints are the
+    // tour's own photos, so it reads as several photos, not one repeated.
+    const prints = await Promise.all(
+      ['tour/boat.jpg', 'tour/sandbar.jpg', 'tour/bay.jpg'].map(async (url) => createImageBitmap(await (await fetch(url)).blob())),
+    )
+    try {
+      if (isCancelled()) return false
+      const blurred = photoBackdrop(source, DEFAULT_TRANSFORM, null, 'blur')
+      const stripH = width / (3 * 0.8)
+      const top = (height - stripH) / 2
+      const scene = (canvas: HTMLCanvasElement, withPhoto: boolean) => {
+        const ctx = prepare(canvas, width, height)
+        ctx.fillStyle = '#161b26'
+        ctx.fillRect(0, 0, width, height)
+        ctx.save()
+        ctx.translate(0, top)
+        ctx.beginPath()
+        ctx.rect(0, 0, width, stripH)
+        ctx.clip()
+        ctx.fillStyle = '#ece9e4'
+        ctx.fillRect(0, 0, width, stripH)
+        if (withPhoto) drawBackdropCover(ctx, blurred, width, stripH)
+        const pw = width * 0.22
+        // The first and second each sit across a cut.
+        const spots = [
+          { x: 0.26, y: 0.48, r: -5 },
+          { x: 0.63, y: 0.52, r: 4 },
+          { x: 0.88, y: 0.47, r: -3 },
+        ]
+        prints.forEach((img, i) => {
+          const ph = Math.min(stripH * 0.8, pw * 1.25)
+          const { x, y, r } = spots[i]
+          ctx.save()
+          ctx.translate(x * width, y * stripH)
+          ctx.rotate((r * Math.PI) / 180)
+          ctx.shadowColor = 'rgba(0,0,0,0.35)'
+          ctx.shadowBlur = pw * 0.08
+          ctx.shadowOffsetY = pw * 0.03
+          ctx.fillStyle = '#ffffff'
+          ctx.fillRect(-pw / 2, -ph / 2, pw, ph)
+          ctx.shadowColor = 'transparent'
+          const pad = pw * 0.05
+          const iw = pw - pad * 2
+          const ih = ph - pad - pw * 0.17
+          const k = Math.max(iw / img.width, ih / img.height)
+          ctx.drawImage(img, (img.width - iw / k) / 2, (img.height - ih / k) / 2, iw / k, ih / k, -pw / 2 + pad, -ph / 2 + pad, iw, ih)
+          ctx.restore()
+        })
+        // Where each post ends.
+        ctx.strokeStyle = 'rgba(255,255,255,0.85)'
+        ctx.lineWidth = Math.max(1, width * 0.004)
+        ctx.setLineDash([width * 0.02, width * 0.014])
+        for (const f of [1 / 3, 2 / 3]) {
+          ctx.beginPath()
+          ctx.moveTo(width * f, 0)
+          ctx.lineTo(width * f, stripH)
+          ctx.stroke()
+        }
+        ctx.restore()
+      }
+      scene(beforeCanvas, false)
+      scene(afterCanvas, true)
+    } finally {
+      for (const p of prints) p.close()
+    }
+    return true
+  }
+
+  if (feature === 'storyPhoto') {
     // The same print on a plain background, and on the photo itself, blurred.
     const short = Math.min(width, height)
     const blurred = photoBackdrop(source, DEFAULT_TRANSFORM, null, 'blur')
@@ -161,7 +231,7 @@ async function drawSplit(
       ctx.fillRect(0, 0, width, height)
       if (withPhoto) drawBackdropCover(ctx, blurred, width, height)
       const pw = width * 0.62
-      const ph = pw * 1.18
+      const ph = pw * 1.25
       const x = (width - pw) / 2
       const y = (height - ph) / 2
       const pad = pw * 0.05
@@ -173,7 +243,8 @@ async function drawSplit(
       ctx.fillRect(x, y, pw, ph)
       ctx.restore()
       const iw = pw - pad * 2
-      const ih = ph - pad - pw * 0.17
+      // An even border, like White border's own.
+      const ih = ph - pad * 2
       const scale = Math.max(iw / source.width, ih / source.height)
       const sw = iw / scale
       const sh = ih / scale

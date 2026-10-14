@@ -83,7 +83,7 @@ async function run(scene: (typeof SCENES)[number]) {
   if (scene === 'paywall') {
     // The paywall straight from Home, before any photo: its own sample.
     useProStore.setState({ isPro: false })
-    useProStore.getState().openPaywall('quality')
+    useProStore.getState().openPaywall(import.meta.env.VITE_SHOTS_FEATURE ?? 'quality')
     return
   }
 

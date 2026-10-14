@@ -625,6 +625,7 @@ export function BorderEditor({ plain = false }: { plain?: boolean }) {
                   on={border.exportWithBackground}
                   onChange={setBorderExportWithBackground}
                   hasBackground={!!storyBackground}
+                  photoBackground={!!backdropKind}
                 />
               )}
             </div>

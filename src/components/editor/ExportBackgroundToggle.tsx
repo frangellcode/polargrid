@@ -8,6 +8,8 @@ interface ExportBackgroundToggleProps {
   onChange: (on: boolean) => void
   /** Whether the workspace has a background to export on ("No background" doesn't). */
   hasBackground: boolean
+  /** The background is made from the photo — its own paywall example. */
+  photoBackground?: boolean
 }
 
 /**
@@ -16,7 +18,7 @@ interface ExportBackgroundToggleProps {
  * Nothing changes on screen: the background is already behind the photo
  * there. Turning it on with "No background" asks for a background instead.
  */
-export function ExportBackgroundToggle({ on, onChange, hasBackground }: ExportBackgroundToggleProps) {
+export function ExportBackgroundToggle({ on, onChange, hasBackground, photoBackground = false }: ExportBackgroundToggleProps) {
   const tr = useTranslation()
   const isPro = useIsPro()
   const openPaywall = useProStore((s) => s.openPaywall)
@@ -30,7 +32,7 @@ export function ExportBackgroundToggle({ on, onChange, hasBackground }: ExportBa
 
   const toggle = () => {
     if (!isPro) {
-      openPaywall('story')
+      openPaywall(photoBackground ? 'storyPhoto' : 'story')
       return
     }
     if (!on && !hasBackground) {
