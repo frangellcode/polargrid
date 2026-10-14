@@ -123,12 +123,16 @@ export const translations = {
           body: 'Our own film looks — warm portrait film, soft pastels, grainy black and white — previewed on your photo, at the strength you choose.',
         },
         {
+          title: 'Erase distractions',
+          body: 'With the Healing brush, paint over something small — a stray boat, a wire, a speck — and it’s filled in from what’s around it. Made for small details, not miracles.',
+        },
+        {
           title: 'Ready for Stories',
           body: 'Pick a background colour and turn on “Export with this background”: your photo comes out vertical 9:16, centred on that colour, nothing cropped.',
         },
         {
           title: 'Export at full quality',
-          body: 'Save at your camera’s native resolution, or lighter for sharing. With Pro: maximum quality, grain and sharpness, Retro, any border colour, a 9:16 background for Stories and batches of up to 15.',
+          body: 'Save at your camera’s native resolution, or lighter for sharing. With Pro: maximum quality, grain and sharpness, Retro, the Healing brush, any border colour, a 9:16 background for Stories and batches of up to 15.',
         },
       ],
     },
@@ -419,12 +423,16 @@ export const translations = {
           body: 'Looks de película creados por nosotros — retrato cálido, pasteles suaves, blanco y negro con grano — vistos sobre tu foto, con la intensidad que quieras.',
         },
         {
+          title: 'Borra distracciones',
+          body: 'Con el Corrector, pinta sobre algo pequeño — un bote de más, un cable, una manchita — y se rellena con lo que hay alrededor. Pensado para detalles, no para milagros.',
+        },
+        {
           title: 'Listo para Historias',
           body: 'Elige un color de fondo y activa «Exportar con este fondo»: tu foto sale en vertical 9:16, centrada sobre ese color y sin recortes.',
         },
         {
           title: 'Exporta en máxima calidad',
-          body: 'Guarda a la resolución nativa de tu cámara, o más liviano para compartir. Con Pro: calidad máxima, grano y nitidez, Retro, cualquier color de borde, fondo 9:16 para Historias y lotes de hasta 15.',
+          body: 'Guarda a la resolución nativa de tu cámara, o más liviano para compartir. Con Pro: calidad máxima, grano y nitidez, Retro, el Corrector, cualquier color de borde, fondo 9:16 para Historias y lotes de hasta 15.',
         },
       ],
     },

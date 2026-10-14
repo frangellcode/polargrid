@@ -174,6 +174,26 @@ function RetroArt() {
   )
 }
 
+/** The healing brush: a boat on a sandbar, then gone, the divider sweeping across. */
+function RetouchArt() {
+  const tr = useTranslation()
+  return (
+    <div className="flex h-full w-full flex-col items-center justify-center gap-4">
+      <div className="relative aspect-[4/5] w-[60%] overflow-hidden shadow-2xl shadow-black/50">
+        <Img name="retouch-before" />
+        <div className="tour-split absolute inset-0">
+          <Img name="retouch-after" />
+        </div>
+        <div className="tour-divider absolute inset-y-0 w-0.5 -translate-x-1/2 bg-white" />
+      </div>
+      <span className="font-label relative rounded-full bg-white px-2.5 py-1 text-[10px] font-semibold uppercase text-ink-900">
+        {tr.retouch.title}
+        <span className="absolute -right-2 -top-2 rounded-full bg-amber-300 px-1 text-[7px] font-bold leading-[14px] text-ink-900">PRO</span>
+      </span>
+    </div>
+  )
+}
+
 /** Sky blue — the "Cielo" workspace background the Stories cards show. */
 const SKY = '#9ccbea'
 
@@ -246,6 +266,7 @@ const ART: ReactNode[] = [
   <EditArt key="e" />,
   <DetailArt key="d" />,
   <RetroArt key="r" />,
+  <RetouchArt key="h" />,
   <StoryArt key="s" />,
   <ExportArt key="x" />,
 ]
