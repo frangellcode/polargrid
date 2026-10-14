@@ -33,7 +33,7 @@ export function proExportGuard() {
     adjustmentsMap: (map: Record<string, PhotoAdjustments>): Record<string, PhotoAdjustments> =>
       isPro ? map : Object.fromEntries(Object.entries(map).map(([id, a]) => [id, freeOnly(a)])),
     /** The 9:16 background is Pro. */
-    storyHex: (hex: string | null): string | null => (isPro ? hex : null),
+    story: <T>(background: T | null): T | null => (isPro ? background : null),
     /** Batches past `freeLimit` photos are Pro. */
     batch: <T>(photos: T[], freeLimit: number): T[] => (isPro ? photos : photos.slice(0, freeLimit)),
   }

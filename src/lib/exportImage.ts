@@ -1,4 +1,5 @@
 import type { CellAssignment, CellShape, ExportQuality, FreeItem, GridTemplate, LoadedPhoto, Orientation, PhotoFit, PhotoTransform } from '../types'
+import { drawBackdropCover, photoBackdrop, type StoryBackground } from './storyBackdrop'
 import { computeNativeCanvasSize, computeNativeCanvasSizeContain, computeOutputPixelSize, drawOrientedImage, getImageDrawRect, orientedSize } from './cropMath'
 import { ASPECT_RATIOS } from './aspectRatios'
 import { capLongEdge, getMaxLongEdge } from './exportQuality'
@@ -358,9 +359,10 @@ async function startBorderImage(
   locked: boolean,
   borderColorHex: string,
   adjustments: PhotoAdjustments | null,
-  /** Pro: the bordered photo is centred on a 9:16 canvas of this colour, for
-   *  Stories/Reels. Null exports the bordered photo on its own. */
-  storyBackgroundHex: string | null,
+  /** Pro: the bordered photo is centred on a 9:16 canvas of this colour, or
+   *  on the photo itself, for Stories/Reels. Null exports the bordered photo
+   *  on its own. */
+  storyBackground: StoryBackground | null,
   filename: string,
   onProgress?: Progress,
 ): Promise<{ result: Promise<ExportedImage> }> {
@@ -374,7 +376,7 @@ async function startBorderImage(
   const size = (cap: number | undefined) => {
     const eff = capLongEdge(shown.width, shown.height, cap)
     const framed = sizeFn(eff.width, eff.height, ratio, borderThicknessPct, transform.zoom)
-    if (!storyBackgroundHex) return { ...framed, outW: framed.width, outH: framed.height }
+    if (!storyBackground) return { ...framed, outW: framed.width, outH: framed.height }
     // Enough background to make 9:16 with a STORY_MARGIN of it showing on
     // every side — flush to the edges, the white border read as cut off.
     // The width is whichever of the two constraints is tighter: the photo's
@@ -390,7 +392,7 @@ async function startBorderImage(
   // around a full-size landscape photo is ~2.7x its pixels — past what WebKit
   // will render. Shrink the photo until the story fits the same safe ceiling.
   const webCeiling = isNativeApp ? undefined : getMaxLongEdge('native')
-  if (storyBackgroundHex && webCeiling && Math.max(dims.outW, dims.outH) > webCeiling) {
+  if (storyBackground && webCeiling && Math.max(dims.outW, dims.outH) > webCeiling) {
     const scale = webCeiling / Math.max(dims.outW, dims.outH)
     dims = size(Math.floor(Math.max(dims.width, dims.height) * scale))
   }
@@ -399,14 +401,35 @@ async function startBorderImage(
   const offsetY = Math.round((outH - height) / 2)
   const borderPx = borderThicknessPct * Math.min(width, height)
   const grainSeed = Math.floor(Math.random() * 2 ** 32)
+  // Made once and stretched over every band; the sharp one is drawn at full
+  // size per band instead.
+  const fromPhoto = storyBackground && 'fromPhoto' in storyBackground ? storyBackground.fromPhoto : null
+  const blurred = fromPhoto === 'blur' ? photoBackdrop(photo.previewBitmap, transform, adjustments, 'blur') : null
   return startRender(
     outW,
     outH,
     filename,
     async (ctx, _band, report) => {
-      if (storyBackgroundHex) {
-        ctx.fillStyle = storyBackgroundHex
+      if (storyBackground && 'hex' in storyBackground) {
+        ctx.fillStyle = storyBackground.hex
         ctx.fillRect(0, 0, outW, outH)
+      } else if (blurred) {
+        drawBackdropCover(ctx, blurred, outW, outH)
+      } else if (fromPhoto === 'sharp') {
+        await drawPhotoInRect(
+          ctx,
+          photo,
+          0,
+          0,
+          outW,
+          outH,
+          { offsetX: 0, offsetY: 0, zoom: 1, turns: transform.turns, flipH: transform.flipH, flipV: transform.flipV },
+          0,
+          'cover',
+          'rect',
+          adjustments,
+          grainSeed,
+        )
       }
       ctx.save()
       ctx.translate(offsetX, offsetY)
@@ -465,8 +488,8 @@ export async function renderBorderPhotoFiles(
   borderColorHex: string,
   /** Each photo's own Edit and Retro — the one setting a batch doesn't share. */
   adjustmentsFor: (photo: LoadedPhoto) => PhotoAdjustments | null,
-  /** See startBorderImage: a 9:16 background colour, or null. */
-  storyBackgroundHex: string | null,
+  /** See startBorderImage: a 9:16 background, or null. */
+  storyBackground: StoryBackground | null,
   /** `done` photos are finished; `fraction` is the whole batch, 0..1. */
   onProgress?: (done: number, total: number, fraction: number) => void,
 ): Promise<ExportedImage[]> {
@@ -489,7 +512,7 @@ export async function renderBorderPhotoFiles(
       locked,
       borderColorHex,
       adjustmentsFor(photos[i]),
-      storyBackgroundHex,
+      storyBackground,
       `polargrid-border-${stamp}-${i + 1}.jpg`,
       (fraction) => {
         fractions[i] = fraction

@@ -34,8 +34,9 @@ import { RetroPanel } from './RetroPanel'
 import { proExportGuard } from '../../lib/proGuard'
 import { ExportBackgroundToggle } from './ExportBackgroundToggle'
 import { getWorkspaceBackground } from '../../lib/workspaceBackgrounds'
+import { photoBackdrop, type StoryBackground } from '../../lib/storyBackdrop'
 import { CompareButton } from './CompareButton'
-import { hasAdjustments } from '../../lib/adjustments'
+import { adjustmentsKey, hasAdjustments } from '../../lib/adjustments'
 import { RetouchView } from './RetouchView'
 
 const PREVIEW_LONG_EDGE = 900
@@ -347,6 +348,47 @@ export function BorderEditor({ plain = false }: { plain?: boolean }) {
   const animatedBorderColorHex = useAnimatedColor(borderColorHex)
 
   const anyEdited = !!photo && hasAdjustments(border.adjustments[photo.id])
+
+  // A background made from the photo itself (White border only): drawn
+  // stretched behind the canvas here, and behind the 9:16 story on export.
+  const workspaceBg = getWorkspaceBackground(workspaceBackground)
+  const backdropKind = plain ? undefined : workspaceBg.fromPhoto
+  const storyBackground: StoryBackground | null = backdropKind ? { fromPhoto: backdropKind } : workspaceBg.hex ? { hex: workspaceBg.hex } : null
+  const photoAdjustments = photo ? border.adjustments[photo.id] : undefined
+  const backdropEditKey = adjustmentsKey(photoAdjustments)
+  const [backdropUrl, setBackdropUrl] = useState<string | null>(null)
+  const [photoThumb, setPhotoThumb] = useState<string | null>(null)
+  useEffect(() => {
+    if (!photo || !backdropKind) {
+      setBackdropUrl(null)
+      return
+    }
+    let url: string | null = null
+    let cancelled = false
+    photoBackdrop(photo.previewBitmap, border.transform, photoAdjustments, backdropKind).toBlob(
+      (blob) => {
+        if (cancelled || !blob) return
+        url = URL.createObjectURL(blob)
+        setBackdropUrl(url)
+      },
+      'image/jpeg',
+      0.9,
+    )
+    return () => {
+      cancelled = true
+      if (url) URL.revokeObjectURL(url)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- keyed on the edit's values, not the object
+  }, [photo?.id, photo?.previewBitmap, backdropKind, border.transform.turns, border.transform.flipH, border.transform.flipV, backdropEditKey])
+  // The photo swatches show the photo itself.
+  useEffect(() => {
+    if (!photo || plain) {
+      setPhotoThumb(null)
+      return
+    }
+    setPhotoThumb(photoBackdrop(photo.previewBitmap, border.transform, null, 'sharp', 96).toDataURL('image/jpeg', 0.8))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [photo?.id, photo?.previewBitmap, plain, border.transform.turns, border.transform.flipH, border.transform.flipV])
   // Batch only: whether Edit and Retro land on this photo or on all of them.
   const syncHeader = photo && isBatch && (
     <div className="flex items-center justify-between gap-3">
@@ -435,7 +477,7 @@ export function BorderEditor({ plain = false }: { plain?: boolean }) {
       locked,
       guard.borderHex(borderColorHex),
       (p) => guard.adjustments(border.adjustments[p.id] ?? null),
-      guard.storyHex(!plain && border.exportWithBackground ? getWorkspaceBackground(workspaceBackground).hex : null),
+      guard.story(!plain && border.exportWithBackground ? storyBackground : null),
       (done, total, progress) => setExportFlow((s) => (s ? { ...s, done, total, progress } : s)),
     )
     setExportFlow({ phase: 'ready', done: files.length, total: files.length, progress: 1, files })
@@ -566,12 +608,12 @@ export function BorderEditor({ plain = false }: { plain?: boolean }) {
 
           {tool === 'workspace' && (
             <div className="flex flex-col gap-4">
-              <WorkspaceBackgroundPicker value={workspaceBackground} onChange={setWorkspaceBackground} />
+              <WorkspaceBackgroundPicker value={workspaceBackground} onChange={setWorkspaceBackground} photoThumb={photoThumb} />
               {!plain && (
                 <ExportBackgroundToggle
                   on={border.exportWithBackground}
                   onChange={setBorderExportWithBackground}
-                  backgroundHex={getWorkspaceBackground(workspaceBackground).hex}
+                  hasBackground={!!storyBackground}
                 />
               )}
             </div>
@@ -667,6 +709,7 @@ export function BorderEditor({ plain = false }: { plain?: boolean }) {
               outputWidth={outputWidth}
               outputHeight={outputHeight}
               background={animatedBorderColorHex}
+              backdrop={backdropKind ? (backdropUrl ?? '') : null}
               turn={turnState}
             >
               <PhotoCell

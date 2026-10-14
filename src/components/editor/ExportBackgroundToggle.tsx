@@ -6,17 +6,17 @@ import { IconLock } from './icons'
 interface ExportBackgroundToggleProps {
   on: boolean
   onChange: (on: boolean) => void
-  /** The workspace background's colour; null for "No background". */
-  backgroundHex: string | null
+  /** Whether the workspace has a background to export on ("No background" doesn't). */
+  hasBackground: boolean
 }
 
 /**
  * Pro: export the bordered photo on a 9:16 canvas of the workspace
- * background's colour, ready for Stories and Reels. Nothing changes on screen
- * — the background is already behind the photo there. "No background" isn't a
- * colour, so turning it on without one asks for a colour instead.
+ * background — a colour, or the photo itself — ready for Stories and Reels.
+ * Nothing changes on screen: the background is already behind the photo
+ * there. Turning it on with "No background" asks for a background instead.
  */
-export function ExportBackgroundToggle({ on, onChange, backgroundHex }: ExportBackgroundToggleProps) {
+export function ExportBackgroundToggle({ on, onChange, hasBackground }: ExportBackgroundToggleProps) {
   const tr = useTranslation()
   const isPro = useIsPro()
   const openPaywall = useProStore((s) => s.openPaywall)
@@ -24,16 +24,16 @@ export function ExportBackgroundToggle({ on, onChange, backgroundHex }: ExportBa
 
   // Switching to "No background" leaves nothing to export with.
   useEffect(() => {
-    if (!backgroundHex && on) onChange(false)
-    if (backgroundHex) setNeedsColour(false)
-  }, [backgroundHex, on, onChange])
+    if (!hasBackground && on) onChange(false)
+    if (hasBackground) setNeedsColour(false)
+  }, [hasBackground, on, onChange])
 
   const toggle = () => {
     if (!isPro) {
       openPaywall('story')
       return
     }
-    if (!on && !backgroundHex) {
+    if (!on && !hasBackground) {
       setNeedsColour(true)
       return
     }

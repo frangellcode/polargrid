@@ -8,12 +8,18 @@ import { getWorkspaceBackground } from '../../lib/workspaceBackgrounds'
 // so fading the backing color into this tone reads as blending toward the
 // pattern rather than toward an unrelated color.
 const CHECKER_BASE_HEX = '#c2c6ca'
+/** Matches the colour fade below (duration-300). */
+const BACKDROP_FADE_MS = 300
 
 interface CanvasStageProps {
   /** Logical (virtual) canvas size — children should be authored in this coordinate space. */
   outputWidth: number
   outputHeight: number
   background?: string
+  /** An image behind the canvas in place of the workspace colour — the
+   *  White border's background made from the photo. '' while it's being
+   *  made; null for none. */
+  backdrop?: string | null
   children: ReactNode
   /** Reports the current display scale (virtual px -> screen px), useful for export. */
   onScaleChange?: (scale: number) => void
@@ -58,6 +64,7 @@ export const CanvasStage = forwardRef<CanvasStageHandle, CanvasStageProps>(funct
   outputWidth,
   outputHeight,
   background = '#ffffff',
+  backdrop = null,
   children,
   onScaleChange,
   frozenSrc = null,
@@ -209,10 +216,33 @@ export const CanvasStage = forwardRef<CanvasStageHandle, CanvasStageProps>(funct
     )
   })
 
+  // The photo backdrop fades in and out over the colour. The colour under it
+  // stays the last one shown while it's up, and snaps (doesn't fade) to the
+  // new one while the backdrop still covers it — fading out of a backdrop
+  // straight from the checker's light grey is what flashed white on Onyx.
+  const photoBg = backdrop != null
+  const [shownBackdrop, setShownBackdrop] = useState<string | null>(backdrop || null)
+  const [backdropOn, setBackdropOn] = useState(!!backdrop)
+  useEffect(() => {
+    if (backdrop) {
+      setShownBackdrop(backdrop)
+      setBackdropOn(true)
+      return
+    }
+    if (backdrop === '') return // being made: keep what's there
+    setBackdropOn(false)
+    const t = setTimeout(() => setShownBackdrop(null), BACKDROP_FADE_MS)
+    return () => clearTimeout(t)
+  }, [backdrop])
+  const lastSolid = useRef(workspaceBg.hex)
+  if (!photoBg) lastSolid.current = workspaceBg.hex
+  const underHex = photoBg ? lastSolid.current : workspaceBg.hex
+  const covered = photoBg || shownBackdrop !== null
+
   return (
     <div
       ref={containerRef}
-      className="relative flex h-full w-full items-center justify-center overflow-hidden rounded-xl p-[5px] transition-colors duration-300"
+      className={`relative flex h-full w-full items-center justify-center overflow-hidden rounded-xl p-[5px] ${covered ? '' : 'transition-colors duration-300'}`}
       // Backed by CHECKER_BASE_HEX (one of the checkerboard's own two square
       // colors) instead of literal 'transparent' for "No background". Animating
       // background-color THROUGH transparent made the browser interpolate
@@ -222,14 +252,23 @@ export const CanvasStage = forwardRef<CanvasStageHandle, CanvasStageProps>(funct
       // matched color on both ends, this fades cleanly like any other
       // color<->color transition, and the checker layer's own opacity fade
       // (below) blends into it seamlessly once it's mostly faded in.
-      style={{ backgroundColor: workspaceBg.hex ?? CHECKER_BASE_HEX }}
+      style={{ backgroundColor: underHex ?? CHECKER_BASE_HEX }}
     >
       {/* Checkered "No background" pattern as its own opacity-animated layer, in
           sync with the color fade above. */}
       <div
-        className="pointer-events-none absolute inset-0 bg-[repeating-conic-gradient(#b6bcc4_0%_25%,#c2c6ca_0%_50%)] bg-[length:20px_20px] transition-opacity duration-300"
-        style={{ opacity: workspaceBg.hex ? 0 : 1 }}
+        className={`pointer-events-none absolute inset-0 bg-[repeating-conic-gradient(#b6bcc4_0%_25%,#c2c6ca_0%_50%)] bg-[length:20px_20px] ${covered ? '' : 'transition-opacity duration-300'}`}
+        style={{ opacity: underHex ? 0 : 1 }}
       />
+      {shownBackdrop && (
+        <img
+          src={shownBackdrop}
+          alt=""
+          draggable={false}
+          className="backdrop-in pointer-events-none absolute inset-0 h-full w-full object-cover transition-opacity duration-300"
+          style={{ opacity: backdropOn ? 1 : 0 }}
+        />
+      )}
       {scale > 0 && (
         <div ref={turnRef}>
         <div

@@ -287,7 +287,7 @@ export const translations = {
       backgroundColor: 'Canvas color',
       exportWithBackground: 'Export with this background',
       exportWithBackgroundHint: 'Vertical 9:16, for Stories and Reels',
-      pickBackgroundFirst: 'Pick a background colour first',
+      pickBackgroundFirst: 'Pick a background first',
     },
     quality: {
       native: { label: 'Maximum', hint: 'Native resolution of your photos' },
@@ -312,6 +312,8 @@ export const translations = {
       sky: 'Sky',
       terracotta: 'Terracotta',
       checkered: 'No background',
+      blur: 'Blurred',
+      photo: 'Photo',
     },
   },
   es: {
@@ -594,7 +596,7 @@ export const translations = {
       backgroundColor: 'Color del lienzo',
       exportWithBackground: 'Exportar con este fondo',
       exportWithBackgroundHint: 'Vertical 9:16, para Historias y Reels',
-      pickBackgroundFirst: 'Elige primero un color de fondo',
+      pickBackgroundFirst: 'Elige primero un fondo',
     },
     quality: {
       native: { label: 'Máxima', hint: 'Resolución nativa de tus fotos' },
@@ -619,6 +621,8 @@ export const translations = {
       sky: 'Cielo',
       terracotta: 'Terracota',
       checkered: 'Sin fondo',
+      blur: 'Desenfocado',
+      photo: 'Foto',
     },
   },
 } satisfies Record<Language, unknown>

@@ -1,8 +1,12 @@
+import type { PhotoBackdropKind } from './storyBackdrop'
+
 export interface WorkspaceBackgroundOption {
   id: string
   label: string
   /** Hex color, or null for the default checkered (transparent) pattern. */
   hex: string | null
+  /** Made from the photo being edited instead of a colour (White border only). */
+  fromPhoto?: PhotoBackdropKind
 }
 
 /** Soft, neutral tones for the editor's own backdrop — kept deliberately
@@ -14,6 +18,8 @@ export interface WorkspaceBackgroundOption {
  *  the one most likely to wash out against a white border — trails last. */
 export const WORKSPACE_BACKGROUNDS: WorkspaceBackgroundOption[] = [
   { id: 'checkered', label: 'No background', hex: null },
+  { id: 'blur', label: 'Blurred', hex: null, fromPhoto: 'blur' },
+  { id: 'photo', label: 'Photo', hex: null, fromPhoto: 'sharp' },
   { id: 'onyx', label: 'Onyx', hex: '#1c1c1e' },
   { id: 'pearl', label: 'Pearl', hex: '#c9c6c0' },
   { id: 'beige', label: 'Beige', hex: '#d8cbb8' },

@@ -333,3 +333,15 @@ textarea {
     animation: none;
   }
 }
+
+/* The White border's photo backdrop (CanvasStage): a plain crossfade over the
+   workspace colour, no drift — it fills the whole workspace. */
+@keyframes backdrop-in {
+  from {
+    opacity: 0;
+  }
+}
+
+.backdrop-in {
+  animation: backdrop-in 300ms ease-out backwards;
+}
