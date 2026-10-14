@@ -1,15 +1,20 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import { useTranslation } from '../../store/languageStore'
-import { DEFAULT_ADJUSTMENTS, TONE_KEYS, type AdjustmentKey, type PhotoAdjustments } from '../../lib/adjustments'
+import { DEFAULT_ADJUSTMENTS, hasCurves, hasHsl, TONE_KEYS, type AdjustmentKey, type PhotoAdjustments } from '../../lib/adjustments'
 import { useProStore } from '../../store/proStore'
 import { IconGrain, IconHeal, IconLock, IconSharpen } from './icons'
+import { ColorMixPanel } from './ColorMixPanel'
+import { CurvesPanel } from './CurvesPanel'
 
+/** A dial: one slider, or the colour mix / curves with controls of their own. */
+type Slot = AdjustmentKey | 'colorMix' | 'curves'
 /** Order of the dials, light first, then colour, then detail. */
-const KEYS: AdjustmentKey[] = [...TONE_KEYS, 'sharpness', 'grain']
-const BIPOLAR = new Set<AdjustmentKey>(TONE_KEYS)
-/** Light and colour are free; the film detail is PolarGrid Pro. */
-const PRO_KEYS = new Set<AdjustmentKey>(['sharpness', 'grain'])
+const KEYS: Slot[] = [...TONE_KEYS, 'colorMix', 'curves', 'vignette', 'sharpness', 'grain']
+const BIPOLAR = new Set<Slot>(TONE_KEYS)
+/** Light, colour, the colour mix and the vignette are free; curves and the
+ *  film detail are PolarGrid Pro. */
+const PRO_KEYS = new Set<Slot>(['curves', 'sharpness', 'grain'])
 
 /** Slider tracks that show which way each colour slider pushes. */
 const TRACKS: Partial<Record<AdjustmentKey, string>> = {
@@ -25,7 +30,7 @@ const svg = (children: ReactNode) => (
   </svg>
 )
 
-const ICONS: Record<AdjustmentKey, ReactNode> = {
+const ICONS: Record<Slot, ReactNode> = {
   exposure: svg(
     <>
       <circle cx="12" cy="12" r="8" />
@@ -64,6 +69,25 @@ const ICONS: Record<AdjustmentKey, ReactNode> = {
     <>
       <path d="M12 3s7 7.6 7 12a7 7 0 1 1-14 0c0-4.4 7-12 7-12Z" />
       <path d="M5 15a7 7 0 0 0 14 0Z" fill="currentColor" />
+    </>,
+  ),
+  colorMix: svg(
+    <>
+      <circle cx="9" cy="9.5" r="5" />
+      <circle cx="15" cy="9.5" r="5" />
+      <circle cx="12" cy="14.5" r="5" />
+    </>,
+  ),
+  curves: svg(
+    <>
+      <rect x="4" y="4" width="16" height="16" rx="2" opacity={0.45} />
+      <path d="M4 20C10 20 9 9 12 9s3 0 8-5" />
+    </>,
+  ),
+  vignette: svg(
+    <>
+      <rect x="3.5" y="5" width="17" height="14" rx="2" />
+      <ellipse cx="12" cy="12" rx="5" ry="3.8" strokeDasharray="1.5 1.8" />
     </>,
   ),
   sharpness: <IconSharpen className="h-[18px] w-[18px]" />,
@@ -180,13 +204,16 @@ export function AdjustmentsPanel({ value, onChange, header, tools, activeTool = 
   const tr = useTranslation()
   const isPro = useProStore((s) => s.isPro)
   const openPaywall = useProStore((s) => s.openPaywall)
-  const [activeKey, setActiveKey] = useState<AdjustmentKey>('exposure')
+  const [activeKey, setActiveKey] = useState<Slot>('exposure')
   const current = value ?? DEFAULT_ADJUSTMENTS
   const set = (key: AdjustmentKey, v: number) => onChange({ ...current, [key]: v })
-  const v = current[activeKey]
+  /** How far a dial's ring fills: its value, or full once the colour mix or curves are touched. */
+  const dialValue = (k: Slot) => (k === 'colorMix' ? (hasHsl(current.hsl) ? 1 : 0) : k === 'curves' ? (hasCurves(current.toneCurves) ? 1 : 0) : current[k])
+  const sliderKey: AdjustmentKey = activeKey === 'colorMix' || activeKey === 'curves' ? 'exposure' : activeKey
+  const v = current[sliderKey]
   const shown = Math.round(v * 100)
-  const bipolar = BIPOLAR.has(activeKey)
-  const edited = KEYS.some((k) => current[k] !== 0)
+  const bipolar = BIPOLAR.has(sliderKey)
+  const edited = KEYS.some((k) => dialValue(k) !== 0)
 
   const row = (
     <div className="scroll-row -mx-1 flex gap-0.5 overflow-x-auto overscroll-x-contain px-1 pt-1">
@@ -194,14 +221,14 @@ export function AdjustmentsPanel({ value, onChange, header, tools, activeTool = 
         <Dial
           key={k}
           icon={ICONS[k]}
-          value={current[k]}
+          value={dialValue(k)}
           active={activeTool == null && k === activeKey}
           proBadge={PRO_KEYS.has(k)}
           locked={!isPro && PRO_KEYS.has(k)}
           label={tr.edit[k]}
           onClick={() => {
             if (!isPro && PRO_KEYS.has(k)) {
-              openPaywall('detail')
+              openPaywall(k === 'curves' ? 'curves' : 'detail')
               return
             }
             onToolChange?.(null)
@@ -235,27 +262,34 @@ export function AdjustmentsPanel({ value, onChange, header, tools, activeTool = 
       ))}
     </div>
   )
-  const slider = (
+  const reset = (
+    <button
+      type="button"
+      disabled={!edited}
+      onClick={() => onChange({ ...DEFAULT_ADJUSTMENTS, retro: current.retro, retroAmount: current.retroAmount })}
+      className="font-label rounded-full bg-white/10 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide text-white/70 transition hover:bg-white/15 active:scale-95 disabled:opacity-30"
+    >
+      {tr.edit.reset}
+    </button>
+  )
+  const slider = activeKey === 'colorMix' ? (
+    <ColorMixPanel value={current.hsl} onChange={(hsl) => onChange({ ...current, hsl })} />
+  ) : activeKey === 'curves' ? (
+    <CurvesPanel value={current.toneCurves} onChange={(toneCurves) => onChange({ ...current, toneCurves })} />
+  ) : (
     <div className="flex flex-col gap-1.5">
       <div className="flex items-center justify-between text-xs">
-        <span className="font-label text-xs font-semibold uppercase tracking-wider text-white/70">{tr.edit[activeKey]}</span>
+        <span className="font-label text-xs font-semibold uppercase tracking-wider text-white/70">{tr.edit[sliderKey]}</span>
         <div className="flex items-center gap-2">
           <button
             type="button"
-            aria-label={`${tr.edit.reset}: ${tr.edit[activeKey]}`}
-            onClick={() => set(activeKey, 0)}
+            aria-label={`${tr.edit.reset}: ${tr.edit[sliderKey]}`}
+            onClick={() => set(sliderKey, 0)}
             className="rounded-full px-1.5 py-1 tabular-nums text-white transition active:scale-90"
           >
             {shown > 0 && bipolar ? `+${shown}` : shown}
           </button>
-          <button
-            type="button"
-            disabled={!edited}
-            onClick={() => onChange({ ...DEFAULT_ADJUSTMENTS, retro: current.retro, retroAmount: current.retroAmount })}
-            className="font-label rounded-full bg-white/10 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide text-white/70 transition hover:bg-white/15 active:scale-95 disabled:opacity-30"
-          >
-            {tr.edit.reset}
-          </button>
+          {reset}
         </div>
       </div>
       <input
@@ -264,11 +298,11 @@ export function AdjustmentsPanel({ value, onChange, header, tools, activeTool = 
         max={1}
         step={0.01}
         value={v}
-        aria-label={tr.edit[activeKey]}
-        onChange={(e) => set(activeKey, Number(e.target.value))}
-        onDoubleClick={() => set(activeKey, 0)}
+        aria-label={tr.edit[sliderKey]}
+        onChange={(e) => set(sliderKey, Number(e.target.value))}
+        onDoubleClick={() => set(sliderKey, 0)}
         className="h-1.5 w-full cursor-pointer appearance-none rounded-full bg-white/15 accent-white"
-        style={TRACKS[activeKey] ? { background: TRACKS[activeKey] } : undefined}
+        style={TRACKS[sliderKey] ? { background: TRACKS[sliderKey] } : undefined}
       />
     </div>
   )

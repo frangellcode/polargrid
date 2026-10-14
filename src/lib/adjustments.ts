@@ -27,10 +27,32 @@ export const TONE_KEYS = [
 export type ToneKey = (typeof TONE_KEYS)[number]
 
 /** 0..1 sliders, 0 = off. */
-export type DetailKey = 'sharpness' | 'grain'
+export type DetailKey = 'vignette' | 'sharpness' | 'grain'
 export type AdjustmentKey = ToneKey | DetailKey
 
+/** The colour mix's bands, round the hue circle, and where each sits (degrees). */
+export const HSL_BANDS = ['red', 'orange', 'yellow', 'green', 'aqua', 'blue', 'purple', 'magenta'] as const
+export type HslBand = (typeof HSL_BANDS)[number]
+export const HSL_BAND_HUES: Record<HslBand, number> = { red: 0, orange: 30, yellow: 60, green: 120, aqua: 180, blue: 240, purple: 270, magenta: 300 }
+/** Hue, saturation and luminance shifts for one band, each -1..1. */
+export type HslShift = [number, number, number]
+export type HslMix = Partial<Record<HslBand, HslShift>>
+
+/** Tone curve points, x and y in 0..1, sorted by x, both ends included. */
+export type CurvePoint = [number, number]
+export const CURVE_CHANNELS = ['rgb', 'r', 'g', 'b'] as const
+export type CurveChannel = (typeof CURVE_CHANNELS)[number]
+export type ToneCurves = Record<CurveChannel, CurvePoint[]>
+export const IDENTITY_CURVE: CurvePoint[] = [
+  [0, 0],
+  [1, 1],
+]
+
 export type PhotoAdjustments = Record<AdjustmentKey, number> & {
+  /** The colour mix (HSL): per-band hue, saturation and luminance. */
+  hsl: HslMix
+  /** Curves, master then per channel; null = untouched. */
+  toneCurves: ToneCurves | null
   /** RETRO_PRESETS id, null = none. */
   retro: string | null
   /** 0..1 how strongly the Retro style is applied. */
@@ -48,8 +70,11 @@ export const DEFAULT_ADJUSTMENTS: PhotoAdjustments = {
   tint: 0,
   vibrance: 0,
   saturation: 0,
+  vignette: 0,
   sharpness: 0,
   grain: 0,
+  hsl: {},
+  toneCurves: null,
   retro: null,
   retroAmount: 1,
 }
@@ -191,21 +216,35 @@ function activeRetro(a: PhotoAdjustments | null | undefined): RetroPreset | null
   return a && a.retroAmount > 0 ? getRetroPreset(a.retro) : null
 }
 
+export function hasHsl(mix: HslMix | null | undefined): boolean {
+  return !!mix && Object.values(mix).some((v) => !!v && (v[0] !== 0 || v[1] !== 0 || v[2] !== 0))
+}
+
+export function isIdentityCurve(points: CurvePoint[]): boolean {
+  return points.every(([x, y]) => Math.abs(x - y) < 1e-4)
+}
+
+export function hasCurves(c: ToneCurves | null | undefined): c is ToneCurves {
+  return !!c && CURVE_CHANNELS.some((ch) => !isIdentityCurve(c[ch]))
+}
+
 /** Whether the photo's pixels change colour (the per-pixel pass). */
 export function hasColourWork(a: PhotoAdjustments | null | undefined): a is PhotoAdjustments {
-  return !!a && (TONE_KEYS.some((k) => a[k] !== 0) || activeRetro(a) !== null)
+  return !!a && (TONE_KEYS.some((k) => a[k] !== 0) || hasHsl(a.hsl) || hasCurves(a.toneCurves) || activeRetro(a) !== null)
 }
 
 /** Whether anything at all is applied — what the before/after button asks. */
 export function hasAdjustments(a: PhotoAdjustments | null | undefined): a is PhotoAdjustments {
   if (!a) return false
-  return a.grain > 0 || a.sharpness > 0 || hasColourWork(a)
+  return a.grain > 0 || a.sharpness > 0 || a.vignette > 0 || hasColourWork(a)
 }
 
 /** Stable key for the colour pass, for memoising on the values rather than the object. */
 export function adjustmentsKey(a: PhotoAdjustments | null | undefined): string {
   if (!hasColourWork(a)) return ''
-  return `${TONE_KEYS.map((k) => a[k]).join(',')}|${activeRetro(a)?.id ?? ''}|${a.retroAmount}`
+  const curves = hasCurves(a.toneCurves) ? JSON.stringify(a.toneCurves) : ''
+  const hsl = hasHsl(a.hsl) ? JSON.stringify(a.hsl) : ''
+  return `${TONE_KEYS.map((k) => a[k]).join(',')}|${activeRetro(a)?.id ?? ''}|${a.retroAmount}|${hsl}|${curves}`
 }
 
 /** The grain actually drawn: the person's own, or the Retro style's if stronger. */
@@ -215,10 +254,13 @@ export function effectiveGrain(a: PhotoAdjustments | null | undefined): number {
   return Math.max(a.grain, (retro?.grain ?? 0) * a.retroAmount)
 }
 
-/** 0..1 darkening at the photo's corners, from the Retro style. */
+/** 0..1 darkening at the photo's corners: the person's own, stacked on the
+ *  Retro style's the way two vignettes over each other would. */
 export function effectiveVignette(a: PhotoAdjustments | null | undefined): number {
+  if (!a) return 0
   const retro = activeRetro(a)
-  return retro && a ? (retro.vignette ?? 0) * a.retroAmount : 0
+  const fromRetro = retro ? (retro.vignette ?? 0) * a.retroAmount : 0
+  return 1 - (1 - (a.vignette ?? 0)) * (1 - fromRetro)
 }
 
 /** sRGB byte -> linear light. */
@@ -401,6 +443,134 @@ function runPass(data: Uint8ClampedArray, p: Pass) {
   }
 }
 
+// --- Colour mix (HSL) ---------------------------------------------------------
+
+/** Per-degree hue, saturation and luminance shifts, each band blending
+ *  linearly into its neighbours round the circle. */
+function compileHsl(mix: HslMix): Float32Array {
+  const table = new Float32Array(360 * 3)
+  const centres = HSL_BANDS.map((b) => HSL_BAND_HUES[b])
+  for (let deg = 0; deg < 360; deg++) {
+    let i = centres.length - 1
+    for (let k = 0; k < centres.length; k++) if (centres[k] <= deg) i = k
+    const j = (i + 1) % centres.length
+    const from = centres[i]
+    const to = j === 0 ? 360 : centres[j]
+    const t = (deg - from) / (to - from)
+    const a = mix[HSL_BANDS[i]] ?? [0, 0, 0]
+    const b = mix[HSL_BANDS[j]] ?? [0, 0, 0]
+    for (let c = 0; c < 3; c++) table[deg * 3 + c] = a[c] + (b[c] - a[c]) * t
+  }
+  return table
+}
+
+function runHsl(data: Uint8ClampedArray, table: Float32Array) {
+  for (let i = 0; i < data.length; i += 4) {
+    if (data[i + 3] === 0) continue
+    const r = data[i] / 255
+    const g = data[i + 1] / 255
+    const b = data[i + 2] / 255
+    const max = r > g ? (r > b ? r : b) : g > b ? g : b
+    const min = r < g ? (r < b ? r : b) : g < b ? g : b
+    const d = max - min
+    if (d < 1e-4) continue // greys have no hue to shift
+    const l = (max + min) / 2
+    let s = d / (1 - Math.abs(2 * l - 1))
+    let h = max === r ? ((g - b) / d) % 6 : max === g ? (b - r) / d + 2 : (r - g) / d + 4
+    h *= 60
+    if (h < 0) h += 360
+    const at = ((h + 0.5) | 0) % 360
+    const dh = table[at * 3]
+    const ds = table[at * 3 + 1]
+    const dl = table[at * 3 + 2]
+    // Weighted by how colourful the pixel is, so near-greys barely move.
+    const weight = s < 0.15 ? s / 0.15 : 1
+    h = (h + dh * 30 * weight + 360) % 360
+    s = Math.min(1, Math.max(0, s * (1 + ds * weight)))
+    const nl = Math.min(1, Math.max(0, l + dl * 0.25 * s * weight))
+    // Back to RGB.
+    const c = (1 - Math.abs(2 * nl - 1)) * s
+    const x = c * (1 - Math.abs(((h / 60) % 2) - 1))
+    const m = nl - c / 2
+    let r1: number, g1: number, b1: number
+    if (h < 60) [r1, g1, b1] = [c, x, 0]
+    else if (h < 120) [r1, g1, b1] = [x, c, 0]
+    else if (h < 180) [r1, g1, b1] = [0, c, x]
+    else if (h < 240) [r1, g1, b1] = [0, x, c]
+    else if (h < 300) [r1, g1, b1] = [x, 0, c]
+    else [r1, g1, b1] = [c, 0, x]
+    data[i] = (r1 + m) * 255
+    data[i + 1] = (g1 + m) * 255
+    data[i + 2] = (b1 + m) * 255
+  }
+}
+
+// --- Curves -------------------------------------------------------------------
+
+/** A smooth curve through `points` that never overshoots between them
+ *  (monotone cubic, Fritsch–Carlson), sampled to `size` entries. */
+export function sampleCurve(points: CurvePoint[], size = 256): Float32Array {
+  const out = new Float32Array(size)
+  const n = points.length
+  const xs = points.map((p) => p[0])
+  const ys = points.map((p) => p[1])
+  const delta: number[] = []
+  for (let k = 0; k < n - 1; k++) delta.push((ys[k + 1] - ys[k]) / Math.max(1e-6, xs[k + 1] - xs[k]))
+  const m: number[] = new Array(n)
+  m[0] = delta[0] ?? 0
+  m[n - 1] = delta[n - 2] ?? 0
+  for (let k = 1; k < n - 1; k++) m[k] = delta[k - 1] * delta[k] <= 0 ? 0 : (delta[k - 1] + delta[k]) / 2
+  for (let k = 0; k < n - 1; k++) {
+    if (delta[k] === 0) {
+      m[k] = 0
+      m[k + 1] = 0
+      continue
+    }
+    const a = m[k] / delta[k]
+    const b = m[k + 1] / delta[k]
+    const h = a * a + b * b
+    if (h > 9) {
+      const t = 3 / Math.sqrt(h)
+      m[k] = t * a * delta[k]
+      m[k + 1] = t * b * delta[k]
+    }
+  }
+  let k = 0
+  for (let i = 0; i < size; i++) {
+    const x = i / (size - 1)
+    let y: number
+    if (x <= xs[0]) y = ys[0]
+    else if (x >= xs[n - 1]) y = ys[n - 1]
+    else {
+      while (k < n - 2 && x > xs[k + 1]) k++
+      const h = xs[k + 1] - xs[k]
+      const t = (x - xs[k]) / h
+      const t2 = t * t
+      const t3 = t2 * t
+      y = (2 * t3 - 3 * t2 + 1) * ys[k] + (t3 - 2 * t2 + t) * h * m[k] + (-2 * t3 + 3 * t2) * ys[k + 1] + (t3 - t2) * h * m[k + 1]
+    }
+    out[i] = y < 0 ? 0 : y > 1 ? 1 : y
+  }
+  return out
+}
+
+/** Master curve, then each channel's own, as one lookup per channel. */
+function runCurves(data: Uint8ClampedArray, c: ToneCurves) {
+  const master = sampleCurve(c.rgb)
+  const luts = [c.r, c.g, c.b].map((pts) => {
+    const own = sampleCurve(pts)
+    const lut = new Uint8ClampedArray(256)
+    for (let i = 0; i < 256; i++) lut[i] = own[Math.round(master[i] * 255)] * 255
+    return lut
+  })
+  for (let i = 0; i < data.length; i += 4) {
+    if (data[i + 3] === 0) continue
+    data[i] = luts[0][data[i]]
+    data[i + 1] = luts[1][data[i + 1]]
+    data[i + 2] = luts[2][data[i + 2]]
+  }
+}
+
 /** One Retro style's colour work on its own, at `amount` — for previews of a
  *  style that isn't in RETRO_PRESETS yet. */
 export function applyRetroPreset(image: ImageData, preset: RetroPreset, amount = 1) {
@@ -408,14 +578,16 @@ export function applyRetroPreset(image: ImageData, preset: RetroPreset, amount =
 }
 
 /** Applies the photo's colour work to `image` in place: the Retro style first
- *  (at its strength), then the person's own sliders on top. Grain, sharpness
- *  and the vignette are not per pixel and are applied elsewhere. Fully
- *  transparent pixels are skipped. */
+ *  (at its strength), then the person's own sliders on top, then the colour
+ *  mix, then curves. Grain, sharpness and the vignette are not per pixel and
+ *  are applied elsewhere. Fully transparent pixels are skipped. */
 export function applyAdjustments(image: ImageData, a: PhotoAdjustments) {
   if (!hasColourWork(a)) return
   const retro = activeRetro(a)
   if (retro) runPass(image.data, compilePass(retro.tone, retro, Math.min(1, a.retroAmount)))
   if (TONE_KEYS.some((k) => a[k] !== 0)) runPass(image.data, compilePass(a))
+  if (hasHsl(a.hsl)) runHsl(image.data, compileHsl(a.hsl))
+  if (hasCurves(a.toneCurves)) runCurves(image.data, a.toneCurves)
 }
 
 /** Darkens the corners of a `w`×`h` rect at the origin of ctx's current

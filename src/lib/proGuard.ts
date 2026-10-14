@@ -16,7 +16,7 @@ import { useProStore } from '../store/proStore'
  */
 /** An edit with its Pro parts taken out. */
 function freeOnly<T extends PhotoAdjustments>(a: T): T {
-  return { ...a, grain: 0, sharpness: 0, retro: null }
+  return { ...a, grain: 0, sharpness: 0, toneCurves: null, retro: null }
 }
 
 export function proExportGuard() {
@@ -27,8 +27,8 @@ export function proExportGuard() {
     quality: (quality: ExportQuality): ExportQuality => (isPro || quality !== 'native' ? quality : 'high'),
     /** White is the free border colour; anything else is Pro. */
     borderHex: (hex: string): string => (isPro ? hex : getBorderColor(DEFAULT_BORDER_COLOR).hex),
-    /** Edit's light and colour are free; its grain and sharpness, and Retro,
-     *  are Pro. */
+    /** Edit's light, colour, colour mix and vignette are free; its curves,
+     *  grain and sharpness, and Retro, are Pro. */
     adjustments: <T extends PhotoAdjustments | null | undefined>(a: T): T | null => (isPro || !a ? a : freeOnly(a)),
     adjustmentsMap: (map: Record<string, PhotoAdjustments>): Record<string, PhotoAdjustments> =>
       isPro ? map : Object.fromEntries(Object.entries(map).map(([id, a]) => [id, freeOnly(a)])),

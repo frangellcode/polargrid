@@ -191,7 +191,20 @@ async function drawSplit(
   before.drawImage(source, crop.sx, crop.sy, crop.sw, crop.sh, 0, 0, width, height)
   after.drawImage(source, crop.sx, crop.sy, crop.sw, crop.sh, 0, 0, width, height)
   const image = after.getImageData(0, 0, width, height)
-  if (feature === 'retro') {
+  if (feature === 'curves') {
+    // A film-style S-curve, a little warmer in the reds and cooler in the
+    // shadows' blues — the kind of grade curves are for.
+    applyAdjustments(image, {
+      ...DEFAULT_ADJUSTMENTS,
+      toneCurves: {
+        rgb: [[0, 0.04], [0.25, 0.19], [0.75, 0.83], [1, 1]],
+        r: [[0, 0], [0.5, 0.54], [1, 1]],
+        g: [[0, 0], [1, 1]],
+        b: [[0, 0.06], [0.5, 0.48], [1, 0.95]],
+      },
+    })
+    after.putImageData(image, 0, 0)
+  } else if (feature === 'retro') {
     // A warm film style, full strength, with its vignette and grain.
     applyAdjustments(image, { ...DEFAULT_ADJUSTMENTS, retro: 'retrato' })
     after.putImageData(image, 0, 0)
