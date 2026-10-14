@@ -291,7 +291,6 @@ export const translations = {
       exampleBatch: (n: number) => `${n} photos, one edit`,
       exampleBefore: 'Before',
       exampleAfter: 'After',
-      exampleWeb: 'Web',
       exampleMaximum: 'Maximum',
     },
     exportSheet: {
@@ -626,7 +625,6 @@ export const translations = {
       exampleBatch: (n: number) => `${n} fotos, un solo ajuste`,
       exampleBefore: 'Antes',
       exampleAfter: 'Después',
-      exampleWeb: 'Web',
       exampleMaximum: 'Máxima',
     },
     exportSheet: {

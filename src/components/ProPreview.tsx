@@ -21,8 +21,10 @@ export const PRO_SAMPLE_ID = 'pro-sample'
 /** Long edge of that photo's original, which public/pro/quality-detail.jpg
  *  is a DETAIL_SHARE crop of at full resolution. */
 const SAMPLE_ORIGINAL_LONG_EDGE = 8381
-/** The long edge the "Web" export quality caps a photo to (exportQuality.ts). */
-const WEB_LONG_EDGE = 1080
+/** The long edge "High" — the best a free export gets — caps a photo to
+ *  (exportQuality.ts). The quality example compares against that, not the
+ *  much smaller "Web", so it shows the real difference Pro makes. */
+const HIGH_LONG_EDGE = 2048
 /** Border colours the colour example cycles through: the palette, then a few
  *  a custom pick could land on. */
 const COLOR_CYCLE = [...BORDER_COLORS.map((c) => c.hex), '#d9a441', '#7a8b6f', '#b85c5c']
@@ -216,13 +218,13 @@ async function drawSplit(
     // No photo of the person's yet: the tour's resort photo is only 640px,
     // which has no detail to show. A crop of its full-resolution original
     // (public/pro, cut from assets/originals) stands in, against the same
-    // crop as a Web export of the whole photo would have it.
+    // crop as a High export of the whole photo would have it.
     const crop = await createImageBitmap(await (await fetch(`${import.meta.env.BASE_URL}pro/quality-detail.jpg`)).blob())
     try {
       if (isCancelled()) return false
-      const webScale = Math.min(1, WEB_LONG_EDGE / SAMPLE_ORIGINAL_LONG_EDGE)
+      const highScale = Math.min(1, HIGH_LONG_EDGE / SAMPLE_ORIGINAL_LONG_EDGE)
       const small = document.createElement('canvas')
-      prepare(small, Math.max(1, Math.round(crop.width * webScale)), Math.max(1, Math.round(crop.height * webScale))).drawImage(crop, 0, 0, small.width, small.height)
+      prepare(small, Math.max(1, Math.round(crop.width * highScale)), Math.max(1, Math.round(crop.height * highScale))).drawImage(crop, 0, 0, small.width, small.height)
       prepare(beforeCanvas, width, height).drawImage(small, 0, 0, width, height)
       prepare(afterCanvas, width, height).drawImage(crop, 0, 0, width, height)
       small.width = 0
@@ -235,7 +237,7 @@ async function drawSplit(
 
   if (feature === 'quality') {
     // A detail at the photo's own resolution ("Maximum") against the same
-    // detail as a Web export would have it: fewer pixels, stretched up.
+    // detail as a High export would have it: fewer pixels, stretched up.
     const side = Math.min(photo.width, photo.height) * DETAIL_SHARE
     const detail: Crop = {
       sx: (photo.width - side * ASPECT) / 2,
@@ -246,9 +248,9 @@ async function drawSplit(
     const full = await createImageBitmap(await readPhoto(photo.file), { imageOrientation: 'from-image' })
     try {
       if (isCancelled()) return false
-      const webScale = Math.min(1, WEB_LONG_EDGE / Math.max(photo.width, photo.height))
+      const highScale = Math.min(1, HIGH_LONG_EDGE / Math.max(photo.width, photo.height))
       const small = document.createElement('canvas')
-      const smallCtx = prepare(small, Math.max(1, Math.round(detail.sw * webScale)), Math.max(1, Math.round(detail.sh * webScale)))
+      const smallCtx = prepare(small, Math.max(1, Math.round(detail.sw * highScale)), Math.max(1, Math.round(detail.sh * highScale)))
       smallCtx.drawImage(full, detail.sx, detail.sy, detail.sw, detail.sh, 0, 0, small.width, small.height)
       prepare(beforeCanvas, width, height).drawImage(small, 0, 0, width, height)
       prepare(afterCanvas, width, height).drawImage(full, detail.sx, detail.sy, detail.sw, detail.sh, 0, 0, width, height)
@@ -418,7 +420,7 @@ export function ProPreview({ feature, photo }: ProPreviewProps) {
 
   const splitShown = shown !== null && shown !== 'colors' && shown !== 'batch' && shown !== 'story'
   const labels =
-    shown === 'quality' ? [tr.pro.exampleWeb, tr.pro.exampleMaximum] : [tr.pro.exampleBefore, tr.pro.exampleAfter]
+    shown === 'quality' ? [tr.quality.high.label, tr.pro.exampleMaximum] : [tr.pro.exampleBefore, tr.pro.exampleAfter]
   const layer = 'absolute inset-0 transition-opacity duration-300 ease-out'
 
   return (
