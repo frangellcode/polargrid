@@ -16,7 +16,7 @@ import type { Language } from './translations'
 const LANG: Language = import.meta.env.VITE_SHOTS_LANG === 'es' ? 'es' : 'en'
 const tr = translations[LANG]
 
-const SCENES = ['home', 'border', 'batch', 'edit', 'retro', 'story', 'layouts', 'carousel', 'carouselFree', 'paywall'] as const
+const SCENES = ['home', 'border', 'batch', 'edit', 'retro', 'story', 'layouts', 'carousel', 'carouselFree', 'paywall', 'tour'] as const
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
 
@@ -84,6 +84,15 @@ async function run(scene: (typeof SCENES)[number]) {
     // The paywall straight from Home, before any photo: its own sample.
     useProStore.setState({ isPro: false })
     useProStore.getState().openPaywall(import.meta.env.VITE_SHOTS_FEATURE ?? 'quality')
+    return
+  }
+
+  if (scene === 'tour') {
+    // The welcome tour, on the card VITE_SHOTS_FEATURE names by number.
+    ;(await waitFor(() => byLabel(tr.tour.help))).click()
+    await sleep(900)
+    const track = await waitFor(() => document.querySelector<HTMLElement>('[role=dialog] .snap-x'))
+    track.scrollTo({ left: Number(import.meta.env.VITE_SHOTS_FEATURE ?? 0) * track.clientWidth })
     return
   }
 

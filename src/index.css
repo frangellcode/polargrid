@@ -321,7 +321,63 @@ textarea {
   animation: tour-knob 3.4s ease-in-out infinite;
 }
 
+/* The carousel's posts easing apart into the separate photos they export
+   as, then back together into one strip. */
+@keyframes tour-post-left {
+  0%,
+  20%,
+  85%,
+  100% {
+    transform: translateX(0);
+  }
+  40%,
+  70% {
+    transform: translateX(-10px);
+  }
+}
+
+@keyframes tour-post-right {
+  0%,
+  20%,
+  85%,
+  100% {
+    transform: translateX(0);
+  }
+  40%,
+  70% {
+    transform: translateX(10px);
+  }
+}
+
+.tour-post-left {
+  animation: tour-post-left 4s ease-in-out infinite;
+}
+
+.tour-post-right {
+  animation: tour-post-right 4s ease-in-out infinite;
+}
+
+/* The Stories card's own-photo background: sharp, then blurred, then sharp. */
+@keyframes tour-blur {
+  0%,
+  25%,
+  100% {
+    opacity: 0;
+  }
+  45%,
+  80% {
+    opacity: 1;
+  }
+}
+
+.tour-blur {
+  animation: tour-blur 4.4s ease-in-out infinite;
+}
+
 @media (prefers-reduced-motion: reduce) {
+  .tour-post-left,
+  .tour-post-right,
+  .tour-blur,
   .tour-switch,
   .tour-knob,
   .tour-breathe,

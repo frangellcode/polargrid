@@ -128,6 +128,8 @@ export const translations = {
       back: 'Back',
       withoutBackground: 'Without',
       withBackground: 'With background',
+      colorBackground: 'Colour',
+      photoBackground: 'Your photo',
       start: 'Get started',
       help: 'How it works',
       slides: [
@@ -137,19 +139,23 @@ export const translations = {
         },
         {
           title: 'White border',
-          body: 'Frame a photo in a border of any thickness and colour. Pick the aspect for Instagram, lock it to crop or unlock it to show the whole photo — or, with Pro, load a batch and frame them all at once.',
+          body: 'Frame a photo in a border of any thickness and colour. Pick the aspect for Instagram, lock it to crop or unlock it to show the whole photo. With Pro, frame a whole batch at once or write a line under the photo, polaroid style.',
         },
         {
           title: 'Collage',
           body: 'Combine 2 to 9 photos in a template, or place them freely. Drag a photo to reframe it, hold it to move it to another cell, and tap it to replace or remove it.',
         },
         {
+          title: 'Carousel',
+          body: 'A strip of 2 to 5 posts with photos running across from one post into the next, so swiping through reads as one piece. Each post exports as its own photo, ready to upload in order. Free.',
+        },
+        {
           title: 'Edit, with or without a border',
-          body: 'Open Edit to adjust a photo and export it as it is, or edit right inside White border and Collage. Exposure, contrast, shadows, temperature and more — one dial each. Hold compare to see the original.',
+          body: 'Open Edit to adjust a photo and export it as it is, or edit right inside White border, Collage and Carousel. Light, colour by hue, vignette and more — one dial each, free. Curves with Pro. Hold compare to see the original.',
         },
         {
           title: 'Crisp, with real grain',
-          body: 'Sharpness that brings out every detail and film grain that looks like the real thing — at full resolution, on any photo.',
+          body: 'Sharpness that brings out every detail, free, and film grain that looks like the real thing with Pro — at full resolution, on any photo.',
         },
         {
           title: 'Retro styles',
@@ -161,11 +167,11 @@ export const translations = {
         },
         {
           title: 'Ready for Stories',
-          body: 'Pick a background colour and turn on “Export with this background”: your photo comes out vertical 9:16, centred on that colour, nothing cropped.',
+          body: 'With Pro, your photo comes out vertical 9:16, centred and nothing cropped — on a colour, or on the photo itself, sharp or blurred. Pick the background and turn on “Export with this background”.',
         },
         {
           title: 'Export at full quality',
-          body: 'Save at your camera’s native resolution, or lighter for sharing. With Pro: maximum quality, grain, curves, Retro, the Healing brush, polaroid text, any border colour, a 9:16 background for Stories and batches of up to 15.',
+          body: 'Save at your camera’s native resolution, or lighter for sharing. With Pro: maximum quality, grain, curves, Retro, the Healing brush, polaroid text, any border colour, 9:16 Stories, your photo behind your carousels and batches of up to 15.',
         },
       ],
     },
@@ -462,6 +468,8 @@ export const translations = {
       back: 'Atrás',
       withoutBackground: 'Sin fondo',
       withBackground: 'Con fondo',
+      colorBackground: 'Color',
+      photoBackground: 'Tu foto',
       start: 'Empezar',
       help: 'Cómo funciona',
       slides: [
@@ -471,19 +479,23 @@ export const translations = {
         },
         {
           title: 'Bordes blancos',
-          body: 'Enmarca una foto con un borde del grosor y color que quieras. Elige el aspecto para Instagram, bloquéalo para recortar o desbloquéalo para ver la foto completa — o, con Pro, sube un lote y enmárcalas todas a la vez.',
+          body: 'Enmarca una foto con un borde del grosor y color que quieras. Elige el aspecto para Instagram, bloquéalo para recortar o desbloquéalo para ver la foto completa. Con Pro, enmarca un lote entero de una vez o escribe un texto debajo, estilo polaroid.',
         },
         {
           title: 'Collage',
           body: 'Combina de 2 a 9 fotos en una plantilla, o colócalas libremente. Arrastra una foto para encuadrarla, mantenla para moverla a otra celda y tócala para reemplazarla o quitarla.',
         },
         {
+          title: 'Carrusel',
+          body: 'Una tira de 2 a 5 posts con fotos que cruzan de un post al siguiente, para que al deslizar se vea como una sola pieza. Cada post se exporta como una foto aparte, lista para subir en orden. Gratis.',
+        },
+        {
           title: 'Edita, con o sin borde',
-          body: 'Abre Edición para ajustar una foto y exportarla tal cual, o edita dentro de Bordes blancos y Collage. Exposición, contraste, sombras, temperatura y más — una bolita para cada uno. Mantén presionado comparar para ver la original.',
+          body: 'Abre Edición para ajustar una foto y exportarla tal cual, o edita dentro de Bordes blancos, Collage y Carrusel. Luz, color por tonos, viñeta y más — una bolita para cada uno, gratis. Curvas con Pro. Mantén presionado comparar para ver la original.',
         },
         {
           title: 'Nítida y con grano de verdad',
-          body: 'Nitidez que saca cada detalle y grano de película que se ve real — en resolución completa, en cualquier foto.',
+          body: 'Nitidez que saca cada detalle, gratis, y grano de película que se ve real con Pro — en resolución completa, en cualquier foto.',
         },
         {
           title: 'Estilos Retro',
@@ -495,11 +507,11 @@ export const translations = {
         },
         {
           title: 'Listo para Historias',
-          body: 'Elige un color de fondo y activa «Exportar con este fondo»: tu foto sale en vertical 9:16, centrada sobre ese color y sin recortes.',
+          body: 'Con Pro, tu foto sale en vertical 9:16, centrada y sin recortes — sobre un color, o sobre tu misma foto, nítida o desenfocada. Elige el fondo y activa «Exportar con este fondo».',
         },
         {
           title: 'Exporta en máxima calidad',
-          body: 'Guarda a la resolución nativa de tu cámara, o más liviano para compartir. Con Pro: calidad máxima, grano, curvas, Retro, el Corrector, texto polaroid, cualquier color de borde, fondo 9:16 para Historias y lotes de hasta 15.',
+          body: 'Guarda a la resolución nativa de tu cámara, o más liviano para compartir. Con Pro: calidad máxima, grano, curvas, Retro, el Corrector, texto polaroid, cualquier color de borde, Historias 9:16, tu foto de fondo en carruseles y lotes de hasta 15.',
         },
       ],
     },

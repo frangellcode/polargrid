@@ -23,6 +23,10 @@ function Print({ name, className = '', style, pad = '5%' }: { name: string; clas
   )
 }
 
+function ProBadge() {
+  return <span className="absolute -right-2 -top-2 rounded-full bg-amber-300 px-1 text-[7px] font-bold leading-[14px] text-ink-900">PRO</span>
+}
+
 /** Logo over a fan of prints that drift gently. */
 function WelcomeArt() {
   const prints = [
@@ -85,14 +89,53 @@ function CollageArt() {
   )
 }
 
+/** The carousel strip's contents: a panorama across the top and two photos
+ *  under it, each crossing a cut — in % of the whole strip. */
+const STRIP_CELLS = [
+  { name: 'bay', left: 2, top: 4.5, width: 96, height: 44 },
+  { name: 'boat', left: 2, top: 51.5, width: 47.25, height: 44 },
+  { name: 'sandbar', left: 50.75, top: 51.5, width: 47.25, height: 44 },
+]
+
+/** Three 4:5 posts making one strip, easing apart into the separate posts
+ *  they export as and back together, numbered like the editor's seams. */
+function CarouselArt() {
+  return (
+    <div className="flex h-full w-full flex-col items-center justify-center gap-3">
+      {/* Wider than the card's text column: three posts side by side are
+          small otherwise. Centred, so it spills evenly both ways. */}
+      <div className="flex w-[calc(100vw-2.5rem)] max-w-md shrink-0">
+        {[0, 1, 2].map((k) => (
+          <div key={k} className={`flex w-1/3 flex-col items-center gap-2 ${k === 0 ? 'tour-post-left' : k === 2 ? 'tour-post-right' : ''}`}>
+            <div className="relative aspect-[4/5] w-full overflow-hidden bg-white shadow-2xl shadow-black/50">
+              <div className="absolute inset-y-0" style={{ left: `${-k * 100}%`, width: '300%' }}>
+                {STRIP_CELLS.map((c) => (
+                  <div
+                    key={c.name}
+                    className="absolute overflow-hidden"
+                    style={{ left: `${c.left}%`, top: `${c.top}%`, width: `${c.width}%`, height: `${c.height}%` }}
+                  >
+                    <Img name={c.name} />
+                  </div>
+                ))}
+              </div>
+            </div>
+            <span className="font-label flex h-5 w-5 items-center justify-center rounded-full bg-white/10 text-[10px] font-semibold text-white/70">{k + 1}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
 /** Before and after an edit, the divider sweeping across, over a row of dials. */
 function EditArt() {
   const tr = useTranslation()
   const dials = [
     { label: tr.edit.exposure, v: 0.35 },
     { label: tr.edit.contrast, v: 0.55 },
-    { label: tr.edit.shadows, v: 0.7 },
-    { label: tr.edit.vibrance, v: 0.45 },
+    { label: tr.edit.colorMix, v: 0.7 },
+    { label: tr.edit.vignette, v: 0.45 },
   ]
   return (
     <div className="flex h-full w-full flex-col items-center justify-center gap-4">
@@ -141,9 +184,10 @@ function DetailArt() {
         <div className="tour-divider absolute inset-y-0 w-0.5 -translate-x-1/2 bg-white" />
       </div>
       <div className="flex gap-1.5">
-        {[tr.edit.sharpness, tr.edit.grain].map((t) => (
-          <span key={t} className="font-label rounded-full bg-white px-2.5 py-1 text-[10px] font-semibold uppercase text-ink-900">
+        {[tr.edit.sharpness, tr.edit.grain].map((t, i) => (
+          <span key={t} className="font-label relative rounded-full bg-white px-2.5 py-1 text-[10px] font-semibold uppercase text-ink-900">
             {t}
+            {i === 1 && <ProBadge />}
           </span>
         ))}
       </div>
@@ -188,7 +232,7 @@ function RetouchArt() {
       </div>
       <span className="font-label relative rounded-full bg-white px-2.5 py-1 text-[10px] font-semibold uppercase text-ink-900">
         {tr.retouch.title}
-        <span className="absolute -right-2 -top-2 rounded-full bg-amber-300 px-1 text-[7px] font-bold leading-[14px] text-ink-900">PRO</span>
+        <ProBadge />
       </span>
     </div>
   )
@@ -197,33 +241,47 @@ function RetouchArt() {
 /** Sky blue — the "Cielo" workspace background the Stories cards show. */
 const SKY = '#9ccbea'
 
-/** Stories in one card: the same bordered photo without the background and
- *  with it (centred on the 9:16 sky-blue canvas it exports onto), over
- *  "Export with this background" switching on. */
+/** Stories in one card: the same bordered photo without a background, on a
+ *  colour, and on the photo itself — sharp, then blurring — each centred on
+ *  the 9:16 canvas it exports onto, over "Export with this background"
+ *  switching on. */
 function StoryArt() {
   const tr = useTranslation()
+  const looks = [
+    { id: 'none', label: tr.tour.withoutBackground },
+    { id: 'colour', label: tr.tour.colorBackground },
+    { id: 'photo', label: tr.tour.photoBackground },
+  ]
   return (
     <div className="flex h-full w-full flex-col items-center justify-center gap-4">
-      <div className="flex w-full items-start justify-center gap-4">
-        {[false, true].map((withBg) => (
-          <div key={String(withBg)} className="flex w-[36%] flex-col items-center gap-2">
+      <div className="flex w-full items-start justify-center gap-2.5">
+        {looks.map(({ id, label }) => (
+          <div key={id} className="flex w-[31%] flex-col items-center gap-2">
             <div
-              className={`flex aspect-[9/16] w-full items-center justify-center rounded-lg ${withBg ? 'shadow-2xl shadow-black/50 ring-1 ring-white/10' : ''}`}
-              style={withBg ? { backgroundColor: SKY } : undefined}
+              className={`relative flex aspect-[9/16] w-full items-center justify-center overflow-hidden rounded-lg ${id === 'none' ? '' : 'shadow-2xl shadow-black/50 ring-1 ring-white/10'}`}
+              style={id === 'colour' ? { backgroundColor: SKY } : undefined}
             >
-              <Print name="sandbar" pad="4%" className="aspect-[4/5] w-[91%]" />
+              {id === 'photo' && (
+                <>
+                  <Img name="sandbar" className="absolute inset-0" />
+                  <div className="tour-blur absolute inset-0">
+                    <Img name="sandbar" className="scale-125 blur-[6px] brightness-[0.88]" />
+                  </div>
+                </>
+              )}
+              <Print name="sandbar" pad="4%" className="relative aspect-[4/5] w-[86%]" />
             </div>
             <span
-              className={`font-label rounded-full px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide ${
-                withBg ? 'bg-white text-ink-900' : 'bg-white/10 text-white/70'
+              className={`font-label rounded-full px-2 py-1 text-[9px] font-semibold uppercase tracking-wide ${
+                id === 'none' ? 'bg-white/10 text-white/70' : 'bg-white text-ink-900'
               }`}
             >
-              {withBg ? tr.tour.withBackground : tr.tour.withoutBackground}
+              {label}
             </span>
           </div>
         ))}
       </div>
-      <div className="flex w-[78%] items-center justify-between gap-3 rounded-xl bg-white/5 px-3 py-2">
+      <div className="flex w-[84%] items-center justify-between gap-3 rounded-xl bg-white/5 px-3 py-2">
         <span className="flex flex-col">
           <span className="font-label text-[11px] font-semibold text-white">{tr.pickers.exportWithBackground}</span>
           <span className="font-label text-[9px] text-white/45">{tr.pickers.exportWithBackgroundHint}</span>
@@ -249,9 +307,7 @@ function ExportArt() {
             className={`font-label relative rounded-full px-2.5 py-1 text-[10px] font-semibold ${i === 0 ? 'bg-white text-ink-900' : 'bg-white/10 text-white/60'}`}
           >
             {q}
-            {i === 0 && (
-              <span className="absolute -right-2 -top-2 rounded-full bg-amber-300 px-1 text-[7px] font-bold leading-[14px] text-ink-900">PRO</span>
-            )}
+            {i === 0 && <ProBadge />}
           </span>
         ))}
       </div>
@@ -263,6 +319,7 @@ const ART: ReactNode[] = [
   <WelcomeArt key="w" />,
   <BorderArt key="b" />,
   <CollageArt key="c" />,
+  <CarouselArt key="car" />,
   <EditArt key="e" />,
   <DetailArt key="d" />,
   <RetroArt key="r" />,
