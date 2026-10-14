@@ -100,8 +100,10 @@ async function run(scene: (typeof SCENES)[number]) {
     (await waitFor(() => homeButton(tr.home.carouselTitle))).click()
     await sleep(900)
     if (scene === 'carouselFree') editor().setCollageLayoutMode('free')
-    await upload(scene === 'carousel' ? ['bay', 'boat', 'sandbar'] : ['bay', 'boat', 'sandbar', 'resort'], true)
+    // pano: a wide band of the resort, for the panorama across the posts.
+    await upload(scene === 'carousel' ? ['pano', 'boat', 'sandbar'] : ['bay', 'boat', 'sandbar', 'resort'], true)
     if (scene === 'carousel') {
+      editor().setWorkspaceBackground('onyx')
       await tool(tr.collageEditor.toolTemplate)
     } else {
       const ids = editor().collage.freeItems.map((f) => f.photoId)
@@ -133,9 +135,12 @@ async function run(scene: (typeof SCENES)[number]) {
     return
   }
 
-  await upload([{ border: 'resort', edit: 'boat', retro: 'bay', story: 'sandbar' }[scene] ?? 'resort'], false)
+  await upload([{ border: 'resort', edit: 'boat', retro: 'bay', story: 'story' }[scene] ?? 'resort'], false)
   // The tall photos read best framed 4:5 rather than as-shot.
-  if (scene === 'border' || scene === 'story' || scene === 'retro') await tool('4:5')
+  if (scene === 'border' || scene === 'retro') await tool('4:5')
+  // Square on a phone, so the blurred photo behind it shows above and below;
+  // 4:5 on the iPad's wider canvas, so it shows either side.
+  if (scene === 'story') await tool(window.innerWidth > 700 ? '4:5' : '1:1')
 
   if (scene === 'edit') {
     const id = editor().border.photoId!
@@ -170,7 +175,8 @@ async function run(scene: (typeof SCENES)[number]) {
   }
 
   if (scene === 'story') {
-    editor().setWorkspaceBackground('sky')
+    // The photo itself, blurred, behind it — the Pro backdrop.
+    editor().setWorkspaceBackground('blur')
     editor().setBorderExportWithBackground(true)
     await tool(tr.tools.workspace)
   }

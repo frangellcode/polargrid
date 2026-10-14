@@ -3,13 +3,22 @@
 Each one reuses a 1.1 screenshot as the template — its navy background and
 device frame — repaints the headline area from the background's own gradient,
 writes the new headline, and drops a fresh simulator capture into the frame's
-screen. Captures come from the app's screenshots mode (src/lib/shots.ts).
+screen. Captures come from the app's screenshots mode (src/lib/shots.ts),
+named <scene>-<lang>.png.
+
+Shots whose screen hasn't changed since the first 1.2 set ('keep') are taken
+as they were from git (KEPT_FROM) — their source photos are gone, and nothing
+in them is out of date.
+
+The 6.3" iPhone set is the 6.5" one scaled to 1206×2622.
 
     python3 compose.py <captures dir with iphone/ and ipad/> <out dir> <story photo> [en|es]
 """
+import io
+import subprocess
 import sys
 from pathlib import Path
-from PIL import Image, ImageDraw, ImageFont
+from PIL import Image, ImageDraw, ImageFilter, ImageFont
 
 HERE = Path(__file__).parent
 OLD = HERE.parent / 'v1.1'
@@ -34,43 +43,70 @@ DEVICES = {
     },
 }
 
+# (name, source, title, subtitle). source: a scene captured in screenshots
+# mode, 'story_result' (drawn here), or ('keep', old file name).
 SHOTS = [
-    ('1_home', 'home', ['Borders & collages', 'for your photos.'], 'No account. No uploads. No watermark.'),
-    ('2_border', 'border', ['Clean borders.', 'Full quality.'], 'Frame any photo in seconds'),
-    ('3_batch', 'batch', ['Edit once.', 'Export fifteen.'], 'Up to 15 photos at once with Pro'),
-    ('4_edit', 'edit', ['Edit every', 'photo.'], 'Light and colour, photo by photo — free'),
-    ('5_retro', 'retro', ['Film looks,', 'your way.'], 'Eleven Retro styles, with Pro'),
-    ('6_story', 'story', ['Ready for', 'Stories.'], 'Export on a 9:16 background, with Pro'),
-    ('7_story_result', None, ['Post it', 'as it is.'], '9:16, background included'),
-    ('8_layouts', 'layouts', ['A layout for', 'every set.'], 'Grids and creative templates'),
+    ('1_home', 'home', ['Borders, collages', '& carousels.'], 'No account. No uploads. No watermark.'),
+    ('2_border', ('keep', '2_border'), ['Clean borders.', 'Full quality.'], 'Frame any photo in seconds'),
+    ('3_carousel', 'carousel', ['Carousels that', 'flow.'], 'One photo per post, cut to line up — free'),
+    ('4_batch', ('keep', '3_batch'), ['Edit once.', 'Export fifteen.'], 'Up to 15 photos at once with Pro'),
+    ('5_edit', ('keep', '4_edit'), ['Edit every', 'photo.'], 'Light and colour, photo by photo — free'),
+    ('6_retro', ('keep', '5_retro'), ['Film looks,', 'your way.'], 'Eleven Retro styles, with Pro'),
+    ('7_story', 'story', ['Ready for', 'Stories.'], 'On a colour or on your own photo, with Pro'),
+    ('8_story_result', 'story_result', ['Post it', 'as it is.'], '9:16, background included'),
+    ('9_layouts', ('keep', '8_layouts'), ['A layout for', 'every set.'], 'Grids and creative templates'),
 ]
 
 # The Spanish set: the same scenes, captured with the app in Spanish.
 SHOTS_ES = [
-    ('1_home', 'home', ['Bordes y collages', 'para tus fotos.'], 'Sin cuenta. Sin subir nada. Sin marca de agua.'),
-    ('2_border', 'border', ['Bordes limpios.', 'Calidad total.'], 'Enmarca cualquier foto en segundos'),
-    ('3_batch', 'batch', ['Edita una vez.', 'Exporta quince.'], 'Hasta 15 fotos a la vez con Pro'),
-    ('4_edit', 'edit', ['Edita cada', 'foto.'], 'Luz y color, foto por foto — gratis'),
-    ('5_retro', 'retro', ['Look de película,', 'a tu manera.'], 'Once estilos Retro, con Pro'),
-    ('6_story', 'story', ['Listo para', 'Historias.'], 'Exporta sobre un fondo 9:16, con Pro'),
-    ('7_story_result', None, ['Publícala', 'tal cual.'], '9:16, con el fondo incluido'),
-    ('8_layouts', 'layouts', ['Un diseño para', 'cada ocasión.'], 'Cuadrículas y plantillas creativas'),
+    ('1_home', 'home', ['Bordes, collages', 'y carruseles.'], 'Sin cuenta. Sin subir nada. Sin marca de agua.'),
+    ('2_border', ('keep', '2_border'), ['Bordes limpios.', 'Calidad total.'], 'Enmarca cualquier foto en segundos'),
+    ('3_carousel', 'carousel', ['Carruseles que', 'fluyen.'], 'Una foto por post, cortadas para encajar — gratis'),
+    ('4_batch', ('keep', '3_batch'), ['Edita una vez.', 'Exporta quince.'], 'Hasta 15 fotos a la vez con Pro'),
+    ('5_edit', ('keep', '4_edit'), ['Edita cada', 'foto.'], 'Luz y color, foto por foto — gratis'),
+    ('6_retro', ('keep', '5_retro'), ['Look de película,', 'a tu manera.'], 'Once estilos Retro, con Pro'),
+    ('7_story', 'story', ['Listo para', 'Historias.'], 'Sobre un color o sobre tu foto, con Pro'),
+    ('8_story_result', 'story_result', ['Publícala', 'tal cual.'], '9:16, con el fondo incluido'),
+    ('9_layouts', ('keep', '8_layouts'), ['Un diseño para', 'cada ocasión.'], 'Cuadrículas y plantillas creativas'),
 ]
 READY = {'en': (['Ready to post.'], 'Exported at full resolution'), 'es': (['Lista para publicar.'], 'Exportada a resolución completa')}
+READY_NAME = '10_ready'
+# The commit holding the first 1.2 set, which 'keep' shots come from.
+KEPT_FROM = '1b52b52'
+SIZE_63 = (1206, 2622)
 
 SKY = (156, 203, 234)
 STORY_MARGIN = 0.045
 BORDER = 0.04
 
 
-def story_export(photo: Image.Image, width: int) -> Image.Image:
-    """What "Export with this background" makes from a photo shown as-shot
-    ("Original" aspect): the photo in a white border, centred on a 9:16
-    sky-blue canvas with a margin all round — the same geometry as
+def blurred_cover(photo: Image.Image, width: int, height: int) -> Image.Image:
+    """The photo as the blurred backdrop (storyBackdrop.ts): shrunk to a
+    240px long edge, blurred, dimmed a touch, then stretched to cover."""
+    scale = 240 / max(photo.size)
+    small = photo.resize((max(1, round(photo.width * scale)), max(1, round(photo.height * scale))), Image.LANCZOS)
+    small = small.filter(ImageFilter.GaussianBlur(9.5)).point(lambda v: round(v * 0.88))
+    k = max(width / small.width, height / small.height)
+    big = small.resize((round(small.width * k), round(small.height * k)), Image.BICUBIC)
+    left, top = (big.width - width) // 2, (big.height - height) // 2
+    return big.crop((left, top, left + width, top + height))
+
+
+def square(photo: Image.Image) -> Image.Image:
+    """The centred 1:1 crop the story scene frames its photo in."""
+    side = min(photo.size)
+    left, top = (photo.width - side) // 2, (photo.height - side) // 2
+    return photo.crop((left, top, left + side, top + side))
+
+
+def story_export(photo: Image.Image, width: int, crop_square: bool) -> Image.Image:
+    """What "Export with this background" makes from the story scene: the
+    photo (square on the iPhone, 4:5 as given on the iPad) in a white border, centred on a 9:16 canvas of the photo
+    itself, blurred, with a margin all round — the same geometry as
     exportImage.ts."""
     height = round(width * 16 / 9)
-    canvas = Image.new('RGB', (width, height), SKY)
-    src = photo.convert('RGB')
+    canvas = blurred_cover(photo.convert('RGB'), width, height)
+    src = square(photo.convert('RGB')) if crop_square else photo.convert('RGB')
     # The framed photo spans the width less the margin, or the height less
     # the same margin, whichever is tighter.
     margin = round(width * STORY_MARGIN)
@@ -107,7 +143,7 @@ def story_screen(spec: dict, photo: Image.Image, img_height: int) -> Image.Image
     h = (bottom or img_height) - top
     full_h = round(w * (2622 / 1206 if bottom is None else 2752 / 2064))
     story_w = min(w, round(full_h * 9 / 16))
-    story = story_export(photo, story_w)
+    story = story_export(photo, story_w, crop_square=bottom is None)
     screen = Image.new('RGB', (w, max(h, full_h)), (0, 0, 0))
     screen.paste(story, ((w - story.width) // 2, max(0, (full_h - story.height) // 2)))
     return screen.crop((0, 0, w, h))
@@ -151,30 +187,57 @@ def place_screen(img: Image.Image, spec: dict, capture: Image.Image) -> None:
     img.paste(shot, (left, top), mask)
 
 
+def kept(out: Path, device: str, old: str) -> Image.Image:
+    """A shot from the first 1.2 set, as committed."""
+    repo = HERE.parents[2]
+    path = (out / f'{device}_{old}.jpg').resolve().relative_to(repo)
+    data = subprocess.run(['git', 'show', f'{KEPT_FROM}:{path}'], cwd=repo, capture_output=True, check=True).stdout
+    return Image.open(io.BytesIO(data)).convert('RGB')
+
+
+def to_63(img: Image.Image) -> Image.Image:
+    """The 6.5" shot at 6.3" size: scaled to the height, centred."""
+    w, h = SIZE_63
+    scaled = img.resize((round(img.width * h / img.height), h), Image.LANCZOS)
+    left = (scaled.width - w) // 2
+    return scaled.crop((left, 0, left + w, h))
+
+
 def main() -> None:
     captures, out, story_photo = Path(sys.argv[1]), Path(sys.argv[2]), Path(sys.argv[3])
     lang = sys.argv[4] if len(sys.argv) > 4 else 'en'
     out.mkdir(parents=True, exist_ok=True)
+    (out / 'iphone-6.3').mkdir(exist_ok=True)
+    made: dict[str, Image.Image] = {}
     for device, spec in DEVICES.items():
-        for name, capture, title, subtitle in (SHOTS_ES if lang == 'es' else SHOTS):
-            img = Image.open(spec['template']).convert('RGB')
-            repaint_header(img, spec['header_until'])
-            write_header(img, spec, title, subtitle)
-            if capture:
-                shot = Image.open(captures / device / f'{capture}.png')
+        for name, source, title, subtitle in (SHOTS_ES if lang == 'es' else SHOTS):
+            if isinstance(source, tuple):
+                img = kept(out, device, source[1])
             else:
-                shot = story_screen(spec, Image.open(story_photo), img.height)
-            place_screen(img, spec, shot)
-            img.save(out / f'{device}_{name}.jpg', quality=92)
-            print('wrote', device, name)
+                img = Image.open(spec['template']).convert('RGB')
+                repaint_header(img, spec['header_until'])
+                write_header(img, spec, title, subtitle)
+                if source == 'story_result':
+                    shot = story_screen(spec, Image.open(story_photo), img.height)
+                else:
+                    shot = Image.open(captures / device / f'{source}-{lang}.png')
+                place_screen(img, spec, shot)
+            made[f'{device}_{name}'] = img
     # The finished-collage close-up has no editor UI in it, so the 1.1 one
     # still holds; only its headline is rewritten in the same type.
     spec = DEVICES['iphone']
     img = Image.open(OLD / 'iphone_8_ready.jpg').convert('RGB')
     repaint_header(img, spec['header_until'])
     write_header(img, spec, *READY[lang])
-    img.save(out / 'iphone_9_ready.jpg', quality=92)
-    print('wrote iphone 9_ready')
+    made[f'iphone_{READY_NAME}'] = img
+    # Written only once everything is read: kept shots come from the old names.
+    for old in list(out.glob('iphone_*.jpg')) + list(out.glob('ipad_*.jpg')) + list((out / 'iphone-6.3').glob('*.jpg')):
+        old.unlink()
+    for key, img in made.items():
+        img.save(out / f'{key}.jpg', quality=92)
+        if key.startswith('iphone_'):
+            to_63(img).save(out / 'iphone-6.3' / f'{key}.jpg', quality=92)
+        print('wrote', key)
 
 
 if __name__ == '__main__':
