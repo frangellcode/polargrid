@@ -45,7 +45,7 @@ export const translations = {
       toolFrame: 'Frame',
       postsHeading: 'How many posts?',
       seamsHint: 'The dashed lines mark where each post ends',
-      frames: { none: 'No frame', border: 'Border', polaroid: 'Polaroid' },
+      frames: { none: 'No frame', border: 'Border', polaroid: 'Instant' },
       spread: 'Spread them out',
       backdropHeading: 'Photo behind',
       backdropNone: 'None',
@@ -139,7 +139,7 @@ export const translations = {
         },
         {
           title: 'White border',
-          body: 'Frame a photo in a border of any thickness and colour. Pick the aspect for Instagram, lock it to crop or unlock it to show the whole photo. With Pro, frame a whole batch at once or write a line under the photo, polaroid style.',
+          body: 'Frame a photo in a border of any thickness and colour. Pick the aspect for Instagram, lock it to crop or unlock it to show the whole photo. With Pro, frame a whole batch at once or write a line under the photo, like an instant photo.',
         },
         {
           title: 'Collage',
@@ -171,7 +171,7 @@ export const translations = {
         },
         {
           title: 'Export at full quality',
-          body: 'Save at your camera’s native resolution, or lighter for sharing. With Pro: maximum quality, grain, curves, Retro, the Healing brush, polaroid text, any border colour, 9:16 Stories, your photo behind your carousels and batches of up to 15.',
+          body: 'Save at your camera’s native resolution, or lighter for sharing. With Pro: maximum quality, grain, curves, Retro, the Healing brush, instant-photo text, any border colour, 9:16 Stories, your photo behind your carousels and batches of up to 15.',
         },
       ],
     },
@@ -281,7 +281,7 @@ export const translations = {
     pro: {
       title: 'PolarGrid Pro',
       subtitle: 'One purchase, yours forever. No subscription.',
-      features: ['Maximum-quality export', 'Unlimited border colours', 'Film grain', 'Curves', 'Retro film styles', 'Healing brush to erase distractions', 'Polaroid-style text', 'Edit up to 15 photos at once with the same look', '9:16 Stories with a colour background', '9:16 Stories with your photo behind it, sharp or blurred', 'Your photo behind your carousels'],
+      features: ['Maximum-quality export', 'Unlimited border colours', 'Film grain', 'Curves', 'Retro film styles', 'Healing brush to erase distractions', 'Instant-photo-style text', 'Edit up to 15 photos at once with the same look', '9:16 Stories with a colour background', '9:16 Stories with your photo behind it, sharp or blurred', 'Your photo behind your carousels'],
       unlock: (price: string) => `Unlock for ${price}`,
       loadingPrice: 'Loading…',
       unavailable: 'Pro isn\u2019t available right now. Try again later.',
@@ -385,7 +385,7 @@ export const translations = {
       toolFrame: 'Marco',
       postsHeading: '¿Cuántos posts?',
       seamsHint: 'Las líneas marcan dónde termina cada post',
-      frames: { none: 'Sin marco', border: 'Borde', polaroid: 'Polaroid' },
+      frames: { none: 'Sin marco', border: 'Borde', polaroid: 'Instantánea' },
       spread: 'Repartir',
       backdropHeading: 'Foto de fondo',
       backdropNone: 'Ninguna',
@@ -479,7 +479,7 @@ export const translations = {
         },
         {
           title: 'Bordes blancos',
-          body: 'Enmarca una foto con un borde del grosor y color que quieras. Elige el aspecto para Instagram, bloquéalo para recortar o desbloquéalo para ver la foto completa. Con Pro, enmarca un lote entero de una vez o escribe un texto debajo, estilo polaroid.',
+          body: 'Enmarca una foto con un borde del grosor y color que quieras. Elige el aspecto para Instagram, bloquéalo para recortar o desbloquéalo para ver la foto completa. Con Pro, enmarca un lote entero de una vez o escribe un texto debajo, como en una foto instantánea.',
         },
         {
           title: 'Collage',
@@ -511,7 +511,7 @@ export const translations = {
         },
         {
           title: 'Exporta en máxima calidad',
-          body: 'Guarda a la resolución nativa de tu cámara, o más liviano para compartir. Con Pro: calidad máxima, grano, curvas, Retro, el Corrector, texto polaroid, cualquier color de borde, Historias 9:16, tu foto de fondo en carruseles y lotes de hasta 15.',
+          body: 'Guarda a la resolución nativa de tu cámara, o más liviano para compartir. Con Pro: calidad máxima, grano, curvas, Retro, el Corrector, texto de foto instantánea, cualquier color de borde, Historias 9:16, tu foto de fondo en carruseles y lotes de hasta 15.',
         },
       ],
     },
@@ -621,7 +621,7 @@ export const translations = {
     pro: {
       title: 'PolarGrid Pro',
       subtitle: 'Un solo pago, para siempre. Sin suscripción.',
-      features: ['Exportación en calidad máxima', 'Colores de borde ilimitados', 'Grano de película', 'Curvas', 'Estilos Retro de película', 'Corrector para borrar distracciones', 'Texto estilo polaroid', 'Edita hasta 15 fotos a la vez con el mismo ajuste', 'Historias 9:16 con fondo de color', 'Historias 9:16 con tu foto de fondo, nítida o desenfocada', 'Tu foto de fondo en los carruseles'],
+      features: ['Exportación en calidad máxima', 'Colores de borde ilimitados', 'Grano de película', 'Curvas', 'Estilos Retro de película', 'Corrector para borrar distracciones', 'Texto estilo foto instantánea', 'Edita hasta 15 fotos a la vez con el mismo ajuste', 'Historias 9:16 con fondo de color', 'Historias 9:16 con tu foto de fondo, nítida o desenfocada', 'Tu foto de fondo en los carruseles'],
       unlock: (price: string) => `Desbloquear por ${price}`,
       loadingPrice: 'Cargando…',
       unavailable: 'Pro no está disponible ahora. Inténtalo más tarde.',
