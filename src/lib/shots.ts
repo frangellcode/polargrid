@@ -16,7 +16,7 @@ import type { Language } from './translations'
 const LANG: Language = import.meta.env.VITE_SHOTS_LANG === 'es' ? 'es' : 'en'
 const tr = translations[LANG]
 
-const SCENES = ['home', 'border', 'batch', 'edit', 'retro', 'story', 'layouts', 'carousel', 'carouselFree'] as const
+const SCENES = ['home', 'border', 'batch', 'edit', 'retro', 'story', 'layouts', 'carousel', 'carouselFree', 'paywall'] as const
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
 
@@ -79,6 +79,13 @@ async function tool(text: string) {
 async function run(scene: (typeof SCENES)[number]) {
   const editor = useEditorStore.getState
   if (scene === 'home') return
+
+  if (scene === 'paywall') {
+    // The paywall straight from Home, before any photo: its own sample.
+    useProStore.setState({ isPro: false })
+    useProStore.getState().openPaywall('quality')
+    return
+  }
 
   if (scene === 'carousel' || scene === 'carouselFree') {
     (await waitFor(() => homeButton(tr.home.carouselTitle))).click()

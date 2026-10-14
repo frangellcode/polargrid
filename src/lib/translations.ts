@@ -610,7 +610,7 @@ export const translations = {
     pro: {
       title: 'PolarGrid Pro',
       subtitle: 'Un solo pago, para siempre. Sin suscripción.',
-      features: ['Exportación en calidad máxima', 'Colores de borde ilimitados', 'Grano de película', 'Curvas', 'Estilos Retro de película', 'Corrector para borrar lo que sobra', 'Texto estilo polaroid', 'Lotes de hasta 15, un ajuste para todas', 'Exportar con fondo 9:16', 'Foto de fondo en el carrusel'],
+      features: ['Exportación en calidad máxima', 'Colores de borde ilimitados', 'Grano de película', 'Curvas', 'Estilos Retro de película', 'Corrector para borrar distracciones', 'Texto estilo polaroid', 'Lotes de hasta 15, un ajuste para todas', 'Exportar con fondo 9:16', 'Foto de fondo en el carrusel'],
       unlock: (price: string) => `Desbloquear por ${price}`,
       loadingPrice: 'Cargando…',
       unavailable: 'Pro no está disponible ahora. Inténtalo más tarde.',

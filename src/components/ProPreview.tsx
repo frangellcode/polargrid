@@ -16,6 +16,11 @@ import { captionBandPct, captionFont, captionInk, DEFAULT_CAPTION, loadCaptionFo
 const ASPECT = 4 / 5
 /** The quality example zooms into this share of the photo's short side. */
 const DETAIL_SHARE = 0.16
+/** The paywall's stand-in photo when none is loaded yet (ProSheet). */
+export const PRO_SAMPLE_ID = 'pro-sample'
+/** Long edge of that photo's original, which public/pro/quality-detail.jpg
+ *  is a DETAIL_SHARE crop of at full resolution. */
+const SAMPLE_ORIGINAL_LONG_EDGE = 8381
 /** The long edge the "Web" export quality caps a photo to (exportQuality.ts). */
 const WEB_LONG_EDGE = 1080
 /** Border colours the colour example cycles through: the palette, then a few
@@ -204,6 +209,27 @@ async function drawSplit(
     ctx.textAlign = 'center'
     ctx.textBaseline = 'middle'
     ctx.fillText(caption.text, width / 2, height - band / 2, width - border * 2)
+    return true
+  }
+
+  if (feature === 'quality' && photo.id === PRO_SAMPLE_ID) {
+    // No photo of the person's yet: the tour's resort photo is only 640px,
+    // which has no detail to show. A crop of its full-resolution original
+    // (public/pro, cut from assets/originals) stands in, against the same
+    // crop as a Web export of the whole photo would have it.
+    const crop = await createImageBitmap(await (await fetch(`${import.meta.env.BASE_URL}pro/quality-detail.jpg`)).blob())
+    try {
+      if (isCancelled()) return false
+      const webScale = Math.min(1, WEB_LONG_EDGE / SAMPLE_ORIGINAL_LONG_EDGE)
+      const small = document.createElement('canvas')
+      prepare(small, Math.max(1, Math.round(crop.width * webScale)), Math.max(1, Math.round(crop.height * webScale))).drawImage(crop, 0, 0, small.width, small.height)
+      prepare(beforeCanvas, width, height).drawImage(small, 0, 0, width, height)
+      prepare(afterCanvas, width, height).drawImage(crop, 0, 0, width, height)
+      small.width = 0
+      small.height = 0
+    } finally {
+      crop.close()
+    }
     return true
   }
 

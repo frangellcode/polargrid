@@ -5,7 +5,7 @@ import { PRO_FEATURES, useProStore } from '../store/proStore'
 import type { ProFeature } from '../store/proStore'
 import { useEditorStore } from '../store/editorStore'
 import type { LoadedPhoto } from '../types'
-import { ProPreview } from './ProPreview'
+import { PRO_SAMPLE_ID, ProPreview } from './ProPreview'
 import { useTranslation } from '../store/languageStore'
 import { afterFirstPaint } from '../lib/afterFirstPaint'
 
@@ -58,7 +58,7 @@ export function ProSheet() {
           return
         }
         const file = new File([blob], 'resort.jpg', { type: 'image/jpeg' })
-        setSample({ id: 'pro-sample', file, previewBitmap: bitmap, width: bitmap.width, height: bitmap.height, name: file.name })
+        setSample({ id: PRO_SAMPLE_ID, file, previewBitmap: bitmap, width: bitmap.width, height: bitmap.height, name: file.name })
       })
       .catch(() => {})
     return () => {
