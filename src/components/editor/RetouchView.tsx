@@ -4,6 +4,7 @@ import type { LoadedPhoto } from '../../types'
 import { useTranslation } from '../../store/languageStore'
 import { useEditorStore } from '../../store/editorStore'
 import { readPhoto } from '../../lib/photoSource'
+import { isNativeApp } from '../../lib/native'
 import { decodePatches, healStroke, previewWith } from '../../lib/retouch'
 import type { LivePatch, Stroke } from '../../lib/retouch'
 
@@ -19,6 +20,7 @@ interface RetouchViewProps {
 }
 
 type Point = { x: number; y: number }
+type View = { scale: number; x: number; y: number }
 
 /**
  * The healing brush, full screen: paint over what should go and it's rebuilt
@@ -42,10 +44,37 @@ export function RetouchView({ photo, onClose }: RetouchViewProps) {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState(false)
   const [brush, setBrush] = useState(36)
+  /** While the size is being changed, a brush-sized circle sits on the photo. */
+  const [sizing, setSizing] = useState(false)
+  const sizingTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
+  useEffect(() => () => clearTimeout(sizingTimer.current), [])
+  const changeBrush = (value: number) => {
+    setBrush(value)
+    setSizing(true)
+    clearTimeout(sizingTimer.current)
+    sizingTimer.current = setTimeout(() => setSizing(false), 700)
+  }
   const [fit, setFit] = useState({ width: 0, height: 0 })
-  const [view, setView] = useState({ scale: 1, x: 0, y: 0 })
+  const [view, setView] = useState<View>({ scale: 1, x: 0, y: 0 })
   const viewRef = useRef(view)
   viewRef.current = view
+  const fitRef = useRef(fit)
+  fitRef.current = fit
+
+  /** Keeps the photo from being pushed out of sight. */
+  const clampView = ({ scale, x, y }: View): View => {
+    const limX = (fitRef.current.width * scale) / 2
+    const limY = (fitRef.current.height * scale) / 2
+    return { scale, x: Math.max(-limX, Math.min(limX, x)), y: Math.max(-limY, Math.min(limY, y)) }
+  }
+
+  /** `from` zoomed to `scale`, with the spot that was under `anchor` now under `now`. */
+  const zoomView = (from: View, scale: number, anchor: Point, now: Point, center: Point): View => {
+    const s = Math.min(MAX_ZOOM, Math.max(1, scale))
+    const px = (anchor.x - center.x - from.x) / from.scale
+    const py = (anchor.y - center.y - from.y) / from.scale
+    return clampView({ scale: s, x: now.x - center.x - s * px, y: now.y - center.y - s * py })
+  }
 
   // The photo at full size (to heal from) and a screen-sized copy (to show).
   useEffect(() => {
@@ -126,7 +155,7 @@ export function RetouchView({ photo, onClose }: RetouchViewProps) {
   // --- Painting and pinching ---------------------------------------------
   const pointers = useRef(new Map<number, Point>())
   const stroke = useRef<Stroke | null>(null)
-  const pinch = useRef<{ dist: number; mid: Point; view: typeof view; center: Point } | null>(null)
+  const pinch = useRef<{ dist: number; mid: Point; view: View; center: Point } | null>(null)
   /** After a pinch, the finger left on the glass doesn't start painting. */
   const holdOff = useRef(false)
 
@@ -196,18 +225,9 @@ export function RetouchView({ photo, onClose }: RetouchViewProps) {
     const p = pinch.current
     if (p && pointers.current.size >= 2) {
       const [a, b] = [...pointers.current.values()]
-      const scale = Math.min(MAX_ZOOM, Math.max(1, (p.view.scale * Math.hypot(a.x - b.x, a.y - b.y)) / Math.max(1, p.dist)))
-      const mid = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 }
+      const ratio = Math.hypot(a.x - b.x, a.y - b.y) / Math.max(1, p.dist)
       // Keep the spot that was under the fingers under them.
-      const px = (p.mid.x - p.center.x - p.view.x) / p.view.scale
-      const py = (p.mid.y - p.center.y - p.view.y) / p.view.scale
-      const limX = (fit.width * scale) / 2
-      const limY = (fit.height * scale) / 2
-      setView({
-        scale,
-        x: Math.max(-limX, Math.min(limX, mid.x - p.center.x - scale * px)),
-        y: Math.max(-limY, Math.min(limY, mid.y - p.center.y - scale * py)),
-      })
+      setView(zoomView(p.view, p.view.scale * ratio, p.mid, { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 }, p.center))
       return
     }
     const s = stroke.current
@@ -218,6 +238,78 @@ export function RetouchView({ photo, onClose }: RetouchViewProps) {
     s.points.push(pt)
     drawStroke()
   }
+
+  // Trackpads — an iPad's keyboard, a Mac: pinch to zoom, two-finger scroll
+  // to pan. Fingers on the glass keep to the pointer handlers above.
+  useEffect(() => {
+    const viewport = viewportRef.current
+    if (!viewport) return
+    let pad: { view: View; anchor: Point; center: Point } | null = null
+    const begin = (x: number, y: number) => {
+      const rect = viewport.getBoundingClientRect()
+      if (pointers.current.size > 0 || x < rect.left || x > rect.right || y < rect.top || y > rect.bottom) return
+      pad = { view: viewRef.current, anchor: { x, y }, center: { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 } }
+    }
+    const change = (scale: number, x: number, y: number) => {
+      if (pad) setView(zoomView(pad.view, pad.view.scale * scale, pad.anchor, { x, y }, pad.center))
+    }
+    const end = () => {
+      pad = null
+    }
+
+    const onWheel = (e: WheelEvent) => {
+      e.preventDefault()
+      if (pad || pointers.current.size > 0) return
+      const rect = viewport.getBoundingClientRect()
+      const center = { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 }
+      const v = viewRef.current
+      if (e.ctrlKey) {
+        // A pinch, as Chrome and Firefox report it (or ctrl + mouse wheel).
+        const at = { x: e.clientX, y: e.clientY }
+        setView(zoomView(v, v.scale * Math.exp(-e.deltaY * 0.01), at, at, center))
+      } else {
+        setView(clampView({ ...v, x: v.x - e.deltaX, y: v.y - e.deltaY }))
+      }
+    }
+    viewport.addEventListener('wheel', onWheel, { passive: false })
+
+    if (isNativeApp) {
+      // UIKit keeps trackpad pinches from the page; MainViewController.swift
+      // passes them on as this event.
+      const onTrackpad = (e: Event) => {
+        const { phase, scale, x, y } = (e as CustomEvent<{ phase: string; scale: number; x: number; y: number }>).detail
+        if (phase === 'start') begin(x, y)
+        else if (phase === 'change') change(scale, x, y)
+        else end()
+      }
+      window.addEventListener('trackpadpinch', onTrackpad)
+      return () => {
+        viewport.removeEventListener('wheel', onWheel)
+        window.removeEventListener('trackpadpinch', onTrackpad)
+      }
+    }
+
+    // Safari on a Mac: WebKit's gesture events. A finger pinch fires them
+    // too, but begin() leaves those alone while fingers are down.
+    type GestureLike = Event & { scale: number; clientX: number; clientY: number }
+    const onStart = (e: Event) => {
+      e.preventDefault()
+      begin((e as GestureLike).clientX, (e as GestureLike).clientY)
+    }
+    const onChange = (e: Event) => {
+      e.preventDefault()
+      change((e as GestureLike).scale, (e as GestureLike).clientX, (e as GestureLike).clientY)
+    }
+    viewport.addEventListener('gesturestart', onStart)
+    viewport.addEventListener('gesturechange', onChange)
+    viewport.addEventListener('gestureend', end)
+    return () => {
+      viewport.removeEventListener('wheel', onWheel)
+      viewport.removeEventListener('gesturestart', onStart)
+      viewport.removeEventListener('gesturechange', onChange)
+      viewport.removeEventListener('gestureend', end)
+    }
+  }, [])
 
   const onPointerUp = (e: ReactPointerEvent<HTMLDivElement>) => {
     pointers.current.delete(e.pointerId)
@@ -325,6 +417,11 @@ export function RetouchView({ photo, onClose }: RetouchViewProps) {
           <canvas ref={canvasRef} className={`absolute inset-0 h-full w-full transition-opacity duration-300 ${ready ? 'opacity-100' : 'opacity-0'}`} />
           <canvas ref={strokeRef} className={`pointer-events-none absolute inset-0 h-full w-full ${busy ? 'animate-pulse' : ''}`} />
         </div>
+        <span
+          aria-hidden
+          className={`pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white bg-[rgba(255,70,110,0.35)] shadow-[0_0_0_1px_rgba(0,0,0,0.4)] transition-opacity duration-300 ${sizing ? 'opacity-100' : 'opacity-0'}`}
+          style={{ width: brush, height: brush }}
+        />
         {(!ready || busy || error) && (
           <p className="fade-in font-label pointer-events-none absolute left-1/2 top-3 -translate-x-1/2 whitespace-nowrap rounded-full bg-black/70 px-3 py-1.5 text-[11px] font-semibold text-white">
             {error ? tr.retouch.failed : !ready ? tr.retouch.loading : tr.retouch.working}
@@ -350,7 +447,7 @@ export function RetouchView({ photo, onClose }: RetouchViewProps) {
             max={BRUSH_MAX}
             value={brush}
             aria-label={tr.retouch.brush}
-            onChange={(e) => setBrush(Number(e.target.value))}
+            onChange={(e) => changeBrush(Number(e.target.value))}
             className="h-1.5 min-w-0 flex-1 cursor-pointer appearance-none rounded-full bg-white/15 accent-white"
           />
           <span aria-hidden className="flex h-10 w-10 shrink-0 items-center justify-center">
