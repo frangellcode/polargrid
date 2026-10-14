@@ -46,30 +46,30 @@ DEVICES = {
 # (name, source, title, subtitle). source: a scene captured in screenshots
 # mode, 'story_result' (drawn here), or ('keep', old file name).
 SHOTS = [
-    ('1_edit', 'editPlain', ['Edit, with or', 'without borders.'], 'Light and colour free; curves with Pro'),
-    ('2_border', 'caption', ['Clean borders.', 'Your words.'], 'Write under the photo, with Pro'),
-    ('3_layouts', ('keep', '8_layouts'), ['A layout for', 'every set.'], 'Grids and creative templates'),
-    ('4_carousel', 'carousel', ['Carousels that', 'flow.'], 'One photo per post, cut to line up — free'),
-    ('5_retouch', 'retouch', ['Erase what', "doesn't belong."], 'Paint over it and it’s gone, with Pro'),
-    ('6_retro', ('keep', '5_retro'), ['Film looks,', 'your way.'], 'Eleven Retro styles, with Pro'),
-    ('7_story', 'story', ['Ready for', 'Stories.'], 'On a colour or on your own photo, with Pro'),
-    ('8_batch', ('keep', '3_batch'), ['Edit once.', 'Export fifteen.'], 'Up to 15 photos at once with Pro'),
-    ('9_quality', 'quality', ['Full', 'resolution.'], 'Your camera’s native resolution, with Pro'),
-    ('10_home', 'home', ['Borders, collages', '& carousels.'], 'No account. No uploads. No watermark.'),
+    ('1_home', 'home', ['Borders, collages', '& carousels.'], 'No account. No uploads. No watermark.'),
+    ('2_edit', 'editPlain', ['Edit, with or', 'without borders.'], 'Light and colour free; curves with Pro'),
+    ('3_border', 'caption', ['Clean borders.', 'Your words.'], 'Write under the photo, with Pro'),
+    ('4_layouts', ('keep', '8_layouts'), ['A layout for', 'every set.'], 'Grids and creative templates'),
+    ('5_carousel', 'carousel', ['Carousels that', 'flow.'], 'One photo per post, cut to line up — free'),
+    ('6_retouch', 'retouch', ['Erase what', "doesn't belong."], 'Paint over it and it’s gone, with Pro'),
+    ('7_retro', ('keep', '5_retro'), ['Film looks,', 'your way.'], 'Eleven Retro styles, with Pro'),
+    ('8_story', 'story', ['Ready for', 'Stories.'], 'On a colour or on your own photo, with Pro'),
+    ('9_batch', ('keep', '3_batch'), ['Edit once.', 'Export fifteen.'], 'Up to 15 photos at once with Pro'),
+    ('10_quality', 'quality', ['Full', 'resolution.'], 'Your camera’s native resolution, with Pro'),
 ]
 
 # The Spanish set: the same scenes, captured with the app in Spanish.
 SHOTS_ES = [
-    ('1_edit', 'editPlain', ['Edita, con o', 'sin bordes.'], 'Luz y color gratis; curvas con Pro'),
-    ('2_border', 'caption', ['Bordes limpios.', 'Con tu texto.'], 'Escribe debajo de la foto, con Pro'),
-    ('3_layouts', ('keep', '8_layouts'), ['Un diseño para', 'cada ocasión.'], 'Cuadrículas y plantillas creativas'),
-    ('4_carousel', 'carousel', ['Carruseles que', 'fluyen.'], 'Una foto por post, cortadas para encajar — gratis'),
-    ('5_retouch', 'retouch', ['Borra lo que', 'sobra.'], 'Pinta encima y desaparece, con Pro'),
-    ('6_retro', ('keep', '5_retro'), ['Look de película,', 'a tu manera.'], 'Once estilos Retro, con Pro'),
-    ('7_story', 'story', ['Listo para', 'Historias.'], 'Sobre un color o sobre tu foto, con Pro'),
-    ('8_batch', ('keep', '3_batch'), ['Edita una vez.', 'Exporta quince.'], 'Hasta 15 fotos a la vez con Pro'),
-    ('9_quality', 'quality', ['Calidad', 'máxima.'], 'A la resolución nativa de tu cámara, con Pro'),
-    ('10_home', 'home', ['Bordes, collages', 'y carruseles.'], 'Sin cuenta. Sin subir nada. Sin marca de agua.'),
+    ('1_home', 'home', ['Bordes, collages', 'y carruseles.'], 'Sin cuenta. Sin subir nada. Sin marca de agua.'),
+    ('2_edit', 'editPlain', ['Edita, con o', 'sin bordes.'], 'Luz y color gratis; curvas con Pro'),
+    ('3_border', 'caption', ['Bordes limpios.', 'Con tu texto.'], 'Escribe debajo de la foto, con Pro'),
+    ('4_layouts', ('keep', '8_layouts'), ['Un diseño para', 'cada ocasión.'], 'Cuadrículas y plantillas creativas'),
+    ('5_carousel', 'carousel', ['Carruseles que', 'fluyen.'], 'Una foto por post, cortadas para encajar — gratis'),
+    ('6_retouch', 'retouch', ['Borra lo que', 'sobra.'], 'Pinta encima y desaparece, con Pro'),
+    ('7_retro', ('keep', '5_retro'), ['Look de película,', 'a tu manera.'], 'Once estilos Retro, con Pro'),
+    ('8_story', 'story', ['Listo para', 'Historias.'], 'Sobre un color o sobre tu foto, con Pro'),
+    ('9_batch', ('keep', '3_batch'), ['Edita una vez.', 'Exporta quince.'], 'Hasta 15 fotos a la vez con Pro'),
+    ('10_quality', 'quality', ['Calidad', 'máxima.'], 'A la resolución nativa de tu cámara, con Pro'),
 ]
 # The commit holding the first 1.2 set, which 'keep' shots come from.
 KEPT_FROM = '1b52b52'
