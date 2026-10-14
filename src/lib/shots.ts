@@ -16,7 +16,7 @@ import type { Language } from './translations'
 const LANG: Language = import.meta.env.VITE_SHOTS_LANG === 'es' ? 'es' : 'en'
 const tr = translations[LANG]
 
-const SCENES = ['home', 'border', 'batch', 'edit', 'retro', 'story', 'layouts', 'carousel', 'carouselFree', 'paywall', 'tour', 'editPlain', 'retouch', 'caption', 'quality'] as const
+const SCENES = ['home', 'border', 'batch', 'edit', 'retro', 'story', 'layouts', 'carousel', 'carouselFree', 'paywall', 'tour', 'editPlain', 'retouch', 'caption', 'quality', 'audit'] as const
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
 
@@ -76,8 +76,80 @@ async function tool(text: string) {
   await sleep(700)
 }
 
+/** A bottom-bar tool by its label (its button may carry a badge too). */
+function barTool(label: string): HTMLButtonElement | undefined {
+  return [...document.querySelectorAll('button')].filter((b) => b.textContent?.trim().endsWith(label)).at(-1) as HTMLButtonElement | undefined
+}
+
+/** Layout check: walks one part of the app (VITE_SHOTS_FEATURE), holding
+ *  each screen AUDIT_STEP_MS for a screenshot taken from outside. */
+const AUDIT_STEP_MS = 6000
+async function audit(part: string) {
+  const editor = useEditorStore.getState
+  const hold = () => sleep(AUDIT_STEP_MS)
+  const tap = async (label: string) => {
+    barTool(label)?.click()
+    await hold()
+  }
+  const open = async (title: string, photos: string[], multiple: boolean) => {
+    ;(await waitFor(() => homeButton(title))).click()
+    await sleep(900)
+    await upload(photos, multiple)
+  }
+  if (part === 'tour') {
+    ;(await waitFor(() => byLabel(tr.tour.help))).click()
+    await sleep(900)
+    const track = await waitFor(() => document.querySelector<HTMLElement>('[role=dialog] .snap-x'))
+    for (let i = 0; i < tr.tour.slides.length; i++) {
+      track.scrollTo({ left: i * track.clientWidth })
+      await hold()
+    }
+    return
+  }
+  if (part === 'border') {
+    await open(tr.home.borderTitle, ['resort'], false)
+    editor().setBorderCaption({ text: tr.caption.sample })
+    for (const t of [tr.borderEditor.toolAspect, tr.borderEditor.toolRotate, tr.tools.workspace, tr.borderEditor.toolBorder, tr.caption.tool, tr.tools.edit, tr.tools.retro]) await tap(t)
+    await tap(tr.toolbar.export)
+    return
+  }
+  if (part === 'edit') {
+    await open(tr.home.editTitle, ['hotel'], false)
+    await hold()
+    for (const k of ['colorMix', 'curves', 'vignette', 'grain'] as const) {
+      byLabel(tr.edit[k])?.click()
+      await hold()
+    }
+    for (const t of [tr.borderEditor.toolAspect, tr.borderEditor.toolRotate, tr.tools.workspace, tr.tools.retro]) await tap(t)
+    byLabel(tr.tools.retouch)?.click()
+    await hold()
+    return
+  }
+  if (part === 'carousel' || part === 'collage') {
+    const carousel = part === 'carousel'
+    await open(carousel ? tr.home.carouselTitle : tr.home.collageTitle, ['pano', 'boat', 'sandbar', 'bay'], true)
+    const first = carousel ? tr.carousel.toolPosts : tr.collageEditor.toolAspect
+    for (const t of [first, tr.collageEditor.toolTemplate, tr.tools.workspace, tr.collageEditor.toolBorder, tr.tools.edit, tr.tools.retro]) await tap(t)
+    button(tr.collageEditor.modeFree)?.click()
+    await hold()
+    for (const t of [first, ...(carousel ? [tr.carousel.toolFrame] : []), tr.tools.workspace, tr.collageEditor.toolBackground, tr.tools.edit]) await tap(t)
+    return
+  }
+  if (part === 'free') {
+    useProStore.setState({ isPro: false })
+    await open(tr.home.borderTitle, ['resort'], false)
+    for (const t of [tr.tools.workspace, tr.borderEditor.toolBorder, tr.tools.edit]) await tap(t)
+    await tap(tr.toolbar.export)
+    useProStore.getState().openPaywall('quality')
+    await hold()
+    document.querySelector('[role=dialog] .overflow-y-auto, [role=dialog]')?.scrollTo({ top: 99999 })
+    await hold()
+  }
+}
+
 async function run(scene: (typeof SCENES)[number]) {
   const editor = useEditorStore.getState
+  if (scene === 'audit') return audit(import.meta.env.VITE_SHOTS_FEATURE ?? 'border')
   if (scene === 'home') return
 
   if (scene === 'paywall') {

@@ -128,9 +128,11 @@ export function CurvesPanel({ value, onChange }: CurvesPanelProps) {
           {tr.edit.reset}
         </button>
       </div>
+      {/* Capped by height too: at 220px on a short phone (iPhone SE) the
+          curve left the photo above it a sliver. */}
       <div
         ref={boxRef}
-        className="relative mx-auto aspect-square w-full max-w-[220px] touch-none select-none rounded-lg bg-white/5"
+        className="relative mx-auto aspect-square w-full max-w-[min(220px,24vh)] touch-none select-none rounded-lg bg-white/5"
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}

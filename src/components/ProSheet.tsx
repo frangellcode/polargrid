@@ -192,8 +192,10 @@ export function ProSheet() {
           {done && <p className="fade-in font-label text-sm leading-snug text-white/80">{tr.pro.unlocked}</p>}
 
           {/* A touch closer than the card's other gaps: still apart from the
-              list of what's included, but clearly the end of the same card. */}
-          <div className="-mt-1 flex w-full flex-col gap-2">
+              list of what's included, but clearly the end of the same card.
+              Sticky: on a short phone (iPhone SE) the card scrolls, and the
+              buttons stay in view at its foot instead of below the list. */}
+          <div className="sticky -bottom-5 -mx-5 -mb-5 -mt-1 flex w-[calc(100%+2.5rem)] flex-col gap-2 bg-ink-900 px-5 pb-5 pt-2 shadow-[0_-14px_14px_-2px_#141e30]">
             {done ? (
               <button
                 type="button"

@@ -83,6 +83,11 @@ export function EditorBottomBar({ tools, activeId, onSelect, children }: EditorB
   // snapping.
   const panelHeight = Math.min(height, maxHeight)
   const scrolls = height > maxHeight
+  // A panel that scrolls fades out at the bottom until it's scrolled to the
+  // end, so a row cut by the edge (iPhone SE) reads as "more below".
+  const [atEnd, setAtEnd] = useState(false)
+  useEffect(() => setAtEnd(false), [activeId])
+  const fade = scrolls && !atEnd ? 'linear-gradient(to bottom, #000 calc(100% - 36px), transparent)' : undefined
 
   return (
     <div className="border-t border-white/10 bg-ink-900">
@@ -92,6 +97,11 @@ export function EditorBottomBar({ tools, activeId, onSelect, children }: EditorB
           // overscroll-contain so a flick that reaches the end of a scrolling
           // panel doesn't start dragging the page (or the canvas) behind it.
           className={`space-y-4 px-4 pb-3 pt-4 ${scrolls ? 'h-full overflow-y-auto overscroll-contain' : ''}`}
+          style={{ maskImage: fade, WebkitMaskImage: fade }}
+          onScroll={(e) => {
+            const el = e.currentTarget
+            setAtEnd(el.scrollTop + el.clientHeight >= el.scrollHeight - 4)
+          }}
         >
           {children}
         </div>
