@@ -20,8 +20,10 @@ export function WorkspaceBackgroundPicker({ value, onChange, photoThumb }: Works
       <p className="font-label mb-2 text-center text-xs font-semibold uppercase tracking-wider text-white/40">{tr.pickers.workspaceBackground}</p>
       {/* One row, always: the swatches size themselves to the width, so all of
           them fit from the smallest phone up instead of one wrapping onto a
-          row of its own (which also cost the photo above that much height). */}
-      <div className="mx-auto grid max-w-[340px] gap-2" style={{ gridTemplateColumns: `repeat(${options.length}, minmax(0, 1fr))` }}>
+          row of its own (which also cost the photo above that much height).
+          The padding is room for the picked swatch's ring, which sits outside
+          the button and was cut off under Edit's panel (it clips at its edge). */}
+      <div className="mx-auto grid max-w-[340px] gap-2 p-[3px]" style={{ gridTemplateColumns: `repeat(${options.length}, minmax(0, 1fr))` }}>
         {options.map((bg) => {
           const active = value === bg.id || (fromPhotoPicked && bg.id === 'checkered')
           const label = tr.workspaceBackgrounds[bg.id as keyof typeof tr.workspaceBackgrounds] ?? bg.label
